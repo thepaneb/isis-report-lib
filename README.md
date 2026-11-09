@@ -71,8 +71,18 @@ isis-report render examples/sales_order.toon -o report.html
 PDF options (forwarded to Playwright's `page.pdf`):
 
 ```python
-generate_pdf(payload, pdf_options={"format": "A4", "margin": {"top": ".2in", "bottom": ".5in"}})
+generate_pdf(
+    payload,
+    pdf_options={
+        "format": "A4",
+        "margin": {"top": ".2in", "bottom": ".5in"},
+        "header_template": "<div>My header</div>",
+        "footer_template": "<div>Page <span class='pageNumber'></span></div>",
+    },
+)
 ```
+
+Via CLI: `--page-format`, `--header-template FILE`, `--footer-template FILE`. The report footer shows `meta.printed_at`, auto-filled with the current timestamp when absent.
 
 Full example in `examples/`. Note: the sync API opens/closes the browser per call (no leaked processes); the async API reuses the shared pool.
 
@@ -98,7 +108,7 @@ The directory is layered over the bundled one, so you can also override `tabular
 | `layout` | object | no | hierarchical field definition; omit to infer from data |
 | `data` | array | yes | raw records or template format (`{"fields": ..., "groups": ...}`) |
 
-Masks: `str` · `int` (thousands `1.234`) · `float` (pt-BR `1.234,50`) · `date`.
+Masks: `str` · `int` (thousands `1.234`) · `float` (pt-BR `1.234,50`) · `date` · `percent` (fraction → `9,10 %`) · `currency` (`R$ 1.234,50`) · `bool` (`Yes`/`No`).
 
 ## `.toon` syntax
 

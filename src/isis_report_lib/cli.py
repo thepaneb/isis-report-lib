@@ -4,6 +4,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 from isis_report_lib.api import generate_pdf, generate_pdf_from_toon, render_html, render_html_from_toon
 
@@ -27,6 +28,8 @@ def build_parser() -> argparse.ArgumentParser:
     gen.add_argument("--page-format", default="A4", help="PDF page format (default: A4).")
     gen.add_argument("--template-dir", type=Path, default=None, help="Directory with custom .jinja templates.")
     gen.add_argument("--template-name", default="tabular.jinja", help="Template file to render (default: tabular.jinja).")
+    gen.add_argument("--header-template", type=Path, default=None, help="HTML file for the PDF header.")
+    gen.add_argument("--footer-template", type=Path, default=None, help="HTML file for the PDF footer.")
     gen.set_defaults(func=_cmd_generate)
 
     ren = sub.add_parser("render", help="Render the intermediate HTML (no browser needed).")
@@ -55,6 +58,17 @@ def _detect_format(path: Path, explicit: str) -> str:
     raise ValueError(f"Cannot guess input format from extension {path.suffix!r}; use --input-format.")
 
 
+def _read_text_file(path: Path | None, label: str) -> str | None:
+    if path is None:
+        return None
+    try:
+        return path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        raise FileNotFoundError(f"{label} file not found: {path}") from None
+    except OSError as e:
+        raise ValueError(f"Cannot read {label} file {path}: {e}") from None
+
+
 def _load_payload(path: Path, fmt: str) -> tuple[dict | str, bool]:
     """Return (payload, is_json). Raises FileNotFoundError / ValueError with friendly messages."""
     try:
@@ -73,7 +87,13 @@ def _cmd_generate(args: argparse.Namespace) -> int:
     try:
         fmt = _detect_format(args.input, args.input_format)
         payload, is_json = _load_payload(args.input, fmt)
-        pdf_options = {"format": args.page_format}
+        pdf_options: dict[str, Any] = {"format": args.page_format}
+        header = _read_text_file(args.header_template, "Header template")
+        if header is not None:
+            pdf_options["header_template"] = header
+        footer = _read_text_file(args.footer_template, "Footer template")
+        if footer is not None:
+            pdf_options["footer_template"] = footer
         pdf = (
             generate_pdf(payload, pdf_options, args.template_dir, args.template_name)
             if is_json

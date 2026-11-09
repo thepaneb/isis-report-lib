@@ -2,10 +2,19 @@
 
 import logging
 from abc import ABC, abstractmethod
+from datetime import datetime
 from pathlib import Path
 from typing import Any, final
 
 logger = logging.getLogger("isis_report_lib")
+
+
+def with_meta_defaults(meta: dict[str, Any]) -> dict[str, Any]:
+    """Fill display metadata the payload did not provide (e.g. print timestamp)."""
+    meta = dict(meta)
+    if not meta.get("printed_at"):
+        meta["printed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+    return meta
 
 
 class BaseReportService(ABC):
@@ -65,7 +74,7 @@ class TabularReportService(BaseReportService):
     async def _process_data(self, data: Any, payload: dict[str, Any]) -> dict[str, Any]:
         from isis_report_lib.layout import convert_data, convert_layout, infer_layout, is_template_format
 
-        meta = payload.get("meta", {})
+        meta = with_meta_defaults(payload.get("meta", {}))
         layout_raw = payload.get("layout")
 
         if layout_raw:

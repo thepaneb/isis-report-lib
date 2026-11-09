@@ -136,6 +136,33 @@ def test_render_with_template_flags(tmp_path, capsys):
     assert "CUSTOM:Order" in out
 
 
+def test_generate_header_footer_flags_mocked(tmp_path, monkeypatch, capsys):
+    from isis_report_lib import cli
+
+    header = _write(tmp_path, "header.html", "<div>HEADER</div>")
+    footer = _write(tmp_path, "footer.html", "<div>FOOTER</div>")
+    src = _write(tmp_path, "in.toon", TOON)
+    seen = {}
+
+    def fake_generate(text, opts, *args):
+        seen["opts"] = opts
+        return b"%PDF-mock"
+
+    monkeypatch.setattr(cli, "generate_pdf_from_toon", fake_generate)
+    assert main(["generate", str(src), "--header-template", str(header), "--footer-template", str(footer)]) == 0
+    assert seen["opts"]["header_template"] == "<div>HEADER</div>"
+    assert seen["opts"]["footer_template"] == "<div>FOOTER</div>"
+    assert seen["opts"]["format"] == "A4"
+    capsys.readouterr()
+
+
+def test_generate_missing_header_file_fails(tmp_path, capsys):
+    src = _write(tmp_path, "in.toon", TOON)
+    assert main(["generate", str(src), "--header-template", str(tmp_path / "nope.html")]) == 2
+    _, err = capsys.readouterr()
+    assert "Header template file not found" in err
+
+
 @pytest.mark.browser
 def test_generate_e2e_real_pdf(tmp_path):
     from isis_report_lib.pdf import close_browser

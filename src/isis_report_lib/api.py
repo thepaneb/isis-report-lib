@@ -95,7 +95,9 @@ async def arender_html(
     data = _normalize_payload(payload)
     raw = data.get("data", [])
     layout_raw = data.get("layout")
-    meta = data.get("meta", {})
+    from isis_report_lib.service import with_meta_defaults
+
+    meta = with_meta_defaults(data.get("meta", {}))
     if layout_raw:
         layout = convert_layout(layout_raw)
         dataset = convert_data(raw, layout_raw)

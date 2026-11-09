@@ -1,5 +1,6 @@
 """HTML rendering tests (no browser needed) and pipeline tests with mocks."""
 
+import re
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -99,6 +100,32 @@ async def test_execute_success_with_mocks():
         mock_pdf.return_value = b"%PDF-1.4"
         result = await service.execute(PAYLOAD)
         assert result == b"%PDF-1.4"
+
+
+async def test_execute_fills_printed_at_by_default():
+    service = TabularReportService()
+    with (
+        patch("isis_report_lib.rendering.arender_report_html", new_callable=AsyncMock) as mock_render,
+        patch("isis_report_lib.pdf.get_pdf_from_html", new_callable=AsyncMock) as mock_pdf,
+    ):
+        mock_render.return_value = "<html>OK</html>"
+        mock_pdf.return_value = b"%PDF-1.4"
+        await service.execute({"meta": {"title": "T"}, "data": []})
+        meta = mock_render.call_args.kwargs["meta"]
+        assert meta["title"] == "T"
+        assert re.fullmatch(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}", meta["printed_at"])
+
+
+async def test_execute_keeps_explicit_printed_at():
+    service = TabularReportService()
+    with (
+        patch("isis_report_lib.rendering.arender_report_html", new_callable=AsyncMock) as mock_render,
+        patch("isis_report_lib.pdf.get_pdf_from_html", new_callable=AsyncMock) as mock_pdf,
+    ):
+        mock_render.return_value = "<html>OK</html>"
+        mock_pdf.return_value = b"%PDF-1.4"
+        await service.execute({"meta": {"title": "T", "printed_at": "custom"}, "data": []})
+        assert mock_render.call_args.kwargs["meta"]["printed_at"] == "custom"
 
 
 async def test_execute_propagates_render_error():
