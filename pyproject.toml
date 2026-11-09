@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "pytest-asyncio>=0.23", "pytest-timeout>=2", "ruff>=0.4"]
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "pytest-cov>=6", "pytest-timeout>=2", "ruff>=0.4"]
 
 [project.scripts]
 isis-report = "isis_report_lib.cli:main"
@@ -37,12 +37,23 @@ build-backend = "hatchling.build"
 [tool.hatch.version]
 source = "vcs"
 
+[tool.coverage.run]
+source = ["isis_report_lib"]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    'if __name__ == "__main__":',
+]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 # Um único loop para todos os testes async: o pool do Playwright é preso ao loop,
 # então trocar de loop entre testes causa close cross-loop (trava no Linux).
 asyncio_default_test_loop_scope = "session"
-markers = ["browser: requer Chromium do Playwright instalado"]
+markers = ["browser: requires Chromium from Playwright to be installed"]
 # Diagnóstico de hangs no CI: despeja stacks aos 90s e falha o teste aos 300s.
 faulthandler_timeout = 90
 timeout = 300

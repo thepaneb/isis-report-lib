@@ -47,6 +47,13 @@ async def test_generate_pdf_sync_api_inside_running_loop():
         mock_pdf.assert_awaited_once()
 
 
+def test_render_report_html_sync_entrypoint():
+    from isis_report_lib.rendering import render_report_html
+
+    html = render_report_html(dataset={"groups": []}, layout={"groups": {"header": []}}, meta={"title": "T"})
+    assert "T" in html
+
+
 def test_render_html_infers_layout_without_layout_key():
     html = render_html({"meta": {"title": "T"}, "data": [{"name": "John", "age": 30}]})
     assert "John" in html

@@ -92,7 +92,25 @@ def test_generate_json_default_output_mocked(tmp_path, monkeypatch):
     assert seen["opts"] == {"format": "Letter"}
 
 
-def test_generate_propagates_failure_as_exit_1(tmp_path, monkeypatch, capsys):
+def test_generate_invalid_json_fails(tmp_path, capsys):
+    src = _write(tmp_path, "in.json", "{broken")
+    assert main(["generate", str(src)]) == 2
+    _, err = capsys.readouterr()
+    assert "Invalid JSON" in err
+
+
+def test_render_propagates_failure_as_exit_1(tmp_path, monkeypatch, capsys):
+    from isis_report_lib import cli
+
+    src = _write(tmp_path, "in.toon", TOON)
+
+    def boom(payload):
+        raise RuntimeError("jinja exploded")
+
+    monkeypatch.setattr(cli, "render_html_from_toon", boom)
+    assert main(["render", str(src)]) == 1
+    _, err = capsys.readouterr()
+    assert "jinja exploded" in err
     from isis_report_lib import cli
 
     src = _write(tmp_path, "in.toon", TOON)
