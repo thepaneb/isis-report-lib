@@ -1,5 +1,8 @@
 """isis_report_lib — gere PDFs tabulares a partir de dict ou texto `.toon`."""
 
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
+
 from isis_report_lib.api import (
     agenerate_pdf,
     agenerate_pdf_from_toon,
@@ -15,7 +18,10 @@ from isis_report_lib.models import MetaInfo, ReportPayload
 from isis_report_lib.service import BaseReportService, TabularReportService
 from isis_report_lib.toon import ToonParser, parse_toon
 
-__version__ = "0.1.0"
+try:
+    __version__ = _pkg_version("isis-report-lib")
+except PackageNotFoundError:
+    __version__ = "0.0.0+unknown"
 
 __all__ = [
     "MetaInfo",
