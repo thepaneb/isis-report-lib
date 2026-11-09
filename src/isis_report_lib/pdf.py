@@ -21,11 +21,12 @@ _lock = asyncio.Lock()
 
 
 def default_footer(printed_at: str | None = None) -> str:
-    """Build the PDF page footer: page count on the left, print timestamp on the right."""
+    """Build the PDF page footer: brand left, page count center, timestamp right."""
     date_html = f"<span>Printed on {printed_at}</span>" if printed_at else "<span></span>"
     return (
         '<div style="width:100%;font-size:10px;display:flex;'
         'justify-content:space-between;align-items:center;padding:0 .4in;">'
+        "<span>Powered by Isis Report</span>"
         "<span>Page <span class='pageNumber'></span> of <span class='totalPages'></span></span>"
         f"{date_html}</div>"
     )

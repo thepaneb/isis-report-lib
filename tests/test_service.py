@@ -143,9 +143,10 @@ def test_default_footer_layout():
     from isis_report_lib.pdf import default_footer
 
     html = default_footer("2024-01-01 10:00")
+    assert "Powered by Isis Report" in html
     assert "Printed on 2024-01-01 10:00" in html
     assert "pageNumber" in html
-    assert html.index("Page") < html.index("Printed on")
+    assert html.index("Powered by") < html.index("Page") < html.index("Printed on")
 
 
 def test_default_footer_without_date():
