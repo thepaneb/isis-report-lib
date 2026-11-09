@@ -117,6 +117,7 @@ data[1]:
 
 ```bash
 pytest -q
+pytest -q --cov=isis_report_lib   # coverage gate: 85% (enforced in the CI e2e job)
 ruff check src tests
 ```
 
