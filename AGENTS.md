@@ -25,6 +25,7 @@ src/isis_report_lib/
 ├── rendering.py   # arender_report_html / render_report_html
 ├── pdf.py         # Playwright pool (ensure_browser, get_pdf_from_html, close_browser)
 ├── service.py     # BaseReportService + TabularReportService
+├── cli.py         # isis-report generate/render (console script)
 └── templates/     # base/tabular*.jinja
 tests/             # test_formatting/layout/toon/service (mocks), test_pdf_e2e (browser)
 examples/          # generate_example.py + sales_order.toon

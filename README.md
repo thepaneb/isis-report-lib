@@ -57,6 +57,17 @@ pdf = await agenerate_pdf(payload)
 pdf = await agenerate_pdf_from_toon(toon_text)
 ```
 
+## CLI
+
+```bash
+# PDF from .toon or .json (format guessed from extension)
+isis-report generate examples/sales_order.toon -o report.pdf
+isis-report generate payload.json --page-format Letter
+
+# Intermediate HTML without a browser (prints to stdout unless -o is given)
+isis-report render examples/sales_order.toon -o report.html
+```
+
 PDF options (forwarded to Playwright's `page.pdf`):
 
 ```python
