@@ -15,15 +15,27 @@ def _normalize_payload(payload: dict[str, Any] | ReportPayload) -> dict[str, Any
 
 
 def _run(coro):
+    """Executa a coroutine e encerra o browser do loop efêmero (evita vazar Chromium).
+
+    A API async reutiliza o pool entre chamadas; a sync abre/fecha por chamada.
+    """
+    from isis_report_lib.pdf import close_owned_browser
+
+    async def _scoped():
+        try:
+            return await coro
+        finally:
+            await close_owned_browser()
+
     try:
         asyncio.get_running_loop()
     except RuntimeError:
-        return asyncio.run(coro)
+        return asyncio.run(_scoped())
     # Há um loop ativo (ex.: Jupyter): executa em thread separada p/ não travar.
     import concurrent.futures
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-        return pool.submit(asyncio.run, coro).result()
+        return pool.submit(lambda: asyncio.run(_scoped())).result()
 
 
 async def agenerate_pdf(

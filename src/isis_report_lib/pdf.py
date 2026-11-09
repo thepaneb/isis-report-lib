@@ -142,3 +142,19 @@ async def close_browser() -> None:
     global _playwright_ctx, _playwright, _browser, _owner_loop
     async with _lock:
         await _reset_unlocked()
+
+
+async def close_owned_browser() -> None:
+    """Fecha o browser somente se pertencer ao loop atual.
+
+    Uso interno da API síncrona: cada ``generate_pdf`` roda em um loop
+    efêmero (``asyncio.run``), então o browser deve ser encerrado ao final
+    da chamada para não vazar processos Chromium. Nunca toca em browser
+    de outro loop (a API async mantém o pool reutilizável).
+    """
+    try:
+        running = asyncio.get_running_loop()
+    except RuntimeError:
+        return
+    if _owner_loop is not None and _owner_loop is running:
+        await close_browser()
