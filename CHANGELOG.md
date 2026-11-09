@@ -11,6 +11,8 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 - TestPyPI auto-publish for pre-releases (`vX.Y.ZrcN`)
 - `percent`, `currency` (R$) and `bool` format masks
 - `meta.printed_at` auto-filled with the print timestamp; custom PDF header/footer via `pdf_options` and CLI flags
+### Changed
+- Print timestamp moved to the repeated page footer (right side, next to page count), out of the report body
 - Coverage: 85% gate enforced in CI (currently ~97%)
 
 ## [0.2.0] - 2026-11-09

@@ -19,10 +19,19 @@ _browser: Browser | None = None
 _owner_loop: asyncio.AbstractEventLoop | None = None
 _lock = asyncio.Lock()
 
-DEFAULT_FOOTER = (
-    '<div style="width:100%;text-align:center;font-size:10px;">'
-    "Page <span class='pageNumber'></span> of <span class='totalPages'></span></div>"
-)
+
+def default_footer(printed_at: str | None = None) -> str:
+    """Build the PDF page footer: page count on the left, print timestamp on the right."""
+    date_html = f"<span>Printed on {printed_at}</span>" if printed_at else "<span></span>"
+    return (
+        '<div style="width:100%;font-size:10px;display:flex;'
+        'justify-content:space-between;align-items:center;padding:0 .4in;">'
+        "<span>Page <span class='pageNumber'></span> of <span class='totalPages'></span></span>"
+        f"{date_html}</div>"
+    )
+
+
+DEFAULT_FOOTER = default_footer()
 DEFAULT_MARGIN = {"top": ".2in", "bottom": ".5in", "left": ".2in", "right": ".2in"}
 
 
