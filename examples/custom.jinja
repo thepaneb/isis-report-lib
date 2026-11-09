@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{{ meta.title }}</title>
+</head>
+<body>
+    <h1>{{ meta.title }}</h1>
+    {% for group in dataset.groups %}
+    <h2>{% for value in group.fields.values() %}{{ value }} {% endfor %}</h2>
+    {% endfor %}
+</body>
+</html>

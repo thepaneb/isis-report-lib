@@ -54,6 +54,36 @@ def test_render_report_html_sync_entrypoint():
     assert "T" in html
 
 
+def test_render_with_custom_template_dir(tmp_path):
+    tpl = tmp_path / "custom.jinja"
+    tpl.write_text("<html><body>CUSTOM:{{ meta.title }}</body></html>", encoding="utf-8")
+    html = render_html({"meta": {"title": "Hi"}, "data": []}, template_dir=tmp_path, template_name="custom.jinja")
+    assert "CUSTOM:Hi" in html
+
+
+def test_render_custom_dir_falls_back_to_bundled(tmp_path):
+    html = render_html(PAYLOAD, template_dir=tmp_path)
+    assert "ACME" in html
+
+
+def test_render_missing_template_dir_fails():
+    with pytest.raises(ValueError, match="Template directory not found"):
+        render_html(PAYLOAD, template_dir="/nonexistent-dir")
+
+
+async def test_generate_with_custom_template_uses_it(tmp_path):
+    from unittest.mock import AsyncMock, patch
+
+    tpl = tmp_path / "custom.jinja"
+    tpl.write_text("<html><body>CUSTOM</body></html>", encoding="utf-8")
+    service = TabularReportService(template_dir=tmp_path, template_name="custom.jinja")
+    with patch("isis_report_lib.pdf.get_pdf_from_html", new_callable=AsyncMock) as mock_pdf:
+        mock_pdf.return_value = b"%PDF-1.4"
+        assert await service.execute(PAYLOAD) == b"%PDF-1.4"
+        (html,) = mock_pdf.call_args.args
+        assert "CUSTOM" in html
+
+
 def test_render_html_infers_layout_without_layout_key():
     html = render_html({"meta": {"title": "T"}, "data": [{"name": "John", "age": 30}]})
     assert "John" in html

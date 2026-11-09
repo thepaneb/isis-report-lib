@@ -2,6 +2,7 @@
 
 import logging
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any, final
 
 logger = logging.getLogger("isis_report_lib")
@@ -45,10 +46,17 @@ class BaseReportService(ABC):
 class TabularReportService(BaseReportService):
     """Default tabular implementation of the pipeline."""
 
-    def __init__(self, pdf_options: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        pdf_options: dict[str, Any] | None = None,
+        template_dir: str | Path | None = None,
+        template_name: str = "tabular.jinja",
+    ) -> None:
         from isis_report_lib import pdf as _pdf
 
         self._pdf_options = pdf_options or {}
+        self._template_dir = template_dir
+        self._template_name = template_name
         self._pdf_module = _pdf
 
     async def _fetch_data(self, payload: dict[str, Any]) -> Any:
@@ -79,6 +87,8 @@ class TabularReportService(BaseReportService):
             dataset=data["dataset"],
             layout=data["layout"],
             meta=data["meta"],
+            template_name=self._template_name,
+            template_dir=self._template_dir,
         )
 
     async def _generate_pdf(self, html: str) -> bytes:

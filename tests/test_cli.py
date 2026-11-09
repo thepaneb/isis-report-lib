@@ -67,7 +67,7 @@ def test_generate_toon_mocked(tmp_path, monkeypatch, capsys):
 
     src = _write(tmp_path, "in.toon", TOON)
     dst = tmp_path / "out.pdf"
-    monkeypatch.setattr(cli, "generate_pdf_from_toon", lambda text, opts: b"%PDF-mock")
+    monkeypatch.setattr(cli, "generate_pdf_from_toon", lambda *a: b"%PDF-mock")
     assert main(["generate", str(src), "-o", str(dst)]) == 0
     assert dst.read_bytes() == b"%PDF-mock"
     out, _ = capsys.readouterr()
@@ -80,7 +80,7 @@ def test_generate_json_default_output_mocked(tmp_path, monkeypatch):
     src = _write(tmp_path, "in.json", json.dumps(PAYLOAD))
     seen = {}
 
-    def fake_generate(payload, opts):
+    def fake_generate(payload, opts, *args):
         seen["payload"] = payload
         seen["opts"] = opts
         return b"%PDF-mock"
@@ -104,24 +104,36 @@ def test_render_propagates_failure_as_exit_1(tmp_path, monkeypatch, capsys):
 
     src = _write(tmp_path, "in.toon", TOON)
 
-    def boom(payload):
+    def boom(*args):
         raise RuntimeError("jinja exploded")
 
     monkeypatch.setattr(cli, "render_html_from_toon", boom)
     assert main(["render", str(src)]) == 1
     _, err = capsys.readouterr()
     assert "jinja exploded" in err
+
+
+def test_generate_propagates_failure_as_exit_1(tmp_path, monkeypatch, capsys):
     from isis_report_lib import cli
 
     src = _write(tmp_path, "in.toon", TOON)
 
-    def boom(text, opts):
+    def boom(*args):
         raise RuntimeError("browser exploded")
 
     monkeypatch.setattr(cli, "generate_pdf_from_toon", boom)
     assert main(["generate", str(src)]) == 1
     _, err = capsys.readouterr()
     assert "browser exploded" in err
+
+
+def test_render_with_template_flags(tmp_path, capsys):
+    tpl = tmp_path / "custom.jinja"
+    tpl.write_text("<html><body>CUSTOM:{{ meta.title }}</body></html>", encoding="utf-8")
+    src = _write(tmp_path, "in.toon", TOON)
+    assert main(["render", str(src), "--template-dir", str(tmp_path), "--template-name", "custom.jinja"]) == 0
+    out, _ = capsys.readouterr()
+    assert "CUSTOM:Order" in out
 
 
 @pytest.mark.browser

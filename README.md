@@ -76,6 +76,20 @@ generate_pdf(payload, pdf_options={"format": "A4", "margin": {"top": ".2in", "bo
 
 Full example in `examples/`. Note: the sync API opens/closes the browser per call (no leaked processes); the async API reuses the shared pool.
 
+## Custom templates
+
+Point `template_dir` at your own `.jinja` directory and pick a file with `template_name`:
+
+```python
+generate_pdf(payload, template_dir="my_templates", template_name="invoice.jinja")
+```
+
+```bash
+isis-report generate order.toon --template-dir my_templates --template-name invoice.jinja
+```
+
+The directory is layered over the bundled one, so you can also override `tabular.jinja` or reuse `tabular_sections.jinja` macros. Templates receive `dataset`, `layout`, `meta`, plus the `fmt(value, mask)` formatter and `zip` — see `examples/custom.jinja`.
+
 ## Payload
 
 | Field | Type | Required | Description |

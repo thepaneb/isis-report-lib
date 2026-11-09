@@ -1,6 +1,7 @@
 """Public API of the library (sync + async)."""
 
 import asyncio
+from pathlib import Path
 from typing import Any
 
 from isis_report_lib.models import ReportPayload
@@ -41,37 +42,53 @@ def _run(coro):
 async def agenerate_pdf(
     payload: dict[str, Any] | ReportPayload,
     pdf_options: dict[str, Any] | None = None,
+    template_dir: str | Path | None = None,
+    template_name: str = "tabular.jinja",
 ) -> bytes:
-    """Generate a PDF (async) from a dict/ReportPayload payload."""
-    service = TabularReportService(pdf_options=pdf_options)
+    """Generate a PDF (async) from a dict/ReportPayload payload.
+
+    Custom layouts: point ``template_dir`` at a directory with your own
+    ``.jinja`` files and pick one via ``template_name``.
+    """
+    service = TabularReportService(pdf_options=pdf_options, template_dir=template_dir, template_name=template_name)
     return await service.execute(_normalize_payload(payload))
 
 
 def generate_pdf(
     payload: dict[str, Any] | ReportPayload,
     pdf_options: dict[str, Any] | None = None,
+    template_dir: str | Path | None = None,
+    template_name: str = "tabular.jinja",
 ) -> bytes:
     """Generate a PDF (sync) from a dict/ReportPayload payload."""
-    return _run(agenerate_pdf(payload, pdf_options))
+    return _run(agenerate_pdf(payload, pdf_options, template_dir, template_name))
 
 
 async def agenerate_pdf_from_toon(
     text: str,
     pdf_options: dict[str, Any] | None = None,
+    template_dir: str | Path | None = None,
+    template_name: str = "tabular.jinja",
 ) -> bytes:
     """Generate a PDF (async) from `.toon` text."""
-    return await agenerate_pdf(parse_toon(text), pdf_options)
+    return await agenerate_pdf(parse_toon(text), pdf_options, template_dir, template_name)
 
 
 def generate_pdf_from_toon(
     text: str,
     pdf_options: dict[str, Any] | None = None,
+    template_dir: str | Path | None = None,
+    template_name: str = "tabular.jinja",
 ) -> bytes:
     """Generate a PDF (sync) from `.toon` text."""
-    return _run(agenerate_pdf_from_toon(text, pdf_options))
+    return _run(agenerate_pdf_from_toon(text, pdf_options, template_dir, template_name))
 
 
-async def arender_html(payload: dict[str, Any] | ReportPayload) -> str:
+async def arender_html(
+    payload: dict[str, Any] | ReportPayload,
+    template_dir: str | Path | None = None,
+    template_name: str = "tabular.jinja",
+) -> str:
     """Render only the intermediate HTML (async, no Playwright)."""
     from isis_report_lib.layout import convert_data, convert_layout, infer_layout, is_template_format
 
@@ -91,14 +108,22 @@ async def arender_html(payload: dict[str, Any] | ReportPayload) -> str:
 
     from isis_report_lib.rendering import arender_report_html
 
-    return await arender_report_html(dataset=dataset, layout=layout, meta=meta)
+    return await arender_report_html(dataset=dataset, layout=layout, meta=meta, template_name=template_name, template_dir=template_dir)
 
 
-def render_html(payload: dict[str, Any] | ReportPayload) -> str:
+def render_html(
+    payload: dict[str, Any] | ReportPayload,
+    template_dir: str | Path | None = None,
+    template_name: str = "tabular.jinja",
+) -> str:
     """Render only the intermediate HTML (sync, no Playwright)."""
-    return _run(arender_html(payload))
+    return _run(arender_html(payload, template_dir, template_name))
 
 
-def render_html_from_toon(text: str) -> str:
+def render_html_from_toon(
+    text: str,
+    template_dir: str | Path | None = None,
+    template_name: str = "tabular.jinja",
+) -> str:
     """Render HTML (sync) from `.toon` text."""
-    return render_html(parse_toon(text))
+    return render_html(parse_toon(text), template_dir, template_name)
