@@ -38,6 +38,17 @@ def test_render_html_from_toon():
     assert "John" in html
 
 
+def test_accent_color_overrides_brand():
+    html = render_html({"meta": {"title": "T", "accent_color": "#FF0000"}, "data": []})
+    assert "--brand-color: #FF0000" in html
+
+
+def test_default_brand_color_without_accent():
+    html = render_html({"meta": {"title": "T"}, "data": []})
+    assert "--brand-color: #0A2F46" in html
+    assert "accent_color" not in html
+
+
 async def test_generate_pdf_sync_api_inside_running_loop():
     """Sync API called with a running loop uses the helper thread and returns the PDF (mock)."""
     from isis_report_lib import generate_pdf

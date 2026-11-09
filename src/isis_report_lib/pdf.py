@@ -32,7 +32,7 @@ def _browser_usable() -> bool:
         return False
     try:
         running = asyncio.get_running_loop()
-    except RuntimeError:
+    except RuntimeError:  # pragma: no cover - always called with a running loop
         return False
     if _owner_loop is not running:
         return False
@@ -59,7 +59,7 @@ async def _reset_unlocked() -> None:
     global _playwright_ctx, _playwright, _browser, _owner_loop
     try:
         running = asyncio.get_running_loop()
-    except RuntimeError:
+    except RuntimeError:  # pragma: no cover - always called with a running loop
         running = None
     same_loop = running is not None and _owner_loop is running
 
@@ -152,7 +152,7 @@ async def close_owned_browser() -> None:
     """
     try:
         running = asyncio.get_running_loop()
-    except RuntimeError:
+    except RuntimeError:  # pragma: no cover - coroutine body needs a running loop
         return
     if _owner_loop is not None and _owner_loop is running:
         await close_browser()

@@ -48,7 +48,7 @@ examples/          # generate_example.py + sales_order.toon
 git checkout -b feat/xyz
 # ... work ...
 python -m ruff check src tests && python -m pytest tests -q
-git push -u origin feat/xyz   # then open a PR; merge after lint-unit + e2e pass
+git push -u origin feat/xyz   # then open a PR; merge after the gate passes
 ```
 Release flow: tag `vX.Y.Z` + GitHub Release → PyPI via Trusted Publishing.
 

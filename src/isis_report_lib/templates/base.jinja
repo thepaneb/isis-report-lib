@@ -209,5 +209,12 @@
         </div>
     {% endif %}
 </main>
+{% if meta.accent_color %}
+<style>
+    :root {
+        --brand-color: {{ meta.accent_color }};
+    }
+</style>
+{% endif %}
 </body>
 </html>
