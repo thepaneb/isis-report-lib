@@ -5,9 +5,12 @@ testes/scripts longos.
 """
 
 import asyncio
+import logging
 from typing import Any
 
 from playwright.async_api import Browser, Playwright, async_playwright
+
+logger = logging.getLogger("isis_report_lib")
 
 _playwright_ctx = None
 _playwright: Playwright | None = None
@@ -39,19 +42,24 @@ def _browser_usable() -> bool:
 
 
 async def _reset_unlocked() -> None:
-    """Fecha e limpa o browser/Playwright sem adquirir o lock (chamador já o detém)."""
+    """Fecha e limpa o browser/Playwright sem adquirir o lock (chamador já o detém).
+
+    Nunca bloqueia: se o browser pertence a outro loop (possivelmente encerrado),
+    o close pode travar — por isso há timeout e qualquer erro é ignorado.
+    """
+
+    async def _close_quietly(coro, label: str) -> None:
+        try:
+            await asyncio.wait_for(coro, timeout=10)
+        except Exception:
+            logger.warning("Falha ao fechar %s durante reset do pool; abandonando.", label)
+
     global _playwright_ctx, _playwright, _browser, _owner_loop
     if _browser is not None:
-        try:
-            await _browser.close()
-        except Exception:
-            pass
+        await _close_quietly(_browser.close(), "browser")
         _browser = None
     if _playwright_ctx is not None:
-        try:
-            await _playwright_ctx.__aexit__(None, None, None)
-        except Exception:
-            pass
+        await _close_quietly(_playwright_ctx.__aexit__(None, None, None), "playwright")
         _playwright_ctx = None
         _playwright = None
     _owner_loop = None
