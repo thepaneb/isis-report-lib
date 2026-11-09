@@ -3,7 +3,7 @@ name = "isis-report-lib"
 version = "0.1.0"
 description = "Biblioteca Python para geração de relatórios PDF tabulares com layouts hierárquicos (Jinja2 + Playwright). Extraída do POC isis_report."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Gil Cleber Barboza" }]
 keywords = ["pdf", "report", "jinja2", "playwright", "toon"]
@@ -46,7 +46,7 @@ timeout = 300
 
 [tool.ruff]
 line-length = 140
-target-version = "py310"
+target-version = "py311"
 src = ["src"]
 
 [tool.ruff.lint]
