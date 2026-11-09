@@ -38,6 +38,17 @@ def test_render_html_from_toon():
     assert "John" in html
 
 
+def test_accent_color_overrides_brand():
+    html = render_html({"meta": {"title": "T", "accent_color": "#FF0000"}, "data": []})
+    assert "--brand-color: #FF0000" in html
+
+
+def test_default_brand_color_without_accent():
+    html = render_html({"meta": {"title": "T"}, "data": []})
+    assert "--brand-color: #0A2F46" in html
+    assert "accent_color" not in html
+
+
 async def test_generate_pdf_sync_api_inside_running_loop():
     """Sync API called with a running loop uses the helper thread and returns the PDF (mock)."""
     from isis_report_lib import generate_pdf
@@ -126,6 +137,49 @@ async def test_execute_keeps_explicit_printed_at():
         mock_pdf.return_value = b"%PDF-1.4"
         await service.execute({"meta": {"title": "T", "printed_at": "custom"}, "data": []})
         assert mock_render.call_args.kwargs["meta"]["printed_at"] == "custom"
+
+
+def test_default_footer_layout():
+    from isis_report_lib.pdf import default_footer
+
+    html = default_footer("2024-01-01 10:00")
+    assert "powered by" in html
+    assert "<svg" in html
+    assert "Printed on 2024-01-01 10:00" in html
+    assert "pageNumber" in html
+    assert html.index("Printed on") < html.index("Page") < html.index("powered by")
+
+
+def test_default_footer_without_date():
+    from isis_report_lib.pdf import default_footer
+
+    assert "pageNumber" in default_footer()
+    assert "Printed on" not in default_footer()
+
+
+async def test_execute_puts_printed_at_in_pdf_footer():
+    service = TabularReportService()
+    with (
+        patch("isis_report_lib.rendering.arender_report_html", new_callable=AsyncMock) as mock_render,
+        patch("isis_report_lib.pdf.get_pdf_from_html", new_callable=AsyncMock) as mock_pdf,
+    ):
+        mock_render.return_value = "<html>OK</html>"
+        mock_pdf.return_value = b"%PDF-1.4"
+        await service.execute({"meta": {"title": "T", "printed_at": "2024-01-01 10:00"}, "data": []})
+        footer = mock_pdf.call_args.kwargs["footer_template"]
+        assert "Printed on 2024-01-01 10:00" in footer
+
+
+async def test_execute_keeps_custom_footer_template():
+    service = TabularReportService(pdf_options={"footer_template": "CUSTOM"})
+    with (
+        patch("isis_report_lib.rendering.arender_report_html", new_callable=AsyncMock) as mock_render,
+        patch("isis_report_lib.pdf.get_pdf_from_html", new_callable=AsyncMock) as mock_pdf,
+    ):
+        mock_render.return_value = "<html>OK</html>"
+        mock_pdf.return_value = b"%PDF-1.4"
+        await service.execute({"meta": {"title": "T"}, "data": []})
+        assert mock_pdf.call_args.kwargs["footer_template"] == "CUSTOM"
 
 
 async def test_execute_propagates_render_error():

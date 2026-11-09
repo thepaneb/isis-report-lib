@@ -66,6 +66,7 @@ class TabularReportService(BaseReportService):
         self._pdf_options = pdf_options or {}
         self._template_dir = template_dir
         self._template_name = template_name
+        self._printed_at: str | None = None
         self._pdf_module = _pdf
 
     async def _fetch_data(self, payload: dict[str, Any]) -> Any:
@@ -75,6 +76,7 @@ class TabularReportService(BaseReportService):
         from isis_report_lib.layout import convert_data, convert_layout, infer_layout, is_template_format
 
         meta = with_meta_defaults(payload.get("meta", {}))
+        self._printed_at = meta.get("printed_at")
         layout_raw = payload.get("layout")
 
         if layout_raw:
@@ -101,4 +103,10 @@ class TabularReportService(BaseReportService):
         )
 
     async def _generate_pdf(self, html: str) -> bytes:
-        return await self._pdf_module.get_pdf_from_html(html, **self._pdf_options)
+        from isis_report_lib.pdf import default_footer
+
+        options = dict(self._pdf_options)
+        # Print timestamp goes in the repeated page footer (right side);
+        # an explicit footer_template always wins.
+        options.setdefault("footer_template", default_footer(self._printed_at))
+        return await self._pdf_module.get_pdf_from_html(html, **options)

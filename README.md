@@ -1,5 +1,9 @@
 # isis-report-lib
 
+[![CI](https://github.com/thepaneb/isis-report-lib/actions/workflows/ci.yml/badge.svg)](https://github.com/thepaneb/isis-report-lib/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/isis-report-lib.svg)](https://pypi.org/project/isis-report-lib/)
+[![Python](https://img.shields.io/pypi/pyversions/isis-report-lib.svg)](https://pypi.org/project/isis-report-lib/)
+
 Python library for **tabular PDF reports** with customizable hierarchical layouts — extracted from the [isis_report](https://github.com/thepaneb/isis_report) PoC (Robyn microservice), without the server.
 
 - Input: `dict`/`ReportPayload` (`meta` + optional `layout` + `data`) or **`.toon`** text
@@ -99,6 +103,16 @@ isis-report generate order.toon --template-dir my_templates --template-name invo
 ```
 
 The directory is layered over the bundled one, so you can also override `tabular.jinja` or reuse `tabular_sections.jinja` macros. Templates receive `dataset`, `layout`, `meta`, plus the `fmt(value, mask)` formatter and `zip` — see `examples/custom.jinja`.
+
+## Theming
+
+Set `meta.accent_color` to rebrand the report header without a custom template:
+
+```python
+payload = {"meta": {"title": "Sales Order", "accent_color": "#1B7A3D"}, ...}
+```
+
+It overrides the `--brand-color` CSS variable. More masks: `str` · `int` · `float` (pt-BR) · `date` · `percent` · `currency` (R$) · `bool`.
 
 ## Payload
 

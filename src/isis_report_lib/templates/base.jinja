@@ -201,13 +201,13 @@
         </div>
     </div>
     {% block content %} {% endblock %}
-    {% if type != "pdf" %}
-        <div class="table-footer">
-            <div class="data">
-                <span>{% block printed_at %} {% endblock %}</span>
-            </div>
-        </div>
-    {% endif %}
 </main>
+{% if meta.accent_color %}
+<style>
+    :root {
+        --brand-color: {{ meta.accent_color }};
+    }
+</style>
+{% endif %}
 </body>
 </html>

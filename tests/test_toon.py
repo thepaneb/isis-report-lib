@@ -36,6 +36,51 @@ def test_legacy_dados_maps_to_data():
     assert result["data"] == [{"produto": "Caneta"}]
 
 
+def test_stray_deeper_line_is_skipped():
+    result = parser.parse("a: 1\n    stray deep\nb: 2")
+    assert result == {"a": 1, "b": 2}
+
+
+def test_dangling_dash_line_is_skipped():
+    result = parser.parse("a: 1\n- orphan\nb: 2")
+    assert result == {"a": 1, "b": 2}
+
+
+def test_empty_value_at_end_becomes_empty_dict():
+    result = parser.parse("a: 1\nempty:")
+    assert result == {"a": 1, "empty": {}}
+
+
+def test_garbage_line_is_ignored():
+    result = parser.parse("a: 1\n???\nb: 2")
+    assert result == {"a": 1, "b": 2}
+
+
+def test_array_followed_by_sibling_key():
+    result = parser.parse("a[2]:\n  - x: 1\n  - y: 2\nb: 3")
+    assert result == {"a": [{"x": 1}, {"y": 2}], "b": 3}
+
+
+def test_array_item_with_nested_mapping():
+    result = parser.parse("items[1]:\n  - address:\n    city: Rome")
+    assert result == {"items": [{"address": {"city": "Rome"}}]}
+
+
+def test_array_of_scalars():
+    result = parser.parse("nums[2]:\n  - 42\n  - 7")
+    assert result == {"nums": [42, 7]}
+
+
+def test_extra_indented_line_inside_array_is_skipped():
+    result = parser.parse("a[1]:\n  - x: 1\n      deep: junk\n  - y: 2")
+    assert result == {"a": [{"x": 1}, {"y": 2}]}
+
+
+def test_non_dash_line_inside_array_is_skipped():
+    result = parser.parse("a[1]:\n  - x: 1\n  trailing: x")
+    assert result == {"a": [{"x": 1}]}
+
+
 def test_full_example_file():
     text = (Path(__file__).parent.parent / "examples" / "sales_order.toon").read_text(encoding="utf-8")
     result = parse_toon(text)
