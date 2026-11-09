@@ -1,16 +1,25 @@
 [project]
 name = "isis-report-lib"
 dynamic = ["version"]
-description = "Biblioteca Python para geração de relatórios PDF tabulares com layouts hierárquicos (Jinja2 + Playwright). Extraída do POC isis_report."
+description = "Python library for tabular PDF reports with customizable hierarchical layouts (Jinja2 + Playwright)."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Gil Cleber Barboza" }]
 keywords = ["pdf", "report", "jinja2", "playwright", "toon"]
 classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+    "Topic :: Text Processing",
+    "Typing :: Typed",
 ]
 dependencies = [
     "jinja2>=3.1",
@@ -25,7 +34,10 @@ dev = ["pytest>=8", "pytest-asyncio>=0.23", "pytest-cov>=6", "pytest-timeout>=2"
 isis-report = "isis_report_lib.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/thepaneb/isis_report"
+Homepage = "https://github.com/thepaneb/isis-report-lib"
+Source = "https://github.com/thepaneb/isis-report-lib"
+Issues = "https://github.com/thepaneb/isis-report-lib/issues"
+Changelog = "https://github.com/thepaneb/isis-report-lib/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
