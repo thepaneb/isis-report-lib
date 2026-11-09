@@ -1,11 +1,6 @@
-"""Teste fim-a-fim com browser real. Requer `playwright install chromium`.
+"""End-to-end test with a real browser. Requires `playwright install chromium`.
 
-Pulados automaticamente se o Chromium não estiver instalado.
-
-Todos os testes são async e compartilham o loop de sessão
-(`asyncio_default_test_loop_scope = "session"` no pyproject): o pool do
-Playwright é preso ao event loop, então trocar de loop entre testes causa
-close cross-loop, que trava no Linux.
+Automatically skipped when Chromium is not installed.
 """
 
 import shutil
@@ -33,13 +28,13 @@ def _browser_available() -> bool:
 
 needs_chromium = pytest.mark.skipif(
     not _browser_available(),
-    reason="Chromium não encontrado (rode `playwright install chromium`)",
+    reason="Chromium not found (run `playwright install chromium`)",
 )
 
 PAYLOAD = {
-    "meta": {"title": "Pedido", "mode": "exact"},
-    "layout": {"produto": {"label": "Produto", "format_mask": "str", "alignment": "left"}},
-    "data": [{"produto": "Caneta"}],
+    "meta": {"title": "Order", "mode": "exact"},
+    "layout": {"product": {"label": "Product", "format_mask": "str", "alignment": "left"}},
+    "data": [{"product": "Pen"}],
 }
 
 
@@ -59,12 +54,12 @@ async def test_agenerate_pdf_starts_with_pdf_magic():
 
 @needs_chromium
 async def test_agenerate_pdf_from_toon():
-    pdf = await agenerate_pdf_from_toon("meta:\n  title: T\n  mode: exact\ndados[1]:\n  - produto: Caneta")
+    pdf = await agenerate_pdf_from_toon("meta:\n  title: T\n  mode: exact\ndata[1]:\n  - product: Pen")
     assert pdf.startswith(b"%PDF")
 
 
 @needs_chromium
 async def test_agenerate_pdf_reuses_shared_browser():
-    # Segundo uso no mesmo loop: exercita o reuso do pool sem recriar o browser.
+    # Second call on the same loop: exercises pool reuse without relaunching the browser.
     assert (await agenerate_pdf(PAYLOAD)).startswith(b"%PDF")
     assert (await agenerate_pdf(PAYLOAD)).startswith(b"%PDF")

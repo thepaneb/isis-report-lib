@@ -1,0 +1,68 @@
+{% macro render_section_content(label, span) %}
+    <section class="content">
+        <label>{{label}}</label>
+        <span>{{span}}</span>
+    </section>
+{% endmacro %}
+{% macro render_section(section_class, rows, layout, zip, fmt) %}
+    <section class="{{section_class}}">
+        {% for data, field in zip(rows.items(), layout) %}
+            {{render_section_content(field.label, fmt(rows[field.name], field.format_mask))}}
+        {% endfor %}
+    </section>
+{% endmacro %}
+{% macro render_group_header(rows, layout, zip, fmt, level) %}
+    {{render_section("group-header-%i" % level, rows, layout, zip, fmt)}}
+{% endmacro %}
+{% macro render_group_footer(rows, layout, zip, fmt, level) %}
+    {{render_section("group-footer-%i" % level, rows, layout, zip, fmt)}}
+{% endmacro %}
+{% macro render_detail(rows, layout, zip, fmt) %}
+    <table class="report">
+        <thead>
+            <tr>
+                {% for field in layout %}
+                    <th style="text-align: {{field.alignment}}">{{field.label}}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+                <tr>
+                    {% for field in layout %}
+                        <td style="text-align: {{field.alignment}}"><p>{{fmt(row[field.name], field.format_mask)}}</p></td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endmacro %}
+{% macro render_group(rows, layout, zip, fmt, level) %}
+    {% for row in rows %}
+        {% if row.fields and layout.header %}
+            {{render_group_header(row.fields, layout.header, zip, fmt, level)}}
+        {% endif %}
+        {% if row.groups and layout.groups %}
+            {{render_group(row.groups, layout.groups, zip, fmt, level + 1)}}
+        {% endif %}
+        {% if row.detail and layout.detail %}
+            {{render_detail(row.detail, layout.detail, zip, fmt)}}
+        {% endif %}
+        {% if row.fields and layout.footer %}
+            {{render_group_footer(row.fields, layout.footer, zip, fmt, level)}}
+        {% endif %}
+        {% if not loop.last and level == 0 %}
+            {{render_divider()}}
+        {% endif %}
+    {% endfor %}
+{% endmacro %}
+{% macro render_divider() %}
+    <hr class="divider-table"/>
+{% endmacro %}
+{% macro render_summary(rows, layout, zip, fmt) %}
+    <section class="summary">
+        {% for field in layout %}
+            {{render_section_content(field.label, fmt(rows[field.name], field.format_mask))}}
+        {% endfor %}
+    </section>
+{% endmacro %}

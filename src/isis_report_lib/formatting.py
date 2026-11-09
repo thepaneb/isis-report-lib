@@ -1,15 +1,15 @@
-"""Formatação de valores exibidos nos templates (máscaras int/float/date/str)."""
+"""Value formatting for template output (int/float/date/str masks)."""
 
 from typing import Any
 
 
 def format_value(value: Any, format_mask: str) -> str:
-    """Formata um valor conforme a máscara do layout.
+    """Format a value according to the layout mask.
 
-    - ``int``: milhar com ponto (``1234`` -> ``"1.234"``)
-    - ``float``: padrão pt-BR com 2 casas (``1234.5`` -> ``"1.234,50"``)
-    - ``date``: repassa como string
-    - demais: ``str(value)``; ``None`` -> ``""``
+    - ``int``: thousand-separated (``1234`` -> ``"1.234"``)
+    - ``float``: pt-BR with 2 decimals (``1234.5`` -> ``"1.234,50"``)
+    - ``date``: passed through as string
+    - anything else: ``str(value)``; ``None`` -> ``""``
     """
     if value is None:
         return ""

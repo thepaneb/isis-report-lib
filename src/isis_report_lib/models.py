@@ -1,4 +1,4 @@
-"""Modelos de dados da lib (extraídos do POC isis_report)."""
+"""Data models of the library."""
 
 from typing import Any
 
@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 
 class MetaInfo(BaseModel):
-    """Metadados do relatório."""
+    """Report metadata."""
 
     title: str
     sub_title: str | None = None
@@ -15,7 +15,7 @@ class MetaInfo(BaseModel):
 
 
 class ReportPayload(BaseModel):
-    """Payload de relatório: metadados + layout hierárquico opcional + dados."""
+    """Report payload: metadata + optional hierarchical layout + data."""
 
     meta: MetaInfo
     layout: dict[str, Any] | None = None

@@ -1,4 +1,4 @@
-"""isis_report_lib — gere PDFs tabulares a partir de dict ou texto `.toon`."""
+"""isis_report_lib — generate tabular PDFs from dicts or `.toon` text."""
 
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version

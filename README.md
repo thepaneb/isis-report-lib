@@ -1,17 +1,17 @@
 # isis-report-lib
 
-Biblioteca Python para geração de relatórios **PDF tabulares** com layouts hierárquicos customizáveis — extraída do POC [isis_report](https://github.com/thepaneb/isis_report) (microserviço Robyn), sem o servidor.
+Python library for **tabular PDF reports** with customizable hierarchical layouts — extracted from the [isis_report](https://github.com/thepaneb/isis_report) PoC (Robyn microservice), without the server.
 
-- Entrada: `dict`/`ReportPayload` (`meta` + `layout` opcional + `data`) ou texto **`.toon`**
-- Renderização: Jinja2 (templates embutidos no pacote)
+- Input: `dict`/`ReportPayload` (`meta` + optional `layout` + `data`) or **`.toon`** text
+- Rendering: Jinja2 (templates bundled in the package)
 - PDF: Playwright (Chromium)
-- API: síncrona (`generate_pdf`) + assíncrona (`agenerate_pdf`)
+- API: synchronous (`generate_pdf`) + asynchronous (`agenerate_pdf`)
 
-## Instalação
+## Installation
 
 ```bash
 pip install isis-report-lib
-playwright install chromium   # necessário p/ gerar PDF
+playwright install chromium   # required to generate PDFs
 ```
 
 Dev:
@@ -20,32 +20,32 @@ Dev:
 pip install -e ".[dev]"
 ```
 
-## Uso rápido
+## Quickstart
 
 ```python
 from isis_report_lib import generate_pdf, generate_pdf_from_toon, render_html
 
 payload = {
-    "meta": {"title": "Pedido de Vendas", "sub_title": "2024", "mode": "exact"},
+    "meta": {"title": "Sales Order", "sub_title": "2024", "mode": "exact"},
     "layout": {
-        "empresa": {"label": "Empresa", "format_mask": "str", "alignment": "left"},
-        "pedidos": {
-            "pedido": {"label": "Código", "format_mask": "int", "alignment": "right"},
-            "valor_total": {"label": "Valor Total", "format_mask": "float", "alignment": "right"},
+        "company": {"label": "Company", "format_mask": "str", "alignment": "left"},
+        "orders": {
+            "order": {"label": "Code", "format_mask": "int", "alignment": "right"},
+            "total": {"label": "Total", "format_mask": "float", "alignment": "right"},
         },
     },
-    "data": [{"empresa": "CQ CONSULTORIA", "pedidos": [{"pedido": 750, "valor_total": 4000}]}],
+    "data": [{"company": "ACME", "orders": [{"order": 750, "total": 4000}]}],
 }
 
 pdf_bytes = generate_pdf(payload)
-open("relatorio.pdf", "wb").write(pdf_bytes)
+open("report.pdf", "wb").write(pdf_bytes)
 
-# Sem Playwright: só o HTML intermediário
+# Without Playwright: just the intermediate HTML
 html = render_html(payload)
 
-# A partir de .toon
-toon = open("examples/pedido.toon", encoding="utf-8").read()
-open("relatorio_toon.pdf", "wb").write(generate_pdf_from_toon(toon))
+# From .toon
+toon = open("examples/sales_order.toon", encoding="utf-8").read()
+open("report_toon.pdf", "wb").write(generate_pdf_from_toon(toon))
 ```
 
 Async:
@@ -57,60 +57,60 @@ pdf = await agenerate_pdf(payload)
 pdf = await agenerate_pdf_from_toon(toon_text)
 ```
 
-Opções do PDF (repassadas ao `page.pdf` do Playwright):
+PDF options (forwarded to Playwright's `page.pdf`):
 
 ```python
 generate_pdf(payload, pdf_options={"format": "A4", "margin": {"top": ".2in", "bottom": ".5in"}})
 ```
 
-Exemplo completo em `examples/`.
+Full example in `examples/`. Note: the sync API opens/closes the browser per call (no leaked processes); the async API reuses the shared pool.
 
 ## Payload
 
-| Campo | Tipo | Obrigatório | Descrição |
+| Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `meta` | object | sim | `title`, `sub_title`, `mode` (`"exact"`/`"gray"`), `company` |
-| `layout` | object | não | definição hierárquica; omitir = inferido dos dados |
-| `data` | array | sim | registros crus ou formato template (`{"fields": ..., "groups": ...}`) |
+| `meta` | object | yes | `title`, `sub_title`, `mode` (`"exact"`/`"gray"`), `company` |
+| `layout` | object | no | hierarchical field definition; omit to infer from data |
+| `data` | array | yes | raw records or template format (`{"fields": ..., "groups": ...}`) |
 
-Máscaras: `str` · `int` (milhar `1.234`) · `float` (pt-BR `1.234,50`) · `date`.
+Masks: `str` · `int` (thousands `1.234`) · `float` (pt-BR `1.234,50`) · `date`.
 
-## Sintaxe `.toon`
+## `.toon` syntax
 
 ```toon
 meta:
-  title: Pedido de Vendas
+  title: Sales Order
   mode: exact
 layout:
-  produto{Produto,str,left}
-  valor{Valor,float,right}
-dados[1]:
-  - produto: Caneta
-    valor: 5.50
+  product{Product,str,left}
+  total{Total,float,right}
+data[1]:
+  - product: Pen
+    total: 5.50
 ```
 
-`dados[n]` é mapeado para `data`. Ver `examples/pedido.toon`.
+`data[n]` holds the records (`dados[n]` still accepted as a legacy alias). See `examples/sales_order.toon`.
 
 ## API
 
-| Função | Descrição |
+| Function | Description |
 | --- | --- |
-| `generate_pdf(payload, pdf_options?) -> bytes` | PDF sync a partir de dict/`ReportPayload` |
-| `agenerate_pdf(...)` | idem, async |
-| `generate_pdf_from_toon(text, ...)` / `agenerate_pdf_from_toon` | PDF a partir de `.toon` |
-| `render_html(payload)` / `arender_html` / `render_html_from_toon` | HTML intermediário (sem browser) |
-| `ToonParser().parse(text)` / `parse_toon(text)` | parse `.toon` -> dict |
-| `TabularReportService(pdf_options?)` | pipeline `execute(payload)` (Obter→Tratar→HTML→PDF) |
+| `generate_pdf(payload, pdf_options?) -> bytes` | sync PDF from dict/`ReportPayload` |
+| `agenerate_pdf(...)` | same, async |
+| `generate_pdf_from_toon(text, ...)` / `agenerate_pdf_from_toon` | PDF from `.toon` |
+| `render_html(payload)` / `arender_html` / `render_html_from_toon` | intermediate HTML (no browser) |
+| `ToonParser().parse(text)` / `parse_toon(text)` | `.toon` -> dict |
+| `TabularReportService(pdf_options?)` | pipeline `execute(payload)` (Fetch→Process→HTML→PDF) |
 
-## Testes
+## Tests
 
 ```bash
 pytest -q
 ruff check src tests
 ```
 
-Testes de PDF real exigem `playwright install chromium` e são pulados (`-m "not browser"`) se o browser não estiver disponível.
+Real-PDF tests require `playwright install chromium` and are skipped (`-m "not browser"`) when no browser is available.
 
-## Licença
+## License
 
-MIT — ver `LICENSE`.
+MIT — see `LICENSE`.

@@ -1,7 +1,8 @@
-"""Pool singleton de browser Playwright (extraído do POC isis_report).
+"""Shared Playwright browser pool (singleton) reused across generations.
 
-Reuso do Chromium entre gerações; chame :func:`close_browser` ao encerrar
-testes/scripts longos.
+Call :func:`close_browser` when shutting down long-lived processes. The pool
+is bound to an event loop: state owned by a foreign/closed loop is abandoned,
+never awaited (cross-loop close hangs on Linux).
 """
 
 import asyncio
@@ -20,13 +21,13 @@ _lock = asyncio.Lock()
 
 DEFAULT_FOOTER = (
     '<div style="width:100%;text-align:center;font-size:10px;">'
-    "Página <span class='pageNumber'></span> de <span class='totalPages'></span></div>"
+    "Page <span class='pageNumber'></span> of <span class='totalPages'></span></div>"
 )
 DEFAULT_MARGIN = {"top": ".2in", "bottom": ".5in", "left": ".2in", "right": ".2in"}
 
 
 def _browser_usable() -> bool:
-    """True se o browser existe, pertence ao loop atual e está conectado."""
+    """True when the browser exists, belongs to the current loop and is connected."""
     if _browser is None:
         return False
     try:
@@ -42,18 +43,18 @@ def _browser_usable() -> bool:
 
 
 async def _reset_unlocked() -> None:
-    """Fecha e limpa o browser/Playwright sem adquirir o lock (chamador já o detém).
+    """Close and clear the browser/Playwright without acquiring the lock (caller holds it).
 
-    Regra crítica: nunca se dá ``await`` em objetos de outro event loop (pode
-    bloquear para sempre no Linux, mesmo com ``wait_for``). Estado de loop
-    alheio/encerrado é apenas abandonado; o caso mesmo-loop fecha com timeout.
+    Critical rule: never await objects owned by another event loop (it can hang
+    forever on Linux, even under ``wait_for``). Foreign/closed-loop state is
+    abandoned; only same-loop state is closed, with a timeout.
     """
 
     async def _close_quietly(coro, label: str) -> None:
         try:
             await asyncio.wait_for(coro, timeout=10)
         except Exception:
-            logger.warning("Falha ao fechar %s durante reset do pool; abandonando.", label)
+            logger.warning("Failed to close %s during pool reset; abandoning.", label)
 
     global _playwright_ctx, _playwright, _browser, _owner_loop
     try:
@@ -66,7 +67,7 @@ async def _reset_unlocked() -> None:
         if same_loop:
             await _close_quietly(_browser.close(), "browser")
         else:
-            logger.warning("Abandonando browser de outro event loop sem fechar (evita deadlock).")
+            logger.warning("Abandoning browser from another event loop without closing (avoids deadlock).")
         _browser = None
     if _playwright_ctx is not None:
         if same_loop:
@@ -77,10 +78,10 @@ async def _reset_unlocked() -> None:
 
 
 async def ensure_browser(headless: bool = True) -> None:
-    """Garante o browser compartilhado iniciado (idempotente).
+    """Ensure the shared browser is started (idempotent).
 
-    Se o browser pertence a um event loop diferente/encerrado (ex.: suítes
-    de teste que criam um loop por teste), ele é recriado no loop atual.
+    If the browser belongs to a different/closed event loop (e.g. test suites
+    creating one loop per test), it is recreated on the current loop.
     """
     global _playwright_ctx, _playwright, _browser, _owner_loop
     async with _lock:
@@ -93,11 +94,8 @@ async def ensure_browser(headless: bool = True) -> None:
         _owner_loop = asyncio.get_running_loop()
 
 
-_ensure_browser = ensure_browser  # alias p/ compatibilidade com o POC
-
-
 def ensure_browser_sync(headless: bool = True) -> None:
-    """Garante o browser de forma síncrona (agenda task se houver loop ativo)."""
+    """Start the browser synchronously (schedules a task if a loop is already running)."""
     if _browser is not None:
         return
     try:
@@ -111,16 +109,16 @@ def ensure_browser_sync(headless: bool = True) -> None:
 
 
 async def new_page():
-    """Retorna uma nova Page do browser compartilhado (feche com ``await page.close()``)."""
-    await _ensure_browser()
+    """Return a new Page from the shared browser (close it with ``await page.close()``)."""
+    await ensure_browser()
     assert _browser is not None
     return await _browser.new_page()
 
 
 async def get_pdf_from_html(html: str, **kwargs: Any) -> bytes:
-    """Renderiza HTML em PDF via browser compartilhado.
+    """Render HTML to PDF via the shared browser pool.
 
-    kwargs aceitos: ``format`` (default ``"A4"``), ``display_header_footer``,
+    Accepted kwargs: ``format`` (default ``"A4"``), ``display_header_footer``,
     ``header_template``, ``footer_template``, ``margin``.
     """
     page = await new_page()
@@ -138,19 +136,19 @@ async def get_pdf_from_html(html: str, **kwargs: Any) -> bytes:
 
 
 async def close_browser() -> None:
-    """Fecha o browser compartilhado e encerra o Playwright."""
+    """Close the shared browser and shut down Playwright."""
     global _playwright_ctx, _playwright, _browser, _owner_loop
     async with _lock:
         await _reset_unlocked()
 
 
 async def close_owned_browser() -> None:
-    """Fecha o browser somente se pertencer ao loop atual.
+    """Close the browser only if it belongs to the current loop.
 
-    Uso interno da API síncrona: cada ``generate_pdf`` roda em um loop
-    efêmero (``asyncio.run``), então o browser deve ser encerrado ao final
-    da chamada para não vazar processos Chromium. Nunca toca em browser
-    de outro loop (a API async mantém o pool reutilizável).
+    Internal use by the sync API: each ``generate_pdf`` runs on an ephemeral
+    loop (``asyncio.run``), so the browser must be shut down at the end of the
+    call to avoid leaking Chromium processes. Never touches another loop's
+    browser (the async API keeps the pool reusable).
     """
     try:
         running = asyncio.get_running_loop()

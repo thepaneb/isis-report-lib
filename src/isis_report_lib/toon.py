@@ -1,13 +1,13 @@
-"""Parser do formato textual `.toon` (cópia fiel do POC isis_report).
+"""Parser for the `.toon` text format.
 
-Sintaxe suportada:
+Supported syntax:
 
-- ``chave: valor`` — par simples
-- ``chave:`` + linhas indentadas — objeto aninhado
-- ``chave[n]:`` + itens ``- ...`` — array com n elementos
-- ``chave[n]{a,b}:`` + linhas ``v1,v2`` — array de objetos
-- ``dados[n]:`` — mapeado automaticamente para ``data``
-- ``chave{Label,formato,align}`` — campo de layout inline
+- ``key: value`` — simple pair
+- ``key:`` + indented lines — nested object
+- ``key[n]:`` + ``- ...`` items — array with n elements
+- ``key[n]{a,b}:`` + ``v1,v2`` lines — array of objects
+- ``data[n]:`` — the report records (legacy alias ``dados[n]:`` still accepted)
+- ``key{Label,format,align}`` — inline compact layout field
 """
 
 import re
@@ -15,7 +15,7 @@ from typing import Any
 
 
 class ToonParser:
-    """Converte texto `.toon` em dict estruturado."""
+    """Convert `.toon` text into a structured dict."""
 
     @staticmethod
     def _convert_value(value: str) -> Any:
@@ -35,10 +35,10 @@ class ToonParser:
         return v
 
     def parse(self, text: str) -> dict:
-        """Faz o parse do texto `.toon` para dict (com ``dados`` -> ``data``)."""
+        """Parse `.toon` text into a dict (``dados`` accepted as legacy alias of ``data``)."""
         tokens = self._tokenize(text)
         result, _ = self._parse_dict(tokens, 0, 0)
-        if "dados" in result:
+        if "dados" in result and "data" not in result:
             result["data"] = result.pop("dados")
         return result
 
@@ -170,5 +170,5 @@ class ToonParser:
 
 
 def parse_toon(text: str) -> dict[str, Any]:
-    """Atalho funcional: ``ToonParser().parse(text)``."""
+    """Functional shortcut: ``ToonParser().parse(text)``."""
     return ToonParser().parse(text)

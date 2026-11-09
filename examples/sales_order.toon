@@ -1,0 +1,41 @@
+meta:
+  company: My Company
+  title: Sales Order
+  sub_title: From 01/01/2024 to 12/31/2024
+  type: pdf
+  mode: exact
+layout:
+  company{Company,str,left}
+  delivery_date{Delivery Date,date,center}
+  orders:
+    order{Code,int,right}
+    order_date{Order Date,date,center}
+    product_name{Product,str,left}
+    fee_total{Fee Total,float,right}
+    grand_total{Grand Total,float,right}
+    items:
+      qty{Qty,int,right}
+      unit_price{Unit Price,float,right}
+      line_total{Line Total,float,right}
+data[1]:
+  - company: ACME CONSULTING
+    delivery_date: 12/01/2024
+    orders[2]:
+      - order: 750
+        order_date: 12/01/2024
+        product_name: ACME MEAL
+        fee_total: 9.01
+        grand_total: 4000
+        items[3]{qty,unit_price,line_total}:
+          1,1500,1500
+          1,1000,1000
+          1,1500,1500
+      - order: 8750
+        order_date: 12/01/2024
+        product_name: ACME MEAL
+        fee_total: 9.01
+        grand_total: 4000
+        items[3]{qty,unit_price,line_total}:
+          1,1500,1500
+          1,1000,1000
+          1,1500,1500

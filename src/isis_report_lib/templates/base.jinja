@@ -1,18 +1,18 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
     <title>Isis Report</title>
     <style>
         :root {
-            --cor-client: #0A2F46;
+            --brand-color: #0A2F46;
             --light-strips: #f2f2f2;
             --light-white: #f1f1f1;
-            --contraste-cabecalho: #f1f1f1;
-            --font-customizada: sans-serif, Arial, Helvetica;
-            /* Orientação para impressão: auto || portrait || landscape */
-            --orientacao: portrait;
-            --margem-impressao: .25in .2in;
+            --header-contrast: #f1f1f1;
+            --custom-font: sans-serif, Arial, Helvetica;
+            /* Print orientation: auto || portrait || landscape */
+            --orientation: portrait;
+            --print-margin: .25in .2in;
         }
 
         * {
@@ -20,7 +20,7 @@
         }
 
         body {
-          font-family: var(--font-customizada, sans-serif);
+          font-family: var(--custom-font, sans-serif);
           margin: 0;
           padding: 0;
           color: #3b4151;
@@ -33,7 +33,7 @@
 
         h1 {
             color: #333;
-            font-family: var(--font-customizada, sans-serif);
+            font-family: var(--custom-font, sans-serif);
             font-size: 1.8rem;
             margin-bottom: 0;
             margin-top: 0;
@@ -41,12 +41,12 @@
         }
 
         h2 {
-            font-family: var(--font-customizada, sans-serif);
+            font-family: var(--custom-font, sans-serif);
             font-size: 1.3rem;
         }
 
         h3 {
-            font-family: var(--font-customizada, sans-serif);
+            font-family: var(--custom-font, sans-serif);
             font-size: .9rem;
             font-weight: 300;
         }
@@ -63,7 +63,7 @@
         }
 
         p, th, td {
-          font-family: var(--font-customizada, sans-serif);
+          font-family: var(--custom-font, sans-serif);
           font-size: 14px;
         }
 
@@ -72,7 +72,7 @@
             margin-block: .5em;
         }
 
-        .relatorio {
+        .report {
             margin-block: .5rem;
             border: 1px solid var(--light-white, #f1f1f1);
             border-radius: 6px;
@@ -92,25 +92,25 @@
             text-align: center;
         }
 
-        .periodo h3 {
+        .period h3 {
             text-align: center;
         }
 
-        .relatorio thead th:first-child {
+        .report thead th:first-child {
             border-radius: 4px 0 0 0;
         }
 
-        .relatorio thead th:last-child {
+        .report thead th:last-child {
             border-radius: 0 4px 0 0;
         }
 
-        .relatorio thead th {
-            background-color: var(--cor-client, #0A2F46);
+        .report thead th {
+            background-color: var(--brand-color, #0A2F46);
             padding: .9rem;
-            color: var(--contraste-cabecalho ,#f1f1f1);
+            color: var(--header-contrast ,#f1f1f1);
         }
 
-        .relatorio tbody tr:nth-child(even) {
+        .report tbody tr:nth-child(even) {
             background-color: var(--light-strips, #f2f2f2);
         }
 
@@ -144,7 +144,7 @@
         }
 
         .group-header-0, .group-footer-0, .summary {
-            background-color: var(--contraste-cabecalho, #f1f1f1);
+            background-color: var(--header-contrast, #f1f1f1);
         }
 
         .summary {
@@ -152,7 +152,7 @@
         }
 
         .group-header-1, .group-footer-1 {
-            border: 1px solid var(--contraste-cabecalho, #f1f1f1);
+            border: 1px solid var(--header-contrast, #f1f1f1);
             margin-block: .5rem;
         }
 
@@ -178,7 +178,7 @@
             font-size: 1rem;
         }
 
-        .divisor-table {
+        .divider-table {
             margin-block-end: 1rem;
         }
     </style>
@@ -193,18 +193,18 @@
         </svg>
         <h1>Isis Report</h1>
     </div>
-    <hr class="divisor"/>
+    <hr class="divider"/>
     <div class="header-table">
-        <h2>{% block titulo %} {% endblock %}</h2>
-        <div class="periodo">
-            <h3>{% block filters %} {% endblock %}</h3>
+        <h2>{% block title %} {% endblock %}</h2>
+        <div class="period">
+            <h3>{% block subtitle %} {% endblock %}</h3>
         </div>
     </div>
-    {% block conteudo %} {% endblock %}
+    {% block content %} {% endblock %}
     {% if type != "pdf" %}
         <div class="table-footer">
             <div class="data">
-                <span>{% block data_hora_impresssao %} {% endblock %}</span>
+                <span>{% block printed_at %} {% endblock %}</span>
             </div>
         </div>
     {% endif %}

@@ -1,70 +1,70 @@
-# Guia de Agentes de IA — isis-report-lib
+# AI Agent Guide — isis-report-lib
 
-Biblioteca Python (`src/isis_report_lib`) para geração de PDFs tabulares com layouts
-hierárquicos. Extraída do POC `isis_report` (microserviço Robyn); aqui **não há
-servidor** — só a lib + testes + exemplos.
+Python library (`src/isis_report_lib`) for tabular PDF reports with hierarchical
+layouts. Extracted from the `isis_report` PoC (Robyn microservice); there is **no
+server** here — only the library + tests + examples.
 
-## Regras de Ouro
-1. **API dupla:** toda funcionalidade pública nova precisa de versão `async def a...`
-   e wrapper sync em `src/isis_report_lib/api.py` (via `_run`, que lida com loop ativo).
-2. **Sem Robyn:** nada de `robyn`, rotas ou `JSONResponse` neste repo. O pipeline vive em
-   `service.py` (`TabularReportService.execute`: Obter → Tratar → HTML → PDF).
-3. **Templates embutidos:** ficam em `src/isis_report_lib/templates/` e são carregados via
-   `rendering.get_jinja_env()` (importlib.resources). Nunca use caminho relativo a `cwd`.
+## Golden Rules
+1. **Dual API:** every new public feature needs an `async def a...` version and
+   a sync wrapper in `src/isis_report_lib/api.py` (via `_run`, which handles a
+   running loop). The sync API closes its own browser per call (`close_owned_browser`).
+2. **No Robyn:** no `robyn`, routes, or `JSONResponse` in this repo. The pipeline lives in
+   `service.py` (`TabularReportService.execute`: Fetch → Process → HTML → PDF).
+3. **Bundled templates:** live in `src/isis_report_lib/templates/` and load via
+   `rendering.get_jinja_env()` (importlib.resources). Never use paths relative to `cwd`.
 
-## Estrutura
+## Layout
 ```
 src/isis_report_lib/
-├── __init__.py    # exports públicos (atualizar __all__ ao expor algo novo)
+├── __init__.py    # public exports (update __all__ when exposing something new)
 ├── api.py         # generate_pdf/agenerate_pdf, ..._from_toon, render_html/...
 ├── models.py      # MetaInfo, ReportPayload (pydantic v2)
 ├── layout.py      # convert_layout, convert_data, infer_layout, is_template_format
 ├── toon.py        # ToonParser, parse_toon
-├── formatting.py  # format_value (máscaras int/float/date/str)
+├── formatting.py  # format_value (int/float/date/str masks)
 ├── rendering.py   # arender_report_html / render_report_html
-├── pdf.py         # pool Playwright (ensure_browser, get_pdf_from_html, close_browser)
+├── pdf.py         # Playwright pool (ensure_browser, get_pdf_from_html, close_browser)
 ├── service.py     # BaseReportService + TabularReportService
-└── templates/     # relatorio_base/tabular*.jinja
+└── templates/     # base/tabular*.jinja
 tests/             # test_formatting/layout/toon/service (mocks), test_pdf_e2e (browser)
-examples/          # generate_example.py + pedido.toon
+examples/          # generate_example.py + sales_order.toon
 ```
 
-## Detalhes que já morderam (não reintroduzir)
-- **Dados crus sem `layout`:** o template itera `data.fields`, então registros crus precisam
-  ser embrulhados em `{"fields": ...}` (ver `_tratar_dados` e `arender_html`). O POC tinha
-  esse bug (HTML vazio); a lib corrige — manter.
-- **Pool Playwright × event loops:** `_browser` é singleton mas preso a um loop. `pdf.py`
-  rastreia `_owner_loop` e recria o browser em loop novo/fechado (suítes criam um loop por
-  teste). Não volte a checar só `if _browser is not None`.
-- **Nunca `await` em close de loop alheio:** `_reset_unlocked` abandona (sem aguardar)
-  estado de loop diferente/encerrado — `await` cross-loop trava no Linux. A API sync
-  encerra o próprio browser ao final via `close_owned_browser` (só age no loop atual).
-- **`_run` com loop ativo:** usa `ThreadPoolExecutor + asyncio.run` para não travar
-  (Jupyter). Não simplificar para `asyncio.run` direto.
+## Pitfalls (do not reintroduce)
+- **Raw data without `layout`:** the template iterates `row.fields`, so raw records must
+  be wrapped in `{"fields": ...}` (see `_process_data` and `arender_html`).
+- **Playwright pool × event loops:** `_browser` is a singleton bound to a loop. `pdf.py`
+  tracks `_owner_loop` and recreates the browser on a new/closed loop (suites create one
+  loop per test). Never go back to a plain `if _browser is not None` check.
+- **Never `await` a foreign-loop close:** `_reset_unlocked` abandons (without awaiting)
+  state from a different/closed loop — cross-loop `await` hangs on Linux. The sync API
+  shuts down its own browser at the end via `close_owned_browser` (current loop only).
+- **`_run` with a running loop:** uses `ThreadPoolExecutor + asyncio.run` to avoid
+  blocking (Jupyter). Do not simplify to a bare `asyncio.run`.
 
 ## Workflow
 ```bash
 pip install -e ".[dev]"
-playwright install chromium   # só p/ testes e2e / geração real de PDF
-python -m pytest tests -q -m "not browser"   # sem browser
-python -m pytest tests -q                    # completo (precisa do chromium)
+playwright install chromium   # only for e2e tests / real PDF generation
+python -m pytest tests -q -m "not browser"   # without browser
+python -m pytest tests -q                    # full suite (needs Chromium)
 python -m ruff check src tests
 python -m ruff format --check src tests
 ```
 
-## Testes
-- Unitários com mocks para `rendering.arender_report_html` e `pdf.get_pdf_from_html`
-  (ver `test_service.py`); nunca exigir browser fora de `test_pdf_e2e.py`.
-- `test_pdf_e2e.py` é marcado `browser` e pula sozinho sem Chromium
-  (`_browser_available`). Registrar marks novas em `pyproject.toml`.
-- Ao mudar `layout.py`/`toon.py`/`formatting.py`, portar/adicionar casos nos testes
-  correspondentes.
+## Tests
+- Unit tests use mocks for `rendering.arender_report_html` and `pdf.get_pdf_from_html`
+  (see `test_service.py`); never require a browser outside `test_pdf_e2e.py`.
+- `test_pdf_e2e.py` is marked `browser` and skips itself without Chromium
+  (`_browser_available`). Register new marks in `pyproject.toml`.
+- When changing `layout.py`/`toon.py`/`formatting.py`, port/add cases to the
+  matching test files.
 
-## Convenções
-- Código e docstrings: classes em Inglês; pipeline do serviço pode usar PT
-  (`_obter_dados`, `_tratar_dados`, `_gerar_html`, `_gerar_pdf`) por paridade com o POC.
-- Máscaras: `str` · `int` (`1.234`) · `float` pt-BR (`1.234,50`) · `date` (pass-through).
-- Templates: estendem `relatorio_base.jinja`; formatação via `fmt(valor, mascara)` do Jinja.
+## Conventions
+- Code and docstrings in English; pipeline methods use short verbs
+  (`_fetch_data`, `_process_data`, `_render_html`, `_generate_pdf`).
+- Masks: `str` · `int` (`1.234`) · `float` pt-BR (`1.234,50`) · `date` (pass-through).
+- Templates extend `base.jinja`; formatting via the Jinja `fmt(value, mask)` helper.
 
 ## Commits
 Conventional Commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`.

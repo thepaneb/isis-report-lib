@@ -1,25 +1,25 @@
-"""Conversão de layout hierárquico e de dados para o formato dos templates.
+"""Hierarchical layout and data conversion into the template-ready format.
 
-O layout de entrada é o formato "cru" do POC::
+Input is the "raw" layout::
 
     {
-        "empresa": {"label": "Empresa", "format_mask": "str", "alignment": "left"},
-        "pedidos": {
-            "pedido": {"label": "Código", "format_mask": "int", "alignment": "right"},
-            "cargas": {
-                "qtde": {"label": "Quantidade", "format_mask": "int", "alignment": "right"},
+        "company": {"label": "Company", "format_mask": "str", "alignment": "left"},
+        "orders": {
+            "order": {"label": "Order", "format_mask": "int", "alignment": "right"},
+            "items": {
+                "qty": {"label": "Qty", "format_mask": "int", "alignment": "right"},
             },
         },
     }
 
-Chaves cujo valor é um dict **sem** ``label`` são tratadas como grupos aninhados.
+Keys whose value is a dict **without** ``label`` are treated as nested groups.
 """
 
 from typing import Any
 
 
 def format_field(name: str, field_def: dict[str, Any]) -> dict[str, Any]:
-    """Normaliza a definição de um campo com defaults (label=str, left)."""
+    """Normalize a field definition with defaults (label=name, alignment=left)."""
     return {
         "name": name,
         "label": field_def.get("label", name),
@@ -29,7 +29,7 @@ def format_field(name: str, field_def: dict[str, Any]) -> dict[str, Any]:
 
 
 def convert_layout(layout_raw: dict[str, Any]) -> dict[str, Any]:
-    """Converte o layout hierárquico para o formato pronto p/ renderização."""
+    """Convert the hierarchical layout into the render-ready format."""
     header: list[dict[str, Any]] = []
     groups: dict[str, Any] | None = None
 
@@ -59,12 +59,12 @@ def convert_layout(layout_raw: dict[str, Any]) -> dict[str, Any]:
 
 
 def is_template_format(data: list[Any]) -> bool:
-    """True se os dados já estão no formato do template (itens com ``fields``)."""
+    """True when data is already in template format (records with ``fields``)."""
     return bool(data and isinstance(data[0], dict) and "fields" in data[0])
 
 
 def convert_data(data_raw: list[dict[str, Any]], layout_raw: dict[str, Any]) -> dict[str, Any]:
-    """Converte dados crus + layout cru para ``{"groups": [...]}`` do template."""
+    """Convert raw data + raw layout into the template's ``{"groups": [...]}``."""
     if is_template_format(data_raw):
         return {"groups": data_raw}
 
@@ -104,7 +104,7 @@ def convert_data(data_raw: list[dict[str, Any]], layout_raw: dict[str, Any]) -> 
 
 
 def infer_layout(data: list[dict[str, Any]]) -> dict[str, Any]:
-    """Infere um layout simples (só header) a partir da primeira linha de dados."""
+    """Infer a simple (header-only) layout from the first data row."""
     if not data:
         return {"groups": {"header": []}}
 

@@ -1,4 +1,4 @@
-"""Testes de formatação de valores."""
+"""Value formatting tests."""
 
 from isis_report_lib.formatting import format_value
 
