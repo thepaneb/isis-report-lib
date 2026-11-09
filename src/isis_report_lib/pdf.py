@@ -44,8 +44,9 @@ def _browser_usable() -> bool:
 async def _reset_unlocked() -> None:
     """Fecha e limpa o browser/Playwright sem adquirir o lock (chamador já o detém).
 
-    Nunca bloqueia: se o browser pertence a outro loop (possivelmente encerrado),
-    o close pode travar — por isso há timeout e qualquer erro é ignorado.
+    Regra crítica: nunca se dá ``await`` em objetos de outro event loop (pode
+    bloquear para sempre no Linux, mesmo com ``wait_for``). Estado de loop
+    alheio/encerrado é apenas abandonado; o caso mesmo-loop fecha com timeout.
     """
 
     async def _close_quietly(coro, label: str) -> None:
@@ -55,11 +56,21 @@ async def _reset_unlocked() -> None:
             logger.warning("Falha ao fechar %s durante reset do pool; abandonando.", label)
 
     global _playwright_ctx, _playwright, _browser, _owner_loop
+    try:
+        running = asyncio.get_running_loop()
+    except RuntimeError:
+        running = None
+    same_loop = running is not None and _owner_loop is running
+
     if _browser is not None:
-        await _close_quietly(_browser.close(), "browser")
+        if same_loop:
+            await _close_quietly(_browser.close(), "browser")
+        else:
+            logger.warning("Abandonando browser de outro event loop sem fechar (evita deadlock).")
         _browser = None
     if _playwright_ctx is not None:
-        await _close_quietly(_playwright_ctx.__aexit__(None, None, None), "playwright")
+        if same_loop:
+            await _close_quietly(_playwright_ctx.__aexit__(None, None, None), "playwright")
         _playwright_ctx = None
         _playwright = None
     _owner_loop = None

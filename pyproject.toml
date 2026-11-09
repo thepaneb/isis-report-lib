@@ -36,6 +36,9 @@ packages = ["src/isis_report_lib"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# Um único loop para todos os testes async: o pool do Playwright é preso ao loop,
+# então trocar de loop entre testes causa close cross-loop (trava no Linux).
+asyncio_default_test_loop_scope = "session"
 markers = ["browser: requer Chromium do Playwright instalado"]
 # Diagnóstico de hangs no CI: despeja stacks aos 90s e falha o teste aos 300s.
 faulthandler_timeout = 90
