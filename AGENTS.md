@@ -43,7 +43,15 @@ examples/          # generate_example.py + sales_order.toon
 - **`_run` with a running loop:** uses `ThreadPoolExecutor + asyncio.run` to avoid
   blocking (Jupyter). Do not simplify to a bare `asyncio.run`.
 
-## Workflow
+## Workflow (`main` is protected: branch → PR → CI → merge)
+```bash
+git checkout -b feat/xyz
+# ... work ...
+python -m ruff check src tests && python -m pytest tests -q
+git push -u origin feat/xyz   # then open a PR; merge after lint-unit + e2e pass
+```
+Release flow: tag `vX.Y.Z` + GitHub Release → PyPI via Trusted Publishing.
+
 ```bash
 pip install -e ".[dev]"
 playwright install chromium   # only for e2e tests / real PDF generation
