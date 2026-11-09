@@ -36,6 +36,9 @@ examples/          # generate_example.py + pedido.toon
 - **Pool Playwright × event loops:** `_browser` é singleton mas preso a um loop. `pdf.py`
   rastreia `_owner_loop` e recria o browser em loop novo/fechado (suítes criam um loop por
   teste). Não volte a checar só `if _browser is not None`.
+- **Nunca `await` em close de loop alheio:** `_reset_unlocked` abandona (sem aguardar)
+  estado de loop diferente/encerrado — `await` cross-loop trava no Linux. A API sync
+  encerra o próprio browser ao final via `close_owned_browser` (só age no loop atual).
 - **`_run` com loop ativo:** usa `ThreadPoolExecutor + asyncio.run` para não travar
   (Jupyter). Não simplificar para `asyncio.run` direto.
 
