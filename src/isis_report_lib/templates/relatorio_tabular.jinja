@@ -1,0 +1,11 @@
+{% extends 'relatorio_base.jinja' %}
+{% from 'relatorio_tabular_sections.jinja' import render_detail, render_group, render_divisor %}
+{% block titulo %}{{meta.title}}{% endblock %}
+{% block mode %}{{meta.mode}}{% endblock %}
+{% block filters %}{{meta.sub_title}}{% endblock %}
+{% block data_hora_impresssao %}{{meta.data_hora}}{% endblock %}
+{% block conteudo %}
+    {% if ds_items.groups and layout.groups %}
+        {{render_group(ds_items.groups, layout.groups, zip, fmt, 0)}}
+    {% endif %}
+{% endblock %}

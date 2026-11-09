@@ -1,0 +1,41 @@
+meta:
+  company: Minha Empresa
+  title: Pedido de Vendas
+  sub_title: De 01/01/2024 até 31/12/2024
+  type: pdf
+  mode: exact
+layout:
+  empresa{Empresa,str,left}
+  data_entrega{Data Entrega,date,center}
+  pedidos:
+    pedido{Código,int,right}
+    data_pedido{Data Pedido,date,center}
+    nome_produto{Produto,str,left}
+    total_tarifa{Total Tarifa,float,right}
+    valor_total{Valor Total,float,right}
+    cargas:
+      qtde{Quantidade,int,right}
+      valor_unitario{Valor Unitário,float,right}
+      valor_total{Valor Total,float,right}
+dados[1]:
+  - empresa: CQ CONSULTORIA ADMINITRATIVA
+    data_entrega: 01/12/2024
+    pedidos[2]:
+      - pedido: 750
+        data_pedido: 01/12/2024
+        nome_produto: CQ REFEIÇÃO
+        total_tarifa: 9.01
+        valor_total: 4000
+        cargas[3]{qtde,valor_unitario,valor_total}:
+          1,1500,1500
+          1,1000,1000
+          1,1500,1500
+      - pedido: 8750
+        data_pedido: 01/12/2024
+        nome_produto: CQ REFEIÇÃO
+        total_tarifa: 9.01
+        valor_total: 4000
+        cargas[3]{qtde,valor_unitario,valor_total}:
+          1,1500,1500
+          1,1000,1000
+          1,1500,1500
