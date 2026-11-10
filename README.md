@@ -178,13 +178,15 @@ meta:
   mode: exact
 layout:
   product{Product,str,left}
-  total{Total,float,right}
+  total{Total,float,right,sum}
 data[1]:
   - product: Pen
     total: 5.50
 ```
 
-`data[n]` holds the records (`dados[n]` still accepted as a legacy alias). See `examples/sales_order.toon`.
+`data[n]` holds the records (`dados[n]` still accepted as a legacy alias). The compact
+layout form accepts an optional 4th part with the aggregate: `total{Total,float,right,sum}`.
+See `examples/sales_order.toon`.
 
 ## API
 
