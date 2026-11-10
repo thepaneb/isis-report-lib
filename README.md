@@ -18,6 +18,9 @@ pip install isis-report-lib
 playwright install chromium   # required to generate PDFs
 ```
 
+> After upgrading `playwright`, reinstall the browser (`playwright install chromium`):
+> each Playwright version pins a specific Chromium build.
+
 Dev:
 
 ```bash

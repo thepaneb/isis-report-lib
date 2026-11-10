@@ -109,20 +109,6 @@ async def ensure_browser(headless: bool = True) -> None:
         _owner_loop = asyncio.get_running_loop()
 
 
-def ensure_browser_sync(headless: bool = True) -> None:
-    """Start the browser synchronously (schedules a task if a loop is already running)."""
-    if _browser is not None:
-        return
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            loop.create_task(ensure_browser(headless=headless))
-        else:
-            loop.run_until_complete(ensure_browser(headless=headless))
-    except RuntimeError:
-        asyncio.run(ensure_browser(headless=headless))
-
-
 async def new_page():
     """Return a new Page from the shared browser (close it with ``await page.close()``)."""
     await ensure_browser()
