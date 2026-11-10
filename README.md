@@ -138,6 +138,38 @@ payload = {
 isis-report generate order.toon --locale en-US -o out.pdf   # overrides meta.locale
 ```
 
+## Report parameters
+
+Beyond `layout` and `data`, the payload supports declarative behavior — no rigid bands, the document adapts to the data:
+
+```python
+payload = {
+    "meta": {
+        "title": "Sales Order",
+        "page": {"size": "A4", "orientation": "landscape", "margins": {"top": ".4in"}},
+    },
+    "layout": {
+        "company": {"label": "Company", "format_mask": "str", "alignment": "left"},
+        "orders": {
+            "order": {"label": "Code", "format_mask": "int", "alignment": "right"},
+            "status": {"label": "Status", "format_mask": "str", "alignment": "left", "visible": False},
+            "total": {"label": "Total", "format_mask": "float", "alignment": "right", "aggregate": "sum"},
+            "$print_when": {"field": "status", "not_equals": "cancelled"},
+            "$order_by": "-order",
+        },
+    },
+    "data": [...],
+}
+```
+
+| Parameter | Where | Effect |
+| --- | --- | --- |
+| `meta.page` | `meta` | `{size, orientation: portrait\|landscape, margins}` → PDF page (explicit `pdf_options` win) |
+| `aggregate` | field def | `sum\|count\|avg\|min\|max` → group footers, detail `tfoot`, grand summary. Flat child lists render as tables (several per item allowed); deeper nesting renders as sections |
+| `$print_when` | any level | keep only rows matching `{field, equals\|not_equals\|in\|not_in\|gt\|gte\|lt\|lte\|is_null\|not_null}` |
+| `$order_by` | any level | sort rows: `[{field, direction}]` or `"field"` / `"-field"` (nulls last) |
+| `visible` / `visible_when` | field def | hide a column; `visible_when` supports `{..., scope: any\|all}` |
+
 ## `.toon` syntax
 
 ```toon
@@ -146,13 +178,15 @@ meta:
   mode: exact
 layout:
   product{Product,str,left}
-  total{Total,float,right}
+  total{Total,float,right,sum}
 data[1]:
   - product: Pen
     total: 5.50
 ```
 
-`data[n]` holds the records (`dados[n]` still accepted as a legacy alias). See `examples/sales_order.toon`.
+`data[n]` holds the records (`dados[n]` still accepted as a legacy alias). The compact
+layout form accepts an optional 4th part with the aggregate: `total{Total,float,right,sum}`.
+See `examples/sales_order.toon`.
 
 ## API
 

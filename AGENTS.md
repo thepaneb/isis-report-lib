@@ -77,6 +77,9 @@ python -m ruff format --check src tests
 - Templates extend `base.jinja`; formatting via the Jinja `fmt(value, mask)` helper.
   Custom dirs layer over bundled templates (`template_dir`/`template_name`); every
   template gets `dataset`, `layout`, `meta`, `fmt`, `zip`.
+- Report parameters: `meta.page`, field `aggregate`, `$print_when`, `$order_by`,
+  `visible`/`visible_when` — see `layout.build_report`. Flat child lists render as
+  detail tables (several per item allowed); nested groups share one fragment per level.
 
 ## Commits
 Conventional Commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`.

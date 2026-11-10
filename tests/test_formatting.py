@@ -74,6 +74,15 @@ def test_unknown_locale_raises():
         format_value(1, "int", locale="xx-YY")
 
 
+def test_default_currency_unknown_locale_raises():
+    import pytest
+
+    from isis_report_lib.formatting import default_currency
+
+    with pytest.raises(ValueError, match="Unknown locale"):
+        default_currency("xx_YY")
+
+
 def test_date_object_localized():
     import datetime
 

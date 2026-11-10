@@ -23,6 +23,16 @@ def test_compact_layout_field():
     assert result["layout"]["product"] == {"label": "Product", "format_mask": "str", "alignment": "left"}
 
 
+def test_compact_layout_field_with_aggregate():
+    result = parser.parse("layout:\n  total{Total,float,right,sum}")
+    assert result["layout"]["total"] == {
+        "label": "Total",
+        "format_mask": "float",
+        "alignment": "right",
+        "aggregate": "sum",
+    }
+
+
 def test_compact_array_of_objects():
     result = parser.parse("items[2]{qty,price}:\n  1,1500\n  2,1000")
     assert result["items"] == [{"qty": 1, "price": 1500}, {"qty": 2, "price": 1000}]

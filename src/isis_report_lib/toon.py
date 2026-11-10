@@ -7,7 +7,7 @@ Supported syntax:
 - ``key[n]:`` + ``- ...`` items — array with n elements
 - ``key[n]{a,b}:`` + ``v1,v2`` lines — array of objects
 - ``data[n]:`` — the report records (legacy alias ``dados[n]:`` still accepted)
-- ``key{Label,format,align}`` — inline compact layout field
+- ``key{Label,format,align}`` — inline compact layout field (``aggregate`` optional 4th part)
 """
 
 import re
@@ -97,13 +97,16 @@ class ToonParser:
                 result[key] = arr
                 continue
 
-            m = re.match(r"^(\w+)\{([^,]+),([^,]+),([^,]+)\}$", content)
+            m = re.match(r"^(\w+)\{([^,]+),([^,]+),([^,}]+)(?:,([^,}]+))?\}$", content)
             if m:
-                result[m.group(1)] = {
+                field_def: dict[str, Any] = {
                     "label": m.group(2).strip(),
                     "format_mask": m.group(3).strip(),
                     "alignment": m.group(4).strip(),
                 }
+                if m.group(5):
+                    field_def["aggregate"] = m.group(5).strip()
+                result[m.group(1)] = field_def
                 i += 1
                 continue
 

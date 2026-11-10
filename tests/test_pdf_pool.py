@@ -47,9 +47,12 @@ def test_browser_usable_when_nothing_started():
 
 
 def test_browser_usable_rejects_foreign_loop(monkeypatch):
-    monkeypatch.setattr(pool, "_browser", FakeBrowser())
-    monkeypatch.setattr(pool, "_owner_loop", object())
-    assert pool._browser_usable() is False
+    async def check():
+        monkeypatch.setattr(pool, "_browser", FakeBrowser())
+        monkeypatch.setattr(pool, "_owner_loop", object())
+        return pool._browser_usable()
+
+    assert asyncio.run(check()) is False
 
 
 def test_browser_usable_rejects_broken_connection(monkeypatch):

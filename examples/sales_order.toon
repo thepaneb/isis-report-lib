@@ -12,11 +12,14 @@ layout:
     order_date{Order Date,date,center}
     product_name{Product,str,left}
     fee_total{Fee Total,float,right}
-    grand_total{Grand Total,float,right}
+    grand_total{Grand Total,float,right,sum}
     items:
-      qty{Qty,int,right}
+      qty{Qty,int,right,sum}
       unit_price{Unit Price,float,right}
       line_total{Line Total,float,right}
+    fees:
+      kind{Fee,str,left}
+      amount{Fee Total,float,right,sum}
 data[1]:
   - company: ACME CONSULTING
     delivery_date: 12/01/2024
@@ -25,11 +28,72 @@ data[1]:
         order_date: 12/01/2024
         product_name: ACME MEAL
         fee_total: 9.01
-        grand_total: 4000
-        items[3]{qty,unit_price,line_total}:
+        grand_total: 100000
+        items[60]{qty,unit_price,line_total}:
           1,1500,1500
-          1,1000,1000
+          2,1000,2000
           1,1500,1500
+          1,1500,1500
+          2,1000,2000
+          1,1500,1500
+          1,1500,1500
+          2,1000,2000
+          1,1500,1500
+          1,1500,1500
+          2,1000,2000
+          1,1500,1500
+          1,1500,1500
+          2,1000,2000
+          1,1500,1500
+          1,1500,1500
+          2,1000,2000
+          1,1500,1500
+          1,1500,1500
+          2,1000,2000
+          1,1500,1500
+          1,1500,1500
+          2,1000,2000
+          1,1500,1500
+          1,1500,1500
+          2,1000,2000
+          1,1500,1500
+          1,1500,1500
+          2,1000,2000
+          1,1500,1500
+          1,1500,1500
+          2,1000,2000
+          1,1500,1500
+          1,1500,1500
+          2,1000,2000
+          1,1500,1500
+          1,1500,1500
+          2,1000,2000
+          1,1500,1500
+          1,1500,1500
+          2,1000,2000
+          1,1500,1500
+          1,1500,1500
+          2,1000,2000
+          1,1500,1500
+          1,1500,1500
+          2,1000,2000
+          1,1500,1500
+          1,1500,1500
+          2,1000,2000
+          1,1500,1500
+          1,1500,1500
+          2,1000,2000
+          1,1500,1500
+          1,1500,1500
+          2,1000,2000
+          1,1500,1500
+          1,1500,1500
+          2,1000,2000
+          1,1500,1500
+        fees[3]{kind,amount}:
+          Service fee,5.00
+          Shipping,2.50
+          Tax,1.51
       - order: 8750
         order_date: 12/01/2024
         product_name: ACME MEAL
@@ -39,3 +103,7 @@ data[1]:
           1,1500,1500
           1,1000,1000
           1,1500,1500
+        fees[3]{kind,amount}:
+          Service fee,5.00
+          Shipping,2.50
+          Tax,1.51

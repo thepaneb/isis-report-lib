@@ -1,6 +1,7 @@
 """CLI tests (real rendering; PDF generation mocked except one browser e2e)."""
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -186,6 +187,14 @@ def test_generate_missing_header_file_fails(tmp_path, capsys):
     assert main(["generate", str(src), "--header-template", str(tmp_path / "nope.html")]) == 2
     _, err = capsys.readouterr()
     assert "Header template file not found" in err
+
+
+def test_read_text_file_oserror_becomes_value_error(tmp_path, monkeypatch, capsys):
+    src = _write(tmp_path, "in.toon", TOON)
+    monkeypatch.setattr(Path, "read_text", lambda *a, **k: (_ for _ in ()).throw(OSError("disk gone")))
+    assert main(["render", str(src)]) == 2
+    _, err = capsys.readouterr()
+    assert "Cannot read" in err
 
 
 @pytest.mark.browser

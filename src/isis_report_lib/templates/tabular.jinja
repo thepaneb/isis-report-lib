@@ -1,10 +1,13 @@
 {% extends 'base.jinja' %}
-{% from 'tabular_sections.jinja' import render_detail, render_group, render_divider %}
+{% from 'tabular_sections.jinja' import render_detail, render_details, render_group, render_divider, render_summary %}
 {% block title %}{{meta.title}}{% endblock %}
 {% block mode %}{{meta.mode}}{% endblock %}
 {% block subtitle %}{{meta.sub_title}}{% endblock %}
 {% block content %}
     {% if dataset.groups and layout.groups %}
         {{render_group(dataset.groups, layout.groups, zip, fmt, 0)}}
+    {% endif %}
+    {% if dataset.summary and layout.summary %}
+        {{render_summary(dataset.summary, layout.summary, zip, fmt)}}
     {% endif %}
 {% endblock %}

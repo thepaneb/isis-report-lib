@@ -27,28 +27,34 @@
         }
 
         .container {
-          margin: 0 3rem 0;
-          padding: 1.2rem;
+          margin: 0 1.5rem;
+          padding: .8rem;
         }
 
         h1 {
             color: #333;
             font-family: var(--custom-font, sans-serif);
-            font-size: 1.8rem;
+            font-size: 1.2rem;
             margin-bottom: 0;
             margin-top: 0;
             padding-inline: .5rem;
         }
 
+        hr.divider {
+            margin-block: .25rem;
+        }
+
         h2 {
             font-family: var(--custom-font, sans-serif);
-            font-size: 1.3rem;
+            font-size: 1.1rem;
+            margin-block: .25rem;
         }
 
         h3 {
             font-family: var(--custom-font, sans-serif);
-            font-size: .9rem;
+            font-size: .8rem;
             font-weight: 300;
+            margin-block: .15rem;
         }
 
         .icon-area {
@@ -57,8 +63,8 @@
         }
 
         .icon-area svg, .icon-area img{
-            width: 64px;
-            height: 64px;
+            width: 36px;
+            height: 36px;
             padding-inline: .5rem;
         }
 
@@ -68,8 +74,8 @@
         }
 
         p {
-            padding-inline: .45rem;
-            margin-block: .5em;
+            padding-inline: .3rem;
+            margin-block: .25em;
         }
 
         .report {
@@ -96,6 +102,10 @@
             text-align: center;
         }
 
+        .report thead {
+            background-color: var(--brand-color, #0A2F46);
+        }
+
         .report thead th:first-child {
             border-radius: 4px 0 0 0;
         }
@@ -106,32 +116,49 @@
 
         .report thead th {
             background-color: var(--brand-color, #0A2F46);
-            padding: .9rem;
+            padding: .45rem;
             color: var(--header-contrast ,#f1f1f1);
+            vertical-align: middle;
+            line-height: 1.25;
         }
 
         .report tbody tr:nth-child(even) {
             background-color: var(--light-strips, #f2f2f2);
         }
 
+        .report tfoot {
+            /* Render as plain rows so the totals print once, at the real end
+               of the table — never repeated at the bottom of a broken page. */
+            display: table-row-group;
+        }
+
+        .report tfoot td {
+            font-weight: 600;
+            border-top: 2px solid var(--brand-color, #0A2F46);
+        }
+
         td {
             border-bottom: 1px solid var(--light-white, #f1f1f1);
+            vertical-align: middle;
         }
 
         .group-header-0, .group-footer-0,
         .group-header-1, .group-footer-1, .summary {
-            padding: 0.5rem 1rem;
+            padding: 0.5rem;
             border-radius: 4px;
             display: flex;
             flex-wrap: wrap;
         }
 
-        .group-header-0, .group-footer-0, .summary {
+        .group-header-0, .group-footer-0 {
             background-color: var(--header-contrast, #f1f1f1);
+            margin-block: .5rem;
         }
 
         .summary {
-            border: 1px solid #d1d1d1;
+            background-color: #dce7ee;
+            border: 2px solid var(--brand-color, #0A2F46);
+            margin-block: .5rem;
         }
 
         .group-header-1, .group-footer-1 {
@@ -143,14 +170,18 @@
         .group-header-0 .content, .group-footer-0 .content,
         .summary .content {
             padding-block: 0.2rem;
-            margin-inline-end: 1rem;
+            margin-inline-end: .5rem;
+            display: flex;
+            align-items: baseline;
+            gap: .3rem;
+            white-space: nowrap;
         }
 
         .group-header-0 .content label, .group-footer-0 .content label,
         .group-header-1 .content label, .group-footer-1 .content label,
         .summary .content label {
             font-weight: 300;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
         }
 
 
@@ -158,11 +189,11 @@
         .group-header-1 .content span, .group-footer-1 .content span,
         .summary span {
             font-weight: 600;
-            font-size: 1rem;
+            font-size: 0.9rem;
         }
 
         .divider-table {
-            margin-block-end: 1rem;
+            margin-block: .5rem;
         }
     </style>
 </head>

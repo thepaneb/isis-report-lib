@@ -38,7 +38,7 @@ def default_footer(printed_at: str | None = None) -> str:
 
 
 DEFAULT_FOOTER = default_footer()
-DEFAULT_MARGIN = {"top": ".2in", "bottom": ".5in", "left": ".2in", "right": ".2in"}
+DEFAULT_MARGIN = {"top": ".15in", "bottom": ".4in", "left": ".15in", "right": ".15in"}
 
 
 def _browser_usable() -> bool:
