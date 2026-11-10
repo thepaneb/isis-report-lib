@@ -8,7 +8,7 @@ HERE = Path(__file__).parent
 
 _PATTERN = [(1, 1500, 1500), (2, 1000, 2000), (1, 1500, 1500)]
 ITEMS_750 = [
-    {"qty": q, "unit_price": u, "line_total": t} for _ in range(10) for (q, u, t) in _PATTERN
+    {"qty": q, "unit_price": u, "line_total": t} for _ in range(20) for (q, u, t) in _PATTERN
 ]
 
 payload = {
@@ -47,7 +47,7 @@ payload = {
                     "order_date": "12/01/2024",
                     "product_name": "ACME MEAL",
                     "fee_total": 9.01,
-                    "grand_total": 50000,
+                    "grand_total": 100000,
                     "items": ITEMS_750,
                     "fees": [
                         {"kind": "Service fee", "amount": 5.00},
