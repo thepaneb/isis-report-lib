@@ -178,3 +178,9 @@ Real-PDF tests require `playwright install chromium` and are skipped (`-m "not b
 ## License
 
 MIT — see `LICENSE`.
+
+## Security
+
+- **Dependencies**: audited with `pip-audit` (no known vulnerabilities); Dependabot keeps actions and packages updated; releases are built and published by CI via OIDC trusted publishing (no stored tokens).
+- **Trust boundary**: templates (`.jinja` files, `template_dir`) are code — only load them from sources you trust. Report *data* (dict/JSON/`.toon`) is never executed as template code, only interpolated. Jinja autoescaping is off by design (report HTML is rendered to PDF, not served to browsers).
+- **Robustness**: deeply nested `.toon` input is rejected with `ValueError` instead of crashing the interpreter; the Playwright browser runs headless in its own Chromium sandbox per call (sync API) or a shared pool (async API).
