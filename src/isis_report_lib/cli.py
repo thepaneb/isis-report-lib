@@ -6,7 +6,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from isis_report_lib.api import generate_pdf, generate_pdf_from_toon, render_html, render_html_from_toon
+from isis_report_lib.api import generate_pdf, render_html
+from isis_report_lib.toon import parse_toon
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -26,6 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Input format (default: guessed from the file extension).",
     )
     gen.add_argument("--page-format", default="A4", help="PDF page format (default: A4).")
+    gen.add_argument("--locale", default=None, help="Override meta locale (e.g. en-US, pt-BR).")
     gen.add_argument("--template-dir", type=Path, default=None, help="Directory with custom .jinja templates.")
     gen.add_argument("--template-name", default="tabular.jinja", help="Template file to render (default: tabular.jinja).")
     gen.add_argument("--header-template", type=Path, default=None, help="HTML file for the PDF header.")
@@ -43,6 +45,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ren.add_argument("--template-dir", type=Path, default=None, help="Directory with custom .jinja templates.")
     ren.add_argument("--template-name", default="tabular.jinja", help="Template file to render (default: tabular.jinja).")
+    ren.add_argument("--locale", default=None, help="Override meta locale (e.g. en-US, pt-BR).")
     ren.set_defaults(func=_cmd_render)
 
     return parser
@@ -69,6 +72,15 @@ def _read_text_file(path: Path | None, label: str) -> str | None:
         raise ValueError(f"Cannot read {label} file {path}: {e}") from None
 
 
+def _apply_locale(payload: dict | str, locale: str | None) -> dict | str:
+    """Override ``meta.locale`` when ``--locale`` is given (dict payloads only)."""
+    if locale is None or not isinstance(payload, dict):
+        return payload
+    meta = dict(payload.get("meta") or {})
+    meta["locale"] = locale
+    return {**payload, "meta": meta}
+
+
 def _load_payload(path: Path, fmt: str) -> tuple[dict | str, bool]:
     """Return (payload, is_json). Raises FileNotFoundError / ValueError with friendly messages."""
     try:
@@ -87,6 +99,9 @@ def _cmd_generate(args: argparse.Namespace) -> int:
     try:
         fmt = _detect_format(args.input, args.input_format)
         payload, is_json = _load_payload(args.input, fmt)
+        if not is_json:
+            payload = parse_toon(payload)
+        payload = _apply_locale(payload, args.locale)
         pdf_options: dict[str, Any] = {"format": args.page_format}
         header = _read_text_file(args.header_template, "Header template")
         if header is not None:
@@ -94,11 +109,7 @@ def _cmd_generate(args: argparse.Namespace) -> int:
         footer = _read_text_file(args.footer_template, "Footer template")
         if footer is not None:
             pdf_options["footer_template"] = footer
-        pdf = (
-            generate_pdf(payload, pdf_options, args.template_dir, args.template_name)
-            if is_json
-            else generate_pdf_from_toon(payload, pdf_options, args.template_dir, args.template_name)
-        )
+        pdf = generate_pdf(payload, pdf_options, args.template_dir, args.template_name)
     except (FileNotFoundError, ValueError) as e:
         print(f"isis-report: error: {e}", file=sys.stderr)
         return 2
@@ -115,11 +126,10 @@ def _cmd_render(args: argparse.Namespace) -> int:
     try:
         fmt = _detect_format(args.input, args.input_format)
         payload, is_json = _load_payload(args.input, fmt)
-        html = (
-            render_html(payload, args.template_dir, args.template_name)
-            if is_json
-            else render_html_from_toon(payload, args.template_dir, args.template_name)
-        )
+        if not is_json:
+            payload = parse_toon(payload)
+        payload = _apply_locale(payload, args.locale)
+        html = render_html(payload, args.template_dir, args.template_name)
     except (FileNotFoundError, ValueError) as e:
         print(f"isis-report: error: {e}", file=sys.stderr)
         return 2

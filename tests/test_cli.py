@@ -67,9 +67,16 @@ def test_generate_toon_mocked(tmp_path, monkeypatch, capsys):
 
     src = _write(tmp_path, "in.toon", TOON)
     dst = tmp_path / "out.pdf"
-    monkeypatch.setattr(cli, "generate_pdf_from_toon", lambda *a: b"%PDF-mock")
+    seen = {}
+
+    def fake_generate(payload, *args):
+        seen["payload"] = payload
+        return b"%PDF-mock"
+
+    monkeypatch.setattr(cli, "generate_pdf", fake_generate)
     assert main(["generate", str(src), "-o", str(dst)]) == 0
     assert dst.read_bytes() == b"%PDF-mock"
+    assert seen["payload"]["data"] == [{"product": "Pen"}]
     out, _ = capsys.readouterr()
     assert str(dst) in out
 
@@ -107,7 +114,7 @@ def test_render_propagates_failure_as_exit_1(tmp_path, monkeypatch, capsys):
     def boom(*args):
         raise RuntimeError("jinja exploded")
 
-    monkeypatch.setattr(cli, "render_html_from_toon", boom)
+    monkeypatch.setattr(cli, "render_html", boom)
     assert main(["render", str(src)]) == 1
     _, err = capsys.readouterr()
     assert "jinja exploded" in err
@@ -121,7 +128,7 @@ def test_generate_propagates_failure_as_exit_1(tmp_path, monkeypatch, capsys):
     def boom(*args):
         raise RuntimeError("browser exploded")
 
-    monkeypatch.setattr(cli, "generate_pdf_from_toon", boom)
+    monkeypatch.setattr(cli, "generate_pdf", boom)
     assert main(["generate", str(src)]) == 1
     _, err = capsys.readouterr()
     assert "browser exploded" in err
@@ -136,6 +143,24 @@ def test_render_with_template_flags(tmp_path, capsys):
     assert "CUSTOM:Order" in out
 
 
+def test_render_locale_override(tmp_path, capsys):
+    # Without layout the value is still formatted via the inferred layout.
+    src = _write(tmp_path, "in.toon", "meta:\n  title: T\n  mode: exact\ndata[1]:\n  - total: 4000\n")
+    assert main(["render", str(src), "--locale", "en-US"]) == 0
+    out, _ = capsys.readouterr()
+    assert "4,000" in out
+    # With layout the locale drives number grouping.
+    float_payload = {
+        "meta": {"title": "Order", "mode": "exact"},
+        "layout": {"total": {"label": "Total", "format_mask": "float", "alignment": "right"}},
+        "data": [{"total": 4000}],
+    }
+    src_json = _write(tmp_path, "in.json", json.dumps(float_payload))
+    assert main(["render", str(src_json), "--locale", "en-US"]) == 0
+    out, _ = capsys.readouterr()
+    assert "4,000.00" in out
+
+
 def test_generate_header_footer_flags_mocked(tmp_path, monkeypatch, capsys):
     from isis_report_lib import cli
 
@@ -144,11 +169,11 @@ def test_generate_header_footer_flags_mocked(tmp_path, monkeypatch, capsys):
     src = _write(tmp_path, "in.toon", TOON)
     seen = {}
 
-    def fake_generate(text, opts, *args):
+    def fake_generate(payload, opts, *args):
         seen["opts"] = opts
         return b"%PDF-mock"
 
-    monkeypatch.setattr(cli, "generate_pdf_from_toon", fake_generate)
+    monkeypatch.setattr(cli, "generate_pdf", fake_generate)
     assert main(["generate", str(src), "--header-template", str(header), "--footer-template", str(footer)]) == 0
     assert seen["opts"]["header_template"] == "<div>HEADER</div>"
     assert seen["opts"]["footer_template"] == "<div>FOOTER</div>"

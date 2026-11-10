@@ -121,11 +121,22 @@ It overrides the `--brand-color` CSS variable. More masks: `str` · `int` · `fl
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `meta` | object | yes | `title`, `sub_title`, `mode` (`"exact"`/`"gray"`), `company` |
+| `meta` | object | yes | `title`, `sub_title`, `mode` (`"exact"`/`"gray"`), `company`, `locale` (`"pt-BR"`, `"en-US"`…), `currency` (override, e.g. `"EUR"`), `accent_color`, `printed_at` (auto-filled) |
 | `layout` | object | no | hierarchical field definition; omit to infer from data |
 | `data` | array | yes | raw records or template format (`{"fields": ..., "groups": ...}`) |
 
-Masks: `str` · `int` (thousands `1.234`) · `float` (pt-BR `1.234,50`) · `date` · `percent` (fraction → `9,10 %`) · `currency` (`R$ 1.234,50`) · `bool` (`Yes`/`No`).
+Masks (locale-aware via Babel/CLDR): `str` · `int` · `float` · `date` (localized for `date`/`datetime` objects) · `percent` · `currency` · `bool` (`Yes`/`No`).
+
+```python
+payload = {
+    "meta": {"title": "Sales Order", "locale": "en-US"},  # numbers as 1,234.50, $1,234.50
+    "data": [...],
+}
+```
+
+```bash
+isis-report generate order.toon --locale en-US -o out.pdf   # overrides meta.locale
+```
 
 ## `.toon` syntax
 
