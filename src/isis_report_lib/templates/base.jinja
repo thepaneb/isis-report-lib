@@ -123,8 +123,9 @@
             border-bottom: 1px solid var(--light-white, #f1f1f1);
         }
 
-        .group-header-0, .group-footer-0, .summary {
-            padding: 0.5rem 1rem;
+        .group-header-0, .group-footer-0,
+        .group-header-1, .group-footer-1, .summary {
+            padding: 0.5rem;
             border-radius: 4px;
             display: flex;
             flex-wrap: wrap;
@@ -142,8 +143,7 @@
         }
 
         .group-header-1, .group-footer-1 {
-            border: none;
-            border-bottom: 1px solid var(--header-contrast, #f1f1f1);
+            border: 1px solid var(--header-contrast, #f1f1f1);
             margin-block: .5rem;
         }
 
@@ -151,10 +151,10 @@
         .group-header-0 .content, .group-footer-0 .content,
         .summary .content {
             padding-block: 0.2rem;
-            margin-inline-end: 1rem;
+            margin-inline-end: .5rem;
             display: flex;
             align-items: baseline;
-            gap: .35rem;
+            gap: .3rem;
             white-space: nowrap;
         }
 
@@ -162,7 +162,7 @@
         .group-header-1 .content label, .group-footer-1 .content label,
         .summary .content label {
             font-weight: 300;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
         }
 
 
@@ -170,7 +170,7 @@
         .group-header-1 .content span, .group-footer-1 .content span,
         .summary span {
             font-weight: 600;
-            font-size: 1rem;
+            font-size: 0.9rem;
         }
 
         .divider-table {
