@@ -106,7 +106,7 @@
 
         .report thead th {
             background-color: var(--brand-color, #0A2F46);
-            padding: .9rem;
+            padding: .45rem;
             color: var(--header-contrast ,#f1f1f1);
         }
 
@@ -142,7 +142,8 @@
         }
 
         .group-header-1, .group-footer-1 {
-            border: 1px solid var(--header-contrast, #f1f1f1);
+            border: none;
+            border-bottom: 1px solid var(--header-contrast, #f1f1f1);
             margin-block: .5rem;
         }
 
@@ -151,6 +152,10 @@
         .summary .content {
             padding-block: 0.2rem;
             margin-inline-end: 1rem;
+            display: flex;
+            align-items: baseline;
+            gap: .35rem;
+            white-space: nowrap;
         }
 
         .group-header-0 .content label, .group-footer-0 .content label,
