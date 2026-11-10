@@ -9,7 +9,11 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 ### Added
 - Report theming via `meta.accent_color` (overrides the header brand color)
 - TestPyPI auto-publish for pre-releases (`vX.Y.ZrcN`)
-- `percent`, `currency` (R$) and `bool` format masks
+- `percent`, `currency` and `bool` format masks (now locale-aware)
+- `meta.printed_at` auto-filled with the print timestamp; custom PDF header/footer via `pdf_options` and CLI flags
+- Locale-aware formatting via `meta.locale` (Babel/CLDR, default `pt-BR`) + `meta.currency` override; `--locale` CLI flag
+### Changed
+- print timestamp moved to the repeated page footer (right side, next to page count), out of the report body
 - `meta.printed_at` auto-filled with the print timestamp; custom PDF header/footer via `pdf_options` and CLI flags
 ### Changed
 - Print timestamp moved to the repeated page footer (right side, next to page count), out of the report body

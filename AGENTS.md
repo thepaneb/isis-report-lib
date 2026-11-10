@@ -73,7 +73,7 @@ python -m ruff format --check src tests
 ## Conventions
 - Code and docstrings in English; pipeline methods use short verbs
   (`_fetch_data`, `_process_data`, `_render_html`, `_generate_pdf`).
-- Masks: `str` · `int` (`1.234`) · `float` pt-BR (`1.234,50`) · `date` · `percent` · `currency` (R$) · `bool` (`Yes`/`No`).
+- Masks are locale-aware (Babel/CLDR, `meta.locale`, default `pt-BR`): `str` · `int` · `float` · `date` · `percent` · `currency` (territory default, `meta.currency` override) · `bool` (`Yes`/`No`).
 - Templates extend `base.jinja`; formatting via the Jinja `fmt(value, mask)` helper.
   Custom dirs layer over bundled templates (`template_dir`/`template_name`); every
   template gets `dataset`, `layout`, `meta`, `fmt`, `zip`.

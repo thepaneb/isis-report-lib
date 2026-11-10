@@ -29,6 +29,18 @@ def test_render_html_sync_contains_values():
     assert "4.000,00" in html
 
 
+def test_render_html_respects_meta_locale():
+    payload = {
+        "meta": {"title": "Order", "mode": "exact", "locale": "en-US"},
+        "layout": {
+            "total": {"label": "Total", "format_mask": "float", "alignment": "right"},
+        },
+        "data": [{"total": 4000}],
+    }
+    html = render_html(payload)
+    assert "4,000.00" in html
+
+
 async def test_arender_html_matches_sync():
     assert await arender_html(PAYLOAD) == render_html(PAYLOAD)
 

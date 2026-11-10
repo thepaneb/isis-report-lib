@@ -45,11 +45,11 @@ async def arender_report_html(
     template_dir: str | Path | None = None,
 ) -> str:
     """Render the report HTML (async for API parity; Jinja itself is sync)."""
-    from isis_report_lib.formatting import format_value
+    from isis_report_lib.formatting import formatter_for
 
     env = get_jinja_env(template_dir)
     template = env.get_template(template_name)
-    return template.render(dataset=dataset, layout=layout, meta=meta, fmt=format_value, zip=zip)
+    return template.render(dataset=dataset, layout=layout, meta=meta, fmt=formatter_for(meta), zip=zip)
 
 
 def render_report_html(
@@ -60,8 +60,8 @@ def render_report_html(
     template_dir: str | Path | None = None,
 ) -> str:
     """Synchronous version of the HTML rendering."""
-    from isis_report_lib.formatting import format_value
+    from isis_report_lib.formatting import formatter_for
 
     env = get_jinja_env(template_dir)
     template = env.get_template(template_name)
-    return template.render(dataset=dataset, layout=layout, meta=meta, fmt=format_value, zip=zip)
+    return template.render(dataset=dataset, layout=layout, meta=meta, fmt=formatter_for(meta), zip=zip)
