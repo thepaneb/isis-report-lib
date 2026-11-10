@@ -196,8 +196,9 @@ def test_build_report_footers_and_summary():
     company = dataset["groups"][0]
     assert company["footer"] == {"total": 6000}
     first, second = company["groups"]
-    assert first["detail_footer"] == {"qty": 3}
-    assert second["detail_footer"] == {"qty": 4}
+    assert first["details"]["items"]["footer"] == {"qty": 3}
+    assert second["details"]["items"]["footer"] == {"qty": 4}
+    assert [f["name"] for f in layout["groups"]["groups"]["details"]["items"]] == ["qty", "unit_price"]
     assert dataset["summary"] == {"total": 6000, "qty": 7}
     assert [f["name"] for f in layout["groups"]["footer"]] == ["total"]
     assert [f["name"] for f in layout["summary"]] == ["total", "qty"]
@@ -223,7 +224,8 @@ def test_build_report_print_when_and_order_by():
         }
     ]
     dataset, _layout = build_report(data, layout)
-    assert [g["fields"]["order"] for g in dataset["groups"][0]["groups"]] == [2, 1]
+    table = dataset["groups"][0]["details"]["orders"]
+    assert [r["order"] for r in table["rows"]] == [2, 1]
 
 
 def test_build_report_visible_false_drops_column():
@@ -234,3 +236,42 @@ def test_build_report_visible_false_drops_column():
     dataset, result = build_report([{"company": "ACME", "secret": "shh"}], layout)
     assert [f["name"] for f in result["groups"]["header"]] == ["company"]
     assert dataset["groups"][0]["fields"] == {"company": "ACME", "secret": "shh"}
+
+
+def test_build_report_multiple_detail_tables():
+    layout = {
+        "company": {"label": "Company", "format_mask": "str", "alignment": "left"},
+        "orders": {
+            "order": {"label": "Code", "format_mask": "int", "alignment": "right"},
+            "total": {"label": "Total", "format_mask": "float", "alignment": "right", "aggregate": "sum"},
+            "items": {
+                "qty": {"label": "Qty", "format_mask": "int", "alignment": "right", "aggregate": "sum"},
+            },
+            "fees": {
+                "kind": {"label": "Fee", "format_mask": "str", "alignment": "left"},
+                "amount": {"label": "Amount", "format_mask": "float", "alignment": "right", "aggregate": "sum"},
+            },
+        },
+    }
+    data = [
+        {
+            "company": "ACME",
+            "orders": [
+                {
+                    "order": 1,
+                    "total": 4000,
+                    "items": [{"qty": 1}, {"qty": 2}],
+                    "fees": [{"kind": "Service", "amount": 5.00}, {"kind": "Tax", "amount": 4.01}],
+                }
+            ],
+        }
+    ]
+    dataset, result = build_report(data, layout)
+    order = dataset["groups"][0]["groups"][0]
+    assert set(order["details"]) == {"items", "fees"}
+    assert order["details"]["items"]["footer"] == {"qty": 3}
+    assert order["details"]["fees"]["footer"] == {"amount": 9.01}
+    assert "footer" not in order  # table totals live in tfoot; no redundant recap
+    assert dataset["groups"][0]["footer"] == {"total": 4000}
+    assert [f["name"] for f in result["groups"]["groups"]["details"]["fees"]] == ["kind", "amount"]
+    assert dataset["summary"] == {"total": 4000, "qty": 3, "amount": 9.01}

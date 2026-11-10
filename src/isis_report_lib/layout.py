@@ -352,68 +352,56 @@ def _visible_fields(field_defs: dict[str, Any], rows: list[dict[str, Any]]) -> l
     return [k for k, v in field_defs.items() if field_visible(v, rows)]
 
 
-def _convert_item(record: dict[str, Any], node: dict[str, Any]) -> dict[str, Any]:
-    """Convert one raw record (recursive): fields, groups, detail + computed footers.
+def _has_nested_groups(sub_node: dict[str, Any]) -> bool:
+    """True when the sub-layout declares a deeper group level (vs. a flat row list)."""
+    return any(_is_group_node(v) for k, v in sub_node.items() if not k.startswith("$"))
 
-    Footer aggregates are declared on the *child* level fields and computed over
-    the item's direct children. Detail tables (and their ``tfoot``) come from the
-    child level's nested detail key.
+
+def _convert_item(record: dict[str, Any], node: dict[str, Any]) -> dict[str, Any]:
+    """Convert one raw record (recursive): fields, groups, detail tables + footers.
+
+    A group key whose sub-layout declares deeper groups becomes nested ``groups``
+    entries; a group key over a flat row list becomes a ``details`` table.
+    Multiple tables per item are supported (e.g. products + fees).
     """
     field_defs, group_nodes, _options = split_layout_node(node)
     fields = {k: record.get(k) for k in field_defs if k in record}
 
     groups: list[dict[str, Any]] = []
+    details: dict[str, Any] = {}
     footer_funcs: dict[str, str] = {}
     footer_rows: dict[str, list[dict[str, Any]]] = {}
     for key, sub_node in group_nodes.items():
-        sub_fields, _sub_groups, _sub_options = split_layout_node(sub_node)
-        detail_key = next((k for k, v in sub_node.items() if _is_group_node(v) and not k.startswith("$")), None)
         children = record.get(key, []) or []
         children = [c for c in children if isinstance(c, dict)]
         children = sort_rows(filter_rows(children, sub_node.get("$print_when")), sub_node.get("$order_by"))
-        for f, d in sub_fields.items():
-            if d.get("aggregate") and f not in footer_funcs:
-                footer_funcs[f] = d["aggregate"]
-                footer_rows[f] = children
-        for child in children:
-            if detail_key is None:
+        sub_fields, _sub_groups, _sub_options = split_layout_node(sub_node)
+        if _has_nested_groups(sub_node):
+            for f, d in sub_fields.items():
+                if d.get("aggregate") and f not in footer_funcs:
+                    footer_funcs[f] = d["aggregate"]
+                    footer_rows[f] = children
+            for child in children:
                 groups.append(_convert_item(child, sub_node))
-            else:
-                entry = _convert_item(child, {k: v for k, v in sub_node.items() if k != detail_key})
-                detail_rows = [d for d in (child.get(detail_key, []) or []) if isinstance(d, dict)]
-                detail_rows = sort_rows(
-                    filter_rows(detail_rows, sub_node[detail_key].get("$print_when")),
-                    sub_node[detail_key].get("$order_by"),
-                )
-                if detail_rows:
-                    entry["detail"] = detail_rows
-                detail_footer = _meaningful(
-                    {
-                        f: aggregate_values(detail_rows, f, sub_node[detail_key][f]["aggregate"])
-                        for f in sub_node[detail_key]
-                        if _is_field_def(sub_node[detail_key][f]) and sub_node[detail_key][f].get("aggregate")
-                    }
-                )
-                if detail_footer is not None:
-                    entry["detail_footer"] = detail_footer
-                groups.append(entry)
+        else:
+            table: dict[str, Any] = {"rows": children}
+            table_footer = _meaningful(
+                {f: aggregate_values(children, f, d["aggregate"]) for f, d in sub_fields.items() if d.get("aggregate")}
+            )
+            if table_footer is not None:
+                table["footer"] = table_footer
+            if children:
+                details[key] = table
 
     item: dict[str, Any] = {"fields": fields}
     if groups:
         item["groups"] = groups
+    if details:
+        item["details"] = details
     computed_footer = _meaningful({f: aggregate_values(footer_rows[f], f, func) for f, func in footer_funcs.items()})
     if computed_footer is not None:
         item["footer"] = computed_footer
     return item
-
-
-def _child_scalars(record: dict[str, Any], group_nodes: dict[str, Any]) -> list[dict[str, Any]]:
-    """Flatten one level of children for footer aggregation."""
-    rows: list[dict[str, Any]] = []
-    for key in group_nodes:
-        children = record.get(key, []) or []
-        rows.extend([c for c in children if isinstance(c, dict)])
-    return rows
 
 
 def _build_layout(node: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -424,9 +412,9 @@ def _build_layout(node: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str,
     """Build the render-ready layout fragment for one level (visibility-aware).
 
     Mirrors the data shape: ``header`` (own fields), ``groups`` (child fragment),
-    ``detail`` (leaf table columns), ``footer`` (child-level aggregate fields).
-    One nested group key per level is rendered (extra keys merge into the same
-    list, as in the original converter).
+    ``details`` (leaf table columns per key), ``footer`` (child-level aggregate
+    fields). Group keys with deeper nesting share a single child fragment built
+    from the first nested key (documented limitation).
     """
     field_defs, group_nodes, _options = split_layout_node(node)
     visible = _visible_fields(field_defs, rows)
@@ -442,6 +430,8 @@ def _build_layout(node: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str,
     footer: list[dict[str, Any]] = []
     seen: set[str] = set()
     for gkey, sub in group_nodes.items():
+        if not _has_nested_groups(sub):
+            continue
         sub_fields, _sg, _so = split_layout_node(sub)
         for f in _visible_fields(sub_fields, child_rows[gkey]):
             if sub_fields[f].get("aggregate") and f not in seen:
@@ -449,24 +439,22 @@ def _build_layout(node: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str,
                 footer.append(format_field(f, sub_fields[f]))
 
     child_layout = None
-    first = next(iter(group_nodes), None)
-    if first is not None:
-        sub = group_nodes[first]
-        inner_detail = next((k for k, v in sub.items() if _is_group_node(v) and not k.startswith("$")), None)
-        if inner_detail is None:
-            child_layout = _build_layout(sub, child_rows[first])
-        else:
-            # The detail table belongs to the child items: attach it to the child fragment.
-            child_layout = _build_layout({k: v for k, v in sub.items() if k != inner_detail}, child_rows[first])
-            inner_fields, _ig, _io = split_layout_node(sub[inner_detail])
-            drows: list[dict[str, Any]] = []
-            for c in child_rows[first]:
-                drows.extend([d for d in (c.get(inner_detail, []) or []) if isinstance(d, dict)])
-            child_layout["detail"] = [format_field(k, inner_fields[k]) for k in _visible_fields(inner_fields, drows)]
+    nested_key = next((k for k, v in group_nodes.items() if _has_nested_groups(v)), None)
+    if nested_key is not None:
+        child_layout = _build_layout(group_nodes[nested_key], child_rows[nested_key])
+
+    details: dict[str, Any] = {}
+    for gkey, sub in group_nodes.items():
+        if _has_nested_groups(sub):
+            continue
+        sub_fields, _sg, _so = split_layout_node(sub)
+        details[gkey] = [format_field(k, sub_fields[k]) for k in _visible_fields(sub_fields, child_rows[gkey])]
 
     fragment: dict[str, Any] = {"header": header}
     if child_layout is not None:
         fragment["groups"] = child_layout
+    if details:
+        fragment["details"] = details
     if footer:
         fragment["footer"] = footer
     return fragment

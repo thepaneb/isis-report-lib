@@ -46,6 +46,13 @@
         {% endif %}
     </table>
 {% endmacro %}
+{% macro render_details(details, layouts, zip, fmt) %}
+    {% for key, table in details.items() %}
+        {% if key in layouts %}
+            {{render_detail(table.rows, table.footer, layouts[key], zip, fmt)}}
+        {% endif %}
+    {% endfor %}
+{% endmacro %}
 {% macro render_group(rows, layout, zip, fmt, level) %}
     {% for row in rows %}
         {% if row.fields and layout.header %}
@@ -54,8 +61,8 @@
         {% if row.groups and layout.groups %}
             {{render_group(row.groups, layout.groups, zip, fmt, level + 1)}}
         {% endif %}
-        {% if row.detail and layout.detail %}
-            {{render_detail(row.detail, row.detail_footer, layout.detail, zip, fmt)}}
+        {% if row.details and layout.details %}
+            {{render_details(row.details, layout.details, zip, fmt)}}
         {% endif %}
         {% if row.footer and layout.footer %}
             {{render_group_footer(row.footer, layout.footer, zip, fmt, level)}}

@@ -165,7 +165,7 @@ payload = {
 | Parameter | Where | Effect |
 | --- | --- | --- |
 | `meta.page` | `meta` | `{size, orientation: portrait\|landscape, margins}` → PDF page (explicit `pdf_options` win) |
-| `aggregate` | field def | `sum\|count\|avg\|min\|max` → group footers, detail `tfoot`, grand summary |
+| `aggregate` | field def | `sum\|count\|avg\|min\|max` → group footers, detail `tfoot`, grand summary. Flat child lists render as tables (several per item allowed); deeper nesting renders as sections |
 | `$print_when` | any level | keep only rows matching `{field, equals\|not_equals\|in\|not_in\|gt\|gte\|lt\|lte\|is_null\|not_null}` |
 | `$order_by` | any level | sort rows: `[{field, direction}]` or `"field"` / `"-field"` (nulls last) |
 | `visible` / `visible_when` | field def | hide a column; `visible_when` supports `{..., scope: any\|all}` |
