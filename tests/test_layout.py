@@ -13,6 +13,7 @@ from isis_report_lib.layout import (
     infer_layout,
     is_template_format,
     sort_rows,
+    template_header_layout,
 )
 
 
@@ -164,6 +165,11 @@ def test_sort_rows():
         sort_rows(rows, [42])
 
 
+def test_sort_rows_mixed_types_fall_back_to_str():
+    rows = [{"o": 10}, {"o": "b"}, {"o": "a"}]
+    assert [r["o"] for r in sort_rows(rows, "o")] == [10, "a", "b"]
+
+
 def test_field_visible():
     assert field_visible({"label": "A"}, [{"x": 1}]) is True
     assert field_visible({"label": "A", "visible": False}, [{"x": 1}]) is False
@@ -187,6 +193,7 @@ def test_aggregate_values():
     assert aggregate_values(rows, "v", "max") == 20
     assert aggregate_values([], "v", "sum") == ""
     assert aggregate_values([{"x": 1}], "v", "sum") == ""
+    assert aggregate_values([{"v": 10}, "not-a-dict", 42], "v", "sum") == 10
     with pytest.raises(ValueError, match="Unknown aggregate"):
         aggregate_values(rows, "v", "median")
 
@@ -228,8 +235,12 @@ def test_build_report_print_when_and_order_by():
     assert [r["order"] for r in table["rows"]] == [2, 1]
 
 
-def test_build_report_visible_false_drops_column():
-    layout = {
+def test_template_header_layout_ignores_non_dict_fields():
+    assert template_header_layout([{"fields": [1, 2]}]) == {"groups": {"header": []}}
+    assert template_header_layout([]) == {"groups": {"header": []}}
+
+
+def test_build_report_visible_false_drops_column():    layout = {
         "company": {"label": "Company", "format_mask": "str", "alignment": "left"},
         "secret": {"label": "Secret", "format_mask": "str", "alignment": "left", "visible": False},
     }

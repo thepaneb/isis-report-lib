@@ -74,7 +74,7 @@ class TabularReportService(BaseReportService):
         return payload.get("data", [])
 
     async def _process_data(self, data: Any, payload: dict[str, Any]) -> dict[str, Any]:
-        from isis_report_lib.layout import build_report, infer_layout, is_template_format
+        from isis_report_lib.layout import build_report, infer_layout, is_template_format, template_header_layout
 
         meta = with_meta_defaults(payload.get("meta", {}))
         self._printed_at = meta.get("printed_at")
@@ -83,16 +83,16 @@ class TabularReportService(BaseReportService):
 
         if layout_raw:
             dataset, layout = build_report(data, layout_raw)
+        elif is_template_format(data):
+            layout = template_header_layout(data)
+            dataset = {"groups": data, "summary": None}
         else:
             layout = infer_layout(data)
             # The template iterates over `row.fields`, so raw records must be wrapped.
-            if is_template_format(data):
-                dataset = {"groups": data, "summary": None}
-            else:
-                dataset = {
-                    "groups": [{"fields": r} if isinstance(r, dict) else {"fields": {"value": r}} for r in data],
-                    "summary": None,
-                }
+            dataset = {
+                "groups": [{"fields": r} if isinstance(r, dict) else {"fields": {"value": r}} for r in data],
+                "summary": None,
+            }
         return {"dataset": dataset, "layout": layout, "meta": meta}
 
     async def _render_html(self, data: dict[str, Any], payload: dict[str, Any]) -> str:
@@ -126,8 +126,6 @@ class TabularReportService(BaseReportService):
         elif page.get("orientation") not in (None, "portrait"):
             raise ValueError(f"Invalid page orientation: {page.get('orientation')!r}")
         margins = page.get("margins") or {}
-        options["margin"] = {
-            key: margins.get(key, DEFAULT_MARGIN[key]) for key in ("top", "bottom", "left", "right")
-        }
+        options["margin"] = {key: margins.get(key, DEFAULT_MARGIN[key]) for key in ("top", "bottom", "left", "right")}
         options.update(self._pdf_options)
         return options

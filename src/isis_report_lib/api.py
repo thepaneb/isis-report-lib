@@ -90,7 +90,7 @@ async def arender_html(
     template_name: str = "tabular.jinja",
 ) -> str:
     """Render only the intermediate HTML (async, no Playwright)."""
-    from isis_report_lib.layout import build_report, infer_layout, is_template_format
+    from isis_report_lib.layout import build_report, infer_layout, is_template_format, template_header_layout
 
     data = _normalize_payload(payload)
     raw = data.get("data", [])
@@ -100,15 +100,15 @@ async def arender_html(
     meta = with_meta_defaults(data.get("meta", {}))
     if layout_raw:
         dataset, layout = build_report(raw, layout_raw)
+    elif is_template_format(raw):
+        layout = template_header_layout(raw)
+        dataset = {"groups": raw, "summary": None}
     else:
         layout = infer_layout(raw)
-        if is_template_format(raw):
-            dataset = {"groups": raw, "summary": None}
-        else:
-            dataset = {
-                "groups": [{"fields": r} if isinstance(r, dict) else {"fields": {"value": r}} for r in raw],
-                "summary": None,
-            }
+        dataset = {
+            "groups": [{"fields": r} if isinstance(r, dict) else {"fields": {"value": r}} for r in raw],
+            "summary": None,
+        }
 
     from isis_report_lib.rendering import arender_report_html
 

@@ -21,6 +21,11 @@ PAYLOAD = {
 }
 
 
+def test_render_html_template_format_data_no_layout():
+    html = render_html({"meta": {"title": "T"}, "data": [{"fields": {"name": "John"}}]})
+    assert "John" in html
+
+
 def test_render_html_sync_contains_values():
     html = render_html(PAYLOAD)
     assert "Order" in html
@@ -69,6 +74,42 @@ async def test_generate_pdf_sync_api_inside_running_loop():
         mock_pdf.return_value = b"%PDF-1.4"
         assert generate_pdf(PAYLOAD).startswith(b"%PDF")
         mock_pdf.assert_awaited_once()
+
+
+def test_generate_pdf_accepts_report_payload_model():
+    from isis_report_lib import ReportPayload, generate_pdf
+
+    with patch("isis_report_lib.pdf.get_pdf_from_html", new_callable=AsyncMock) as mock_pdf:
+        mock_pdf.return_value = b"%PDF-1.4"
+        payload = ReportPayload(meta={"title": "T"}, data=[{"a": 1}])
+        assert generate_pdf(payload).startswith(b"%PDF")
+
+
+def test_generate_pdf_from_toon_sync():
+    from isis_report_lib import generate_pdf_from_toon
+
+    with patch("isis_report_lib.pdf.get_pdf_from_html", new_callable=AsyncMock) as mock_pdf:
+        mock_pdf.return_value = b"%PDF-1.4"
+        assert generate_pdf_from_toon("meta:\n  title: T\n  mode: exact\ndata[1]:\n  - a: 1").startswith(b"%PDF")
+
+
+def test_package_version_fallback(monkeypatch):
+    import importlib
+    import importlib.metadata
+
+    import isis_report_lib
+
+    def boom(name):
+        from isis_report_lib import PackageNotFoundError
+
+        raise PackageNotFoundError(name)
+
+    monkeypatch.setattr(importlib.metadata, "version", boom)
+    try:
+        reloaded = importlib.reload(isis_report_lib)
+        assert reloaded.__version__ == "0.0.0+unknown"
+    finally:
+        importlib.reload(isis_report_lib)
 
 
 def test_render_report_html_sync_entrypoint():
@@ -137,6 +178,19 @@ async def test_execute_fills_printed_at_by_default():
         meta = mock_render.call_args.kwargs["meta"]
         assert meta["title"] == "T"
         assert re.fullmatch(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}", meta["printed_at"])
+
+
+async def test_execute_with_template_format_data_no_layout():
+    service = TabularReportService()
+    with (
+        patch("isis_report_lib.rendering.arender_report_html", new_callable=AsyncMock) as mock_render,
+        patch("isis_report_lib.pdf.get_pdf_from_html", new_callable=AsyncMock) as mock_pdf,
+    ):
+        mock_render.return_value = "<html>OK</html>"
+        mock_pdf.return_value = b"%PDF-1.4"
+        payload = {"meta": {"title": "T"}, "data": [{"fields": {"name": "John"}}]}
+        assert await service.execute(payload) == b"%PDF-1.4"
+        assert mock_render.call_args.kwargs["dataset"] == {"groups": payload["data"], "summary": None}
 
 
 async def test_execute_keeps_explicit_printed_at():

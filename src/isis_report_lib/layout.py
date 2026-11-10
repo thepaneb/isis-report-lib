@@ -223,12 +223,12 @@ def _field_value(row: dict[str, Any], field: str) -> Any:
 def _sort_key(field: str):
     def key(row: dict[str, Any]):
         value = _field_value(row, field)
-        # None sorts last; mixed types fall back to str.
+        # None sorts last; numbers before strings; mixed types never compare directly.
         if value is None:
-            return (1, "")
+            return (1, 0, "")
         if isinstance(value, (int, float)):
-            return (0, value)
-        return (0, str(value))
+            return (0, 0, value)
+        return (0, 1, str(value))
 
     return key
 
@@ -350,6 +350,14 @@ def _meaningful(values: dict[str, Any]) -> dict[str, Any] | None:
 
 def _visible_fields(field_defs: dict[str, Any], rows: list[dict[str, Any]]) -> list[str]:
     return [k for k, v in field_defs.items() if field_visible(v, rows)]
+
+
+def template_header_layout(data: list[dict[str, Any]]) -> dict[str, Any]:
+    """Header-only layout for data already in template format (records with ``fields``)."""
+    sample = data[0].get("fields", {}) if data and isinstance(data[0], dict) else {}
+    if not isinstance(sample, dict):
+        sample = {}
+    return {"groups": {"header": [format_field(k, {}) for k in sample]}}
 
 
 def _has_nested_groups(sub_node: dict[str, Any]) -> bool:

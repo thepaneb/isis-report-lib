@@ -83,10 +83,8 @@ def _apply_locale(payload: dict | str, locale: str | None) -> dict | str:
 
 def _load_payload(path: Path, fmt: str) -> tuple[dict | str, bool]:
     """Return (payload, is_json). Raises FileNotFoundError / ValueError with friendly messages."""
-    try:
-        text = path.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        raise FileNotFoundError(f"Input file not found: {path}") from None
+    text = _read_text_file(path, "Input")
+    assert text is not None
     if fmt == "json":
         try:
             return json.loads(text), True
