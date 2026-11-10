@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 from isis_report_lib.toon import ToonParser, parse_toon
 
 parser = ToonParser()
@@ -79,6 +81,12 @@ def test_extra_indented_line_inside_array_is_skipped():
 def test_non_dash_line_inside_array_is_skipped():
     result = parser.parse("a[1]:\n  - x: 1\n  trailing: x")
     assert result == {"a": [{"x": 1}]}
+
+
+def test_deeply_nested_input_raises_value_error():
+    deep = "".join(f"{'  ' * i}level{i}:\n" for i in range(5000))
+    with pytest.raises(ValueError, match="nested too deeply"):
+        parser.parse(deep)
 
 
 def test_full_example_file():

@@ -36,8 +36,11 @@ class ToonParser:
 
     def parse(self, text: str) -> dict:
         """Parse `.toon` text into a dict (``dados`` accepted as legacy alias of ``data``)."""
-        tokens = self._tokenize(text)
-        result, _ = self._parse_dict(tokens, 0, 0)
+        try:
+            tokens = self._tokenize(text)
+            result, _ = self._parse_dict(tokens, 0, 0)
+        except RecursionError as e:
+            raise ValueError("Input is nested too deeply to parse") from e
         if "dados" in result and "data" not in result:
             result["data"] = result.pop("dados")
         return result
