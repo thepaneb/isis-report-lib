@@ -240,7 +240,8 @@ def test_template_header_layout_ignores_non_dict_fields():
     assert template_header_layout([]) == {"groups": {"header": []}}
 
 
-def test_build_report_visible_false_drops_column():    layout = {
+def test_build_report_visible_false_drops_column():
+    layout = {
         "company": {"label": "Company", "format_mask": "str", "alignment": "left"},
         "secret": {"label": "Secret", "format_mask": "str", "alignment": "left", "visible": False},
     }
