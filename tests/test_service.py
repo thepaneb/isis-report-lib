@@ -206,7 +206,7 @@ async def test_execute_maps_meta_page_to_pdf_options():
         kwargs = mock_pdf.call_args.kwargs
         assert kwargs["format"] == "Letter"
         assert kwargs["landscape"] is True
-        assert kwargs["margin"]["top"] == ".2in"
+        assert kwargs["margin"]["top"] == ".15in"
 
 
 async def test_execute_explicit_pdf_options_win_over_meta_page():

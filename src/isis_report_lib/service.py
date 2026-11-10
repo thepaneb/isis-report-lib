@@ -117,6 +117,8 @@ class TabularReportService(BaseReportService):
 
     def _page_pdf_options(self) -> dict[str, Any]:
         """Translate ``meta.page`` to ``page.pdf`` kwargs; explicit ``pdf_options`` win."""
+        from isis_report_lib.pdf import DEFAULT_MARGIN
+
         page = self._page or {}
         options: dict[str, Any] = {"format": page.get("size", "A4")}
         if page.get("orientation") == "landscape":
@@ -125,10 +127,7 @@ class TabularReportService(BaseReportService):
             raise ValueError(f"Invalid page orientation: {page.get('orientation')!r}")
         margins = page.get("margins") or {}
         options["margin"] = {
-            "top": margins.get("top", ".2in"),
-            "bottom": margins.get("bottom", ".5in"),
-            "left": margins.get("left", ".2in"),
-            "right": margins.get("right", ".2in"),
+            key: margins.get(key, DEFAULT_MARGIN[key]) for key in ("top", "bottom", "left", "right")
         }
         options.update(self._pdf_options)
         return options
