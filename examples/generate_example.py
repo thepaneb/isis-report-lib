@@ -6,6 +6,11 @@ from isis_report_lib import generate_pdf, generate_pdf_from_toon
 
 HERE = Path(__file__).parent
 
+_PATTERN = [(1, 1500, 1500), (2, 1000, 2000), (1, 1500, 1500)]
+ITEMS_750 = [
+    {"qty": q, "unit_price": u, "line_total": t} for _ in range(10) for (q, u, t) in _PATTERN
+]
+
 payload = {
     "meta": {
         "title": "Sales Order",
@@ -28,7 +33,7 @@ payload = {
             },
             "fees": {
                 "kind": {"label": "Fee", "format_mask": "str", "alignment": "left"},
-                "amount": {"label": "Amount", "format_mask": "float", "alignment": "right", "aggregate": "sum"},
+                "amount": {"label": "Fee Total", "format_mask": "float", "alignment": "right", "aggregate": "sum"},
             },
         },
     },
@@ -42,12 +47,8 @@ payload = {
                     "order_date": "12/01/2024",
                     "product_name": "ACME MEAL",
                     "fee_total": 9.01,
-                    "grand_total": 4000,
-                    "items": [
-                        {"qty": 1, "unit_price": 1500, "line_total": 1500},
-                        {"qty": 1, "unit_price": 1000, "line_total": 1000},
-                        {"qty": 1, "unit_price": 1500, "line_total": 1500},
-                    ],
+                    "grand_total": 50000,
+                    "items": ITEMS_750,
                     "fees": [
                         {"kind": "Service fee", "amount": 5.00},
                         {"kind": "Shipping", "amount": 2.50},
