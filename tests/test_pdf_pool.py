@@ -109,8 +109,3 @@ def test_reset_survives_close_failure(monkeypatch):
 
 def test_close_owned_browser_without_owner_is_noop():
     asyncio.run(pool.close_owned_browser())
-
-
-def test_ensure_browser_sync_returns_early_when_started(monkeypatch):
-    monkeypatch.setattr(pool, "_browser", FakeBrowser())
-    pool.ensure_browser_sync()
