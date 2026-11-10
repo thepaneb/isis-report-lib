@@ -20,9 +20,9 @@ payload = {
             "order_date": {"label": "Order Date", "format_mask": "date", "alignment": "center"},
             "product_name": {"label": "Product", "format_mask": "str", "alignment": "left"},
             "fee_total": {"label": "Fee Total", "format_mask": "float", "alignment": "right"},
-            "grand_total": {"label": "Grand Total", "format_mask": "float", "alignment": "right"},
+            "grand_total": {"label": "Grand Total", "format_mask": "float", "alignment": "right", "aggregate": "sum"},
             "items": {
-                "qty": {"label": "Qty", "format_mask": "int", "alignment": "right"},
+                "qty": {"label": "Qty", "format_mask": "int", "alignment": "right", "aggregate": "sum"},
                 "unit_price": {"label": "Unit Price", "format_mask": "float", "alignment": "right"},
                 "line_total": {"label": "Line Total", "format_mask": "float", "alignment": "right"},
             },

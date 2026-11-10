@@ -7,6 +7,9 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 
 ## [Unreleased]
 ### Added
+- Report parameters: `meta.page` (size/orientation/margins), field `aggregate`
+  (sum/count/avg/min/max → group footers, detail `tfoot`, grand summary),
+  `$print_when` row filters, `$order_by` sorting, `visible`/`visible_when` columns
 - Report theming via `meta.accent_color` (overrides the header brand color)
 - TestPyPI auto-publish for pre-releases (`vX.Y.ZrcN`)
 - `percent`, `currency` and `bool` format masks (now locale-aware)

@@ -67,28 +67,32 @@ class TabularReportService(BaseReportService):
         self._template_dir = template_dir
         self._template_name = template_name
         self._printed_at: str | None = None
+        self._page: dict[str, Any] = {}
         self._pdf_module = _pdf
 
     async def _fetch_data(self, payload: dict[str, Any]) -> Any:
         return payload.get("data", [])
 
     async def _process_data(self, data: Any, payload: dict[str, Any]) -> dict[str, Any]:
-        from isis_report_lib.layout import convert_data, convert_layout, infer_layout, is_template_format
+        from isis_report_lib.layout import build_report, infer_layout, is_template_format
 
         meta = with_meta_defaults(payload.get("meta", {}))
         self._printed_at = meta.get("printed_at")
+        self._page = meta.get("page", {}) or {}
         layout_raw = payload.get("layout")
 
         if layout_raw:
-            layout = convert_layout(layout_raw)
-            dataset = convert_data(data, layout_raw)
+            dataset, layout = build_report(data, layout_raw)
         else:
             layout = infer_layout(data)
             # The template iterates over `row.fields`, so raw records must be wrapped.
             if is_template_format(data):
-                dataset = {"groups": data}
+                dataset = {"groups": data, "summary": None}
             else:
-                dataset = {"groups": [{"fields": r} if isinstance(r, dict) else {"fields": {"value": r}} for r in data]}
+                dataset = {
+                    "groups": [{"fields": r} if isinstance(r, dict) else {"fields": {"value": r}} for r in data],
+                    "summary": None,
+                }
         return {"dataset": dataset, "layout": layout, "meta": meta}
 
     async def _render_html(self, data: dict[str, Any], payload: dict[str, Any]) -> str:
@@ -105,8 +109,26 @@ class TabularReportService(BaseReportService):
     async def _generate_pdf(self, html: str) -> bytes:
         from isis_report_lib.pdf import default_footer
 
-        options = dict(self._pdf_options)
+        options = dict(self._page_pdf_options())
         # Print timestamp goes in the repeated page footer (right side);
         # an explicit footer_template always wins.
         options.setdefault("footer_template", default_footer(self._printed_at))
         return await self._pdf_module.get_pdf_from_html(html, **options)
+
+    def _page_pdf_options(self) -> dict[str, Any]:
+        """Translate ``meta.page`` to ``page.pdf`` kwargs; explicit ``pdf_options`` win."""
+        page = self._page or {}
+        options: dict[str, Any] = {"format": page.get("size", "A4")}
+        if page.get("orientation") == "landscape":
+            options["landscape"] = True
+        elif page.get("orientation") not in (None, "portrait"):
+            raise ValueError(f"Invalid page orientation: {page.get('orientation')!r}")
+        margins = page.get("margins") or {}
+        options["margin"] = {
+            "top": margins.get("top", ".2in"),
+            "bottom": margins.get("bottom", ".5in"),
+            "left": margins.get("left", ".2in"),
+            "right": margins.get("right", ".2in"),
+        }
+        options.update(self._pdf_options)
+        return options

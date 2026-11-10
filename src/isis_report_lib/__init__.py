@@ -13,7 +13,7 @@ from isis_report_lib.api import (
     render_html_from_toon,
 )
 from isis_report_lib.formatting import format_value, formatter_for
-from isis_report_lib.layout import convert_data, convert_layout, infer_layout, is_template_format
+from isis_report_lib.layout import build_report, convert_data, convert_layout, infer_layout, is_template_format
 from isis_report_lib.models import MetaInfo, ReportPayload
 from isis_report_lib.service import BaseReportService, TabularReportService
 from isis_report_lib.toon import ToonParser, parse_toon
@@ -32,6 +32,7 @@ __all__ = [
     "formatter_for",
     "convert_layout",
     "convert_data",
+    "build_report",
     "infer_layout",
     "is_template_format",
     "BaseReportService",
