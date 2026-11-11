@@ -14,7 +14,7 @@ def test_bar_chart_structure():
 
 def test_bar_chart_scales_to_max():
     svg = bar_chart(["A", "B"], [5, 10], width=200, height=100)
-    assert 'height="60.0"' in svg  # max value fills the plot area (100-10-30)
+    assert 'height="48.0"' in svg  # max value fills the plot area (100-22-30)
 
 
 def test_line_chart_structure():
