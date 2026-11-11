@@ -107,6 +107,16 @@ def test_generate_xlsx_title_and_subtitle_rows():
     assert wb["items"]["A2"].value == "S"
 
 
+def test_generate_xlsx_print_setup():
+    from openpyxl import load_workbook
+
+    wb = load_workbook(io.BytesIO(generate_xlsx(PAYLOAD)))
+    ws = wb["items"]
+    assert ws.print_title_rows == "$2:$2"  # header row repeats on printed pages (openpyxl absolutizes)
+    assert ws.freeze_panes == "A3"
+    assert ws.auto_filter.ref is not None
+
+
 async def test_agenerate_xlsx_and_csv():
     assert (await agenerate_xlsx(PAYLOAD))[:4] == b"PK\x03\x04"
     assert "ACME" in await agenerate_csv(PAYLOAD)
@@ -130,6 +140,13 @@ def test_generate_csv_content_and_delimiter():
 
 def test_generate_csv_from_toon():
     assert "Pen" in generate_csv_from_toon("meta:\n  title: T\n  mode: exact\ndata[1]:\n  - product: Pen")
+
+
+def test_generate_csv_with_bom():
+    from isis_report_lib import generate_csv
+
+    assert generate_csv(PAYLOAD, bom=True).startswith("\ufeff# Order")
+    assert not generate_csv(PAYLOAD).startswith("\ufeff")
 
 
 def test_generate_csv_locale():

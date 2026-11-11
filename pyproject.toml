@@ -29,7 +29,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=9.2.0", "pytest-asyncio>=1.4.1.post1", "pytest-cov>=7.1.0", "pytest-timeout>=2", "ruff>=0.17.4", "openpyxl>=3.1"]
+dev = ["pytest>=9.2.0", "pytest-asyncio>=1.4.1.post1", "pytest-cov>=7.1.0", "pytest-timeout>=2", "ruff>=0.17.4", "openpyxl>=3.1", "mypy>=1.18", "types-openpyxl>=3.1"]
 xlsx = ["openpyxl>=3.1"]
 
 [project.scripts]
@@ -71,6 +71,15 @@ markers = ["browser: requires Chromium from Playwright to be installed"]
 # Diagnóstico de hangs no CI: despeja stacks aos 90s e falha o teste aos 300s.
 faulthandler_timeout = 90
 timeout = 300
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_ignores = true
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = "playwright.*"
+ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 140

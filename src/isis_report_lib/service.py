@@ -134,6 +134,7 @@ class TabularReportService(BaseReportService):
         self._template_dir = template_dir
         self._template_name = template_name
         self._printed_at: str | None = None
+        self._meta_locale: str = "pt-BR"
         self._page: dict[str, Any] = {}
         self._pdf_module = _pdf
 
@@ -143,6 +144,7 @@ class TabularReportService(BaseReportService):
     async def _process_data(self, data: Any, payload: dict[str, Any]) -> dict[str, Any]:
         dataset, layout, meta = prepare_report({**payload, "data": data})
         self._printed_at = meta.get("printed_at")
+        self._meta_locale = meta.get("locale", "pt-BR")
         self._page = meta.get("page", {}) or {}
         return {"dataset": dataset, "layout": layout, "meta": meta}
 
@@ -166,7 +168,7 @@ class TabularReportService(BaseReportService):
         options = dict(self._page_pdf_options())
         # Print timestamp goes in the repeated page footer (right side);
         # an explicit footer_template always wins.
-        options.setdefault("footer_template", default_footer(self._printed_at))
+        options.setdefault("footer_template", default_footer(self._printed_at, locale=self._meta_locale))
         return await self._pdf_module.get_pdf_from_html(html, **options)
 
     def _page_pdf_options(self) -> dict[str, Any]:

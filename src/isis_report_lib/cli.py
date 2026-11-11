@@ -34,6 +34,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     gen.add_argument("--page-format", default="A4", help="PDF page format (default: A4).")
     gen.add_argument("--locale", default=None, help="Override meta locale (e.g. en-US, pt-BR).")
+    gen.add_argument("--bom", action="store_true", help="Prepend a UTF-8 BOM to CSV output (for Excel).")
     gen.add_argument("--template-dir", type=Path, default=None, help="Directory with custom .jinja templates.")
     gen.add_argument("--template-name", default="tabular.jinja", help="Template file to render (default: tabular.jinja).")
     gen.add_argument("--header-template", type=Path, default=None, help="HTML file for the PDF header.")
@@ -78,9 +79,9 @@ def _read_text_file(path: Path | None, label: str) -> str | None:
         raise ValueError(f"Cannot read {label} file {path}: {e}") from None
 
 
-def _apply_locale(payload: dict | str, locale: str | None) -> dict | str:
-    """Override ``meta.locale`` when ``--locale`` is given (dict payloads only)."""
-    if locale is None or not isinstance(payload, dict):
+def _apply_locale(payload: dict[str, Any], locale: str | None) -> dict[str, Any]:
+    """Override ``meta.locale`` when ``--locale`` is given."""
+    if locale is None:
         return payload
     meta = dict(payload.get("meta") or {})
     meta["locale"] = locale
@@ -102,9 +103,13 @@ def _load_payload(path: Path, fmt: str) -> tuple[dict | str, bool]:
 def _cmd_generate(args: argparse.Namespace) -> int:
     try:
         fmt = _detect_format(args.input, args.input_format)
-        payload, is_json = _load_payload(args.input, fmt)
-        if not is_json:
-            payload = parse_toon(payload)
+        raw, is_json = _load_payload(args.input, fmt)
+        if is_json:
+            assert isinstance(raw, dict)
+            payload: dict[Any, Any] = raw
+        else:
+            assert isinstance(raw, str)
+            payload = parse_toon(raw)
         payload = _apply_locale(payload, args.locale)
         output_format = _detect_output_format(args)
         pdf_options: dict[str, Any] = {"format": args.page_format}
@@ -121,7 +126,7 @@ def _cmd_generate(args: argparse.Namespace) -> int:
         elif output_format == "xlsx":
             output.write_bytes(generate_xlsx(payload))
         elif output_format == "csv":
-            output.write_text(generate_csv(payload), encoding="utf-8")
+            output.write_text(generate_csv(payload, bom=args.bom), encoding="utf-8")
         else:  # html
             output.write_text(render_html(payload, args.template_dir, args.template_name), encoding="utf-8")
     except (FileNotFoundError, ValueError) as e:
@@ -149,9 +154,13 @@ def _detect_output_format(args: argparse.Namespace) -> str:
 def _cmd_render(args: argparse.Namespace) -> int:
     try:
         fmt = _detect_format(args.input, args.input_format)
-        payload, is_json = _load_payload(args.input, fmt)
-        if not is_json:
-            payload = parse_toon(payload)
+        raw, is_json = _load_payload(args.input, fmt)
+        if is_json:
+            assert isinstance(raw, dict)
+            payload: dict[Any, Any] = raw
+        else:
+            assert isinstance(raw, str)
+            payload = parse_toon(raw)
         payload = _apply_locale(payload, args.locale)
         html = render_html(payload, args.template_dir, args.template_name)
     except (FileNotFoundError, ValueError) as e:

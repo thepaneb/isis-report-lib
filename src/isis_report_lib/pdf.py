@@ -20,14 +20,24 @@ _owner_loop: asyncio.AbstractEventLoop | None = None
 _lock = asyncio.Lock()
 
 
-def default_footer(printed_at: str | None = None) -> str:
+FOOTER_STRINGS = {
+    # locale prefix -> (printed-label, page-label, of-label). "powered by" stays
+    # untranslated: it is the brand lockup, like the logo next to it.
+    "pt": ("Impresso em", "Página", "de"),
+    "en": ("Printed on", "Page", "of"),
+}
+
+
+def default_footer(printed_at: str | None = None, locale: str = "pt-BR") -> str:
     """Build the PDF page footer: timestamp left, page count center, brand right."""
-    date_html = f"<span>Printed on {printed_at}</span>" if printed_at else "<span></span>"
+    lang = "pt" if locale.replace("-", "_").lower().startswith("pt") else "en"
+    printed_label, page_label, of_label = FOOTER_STRINGS[lang]
+    date_html = f"<span>{printed_label} {printed_at}</span>" if printed_at else "<span></span>"
     return (
         '<div style="width:100%;font-size:10px;display:flex;'
         'justify-content:space-between;align-items:center;padding:0 .4in;">'
         f"{date_html}"
-        "<span>Page <span class='pageNumber'></span> of <span class='totalPages'></span></span>"
+        f"<span>{page_label} <span class='pageNumber'></span> {of_label} <span class='totalPages'></span></span>"
         "<span>powered by "
         '<svg width="28" height="28" viewBox="0 0 86 86" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle">'
         '<path d="M27.3331 25.9999C22.9331 27.8666 18.2665 29.3332 17.0665 29.3332C15.7332 29.3332 14.6665 30.2666 14.6665 31.4666C14.6665 33.9999 19.8665 33.0666 28.5331 29.1999C35.5998 25.9999 44.9331 25.9999 52.133 29.3332C55.733 30.9332 58.533 31.3332 59.1997 30.6666C60.7997 29.0666 60.7997 29.0666 52.3997 25.5999C43.4664 21.8666 37.1997 21.9999 27.3331 25.9999Z" fill="#0A2F46"/>'
@@ -119,18 +129,24 @@ async def new_page():
 async def get_pdf_from_html(html: str, **kwargs: Any) -> bytes:
     """Render HTML to PDF via the shared browser pool.
 
-    Accepted kwargs: ``format`` (default ``"A4"``), ``display_header_footer``,
-    ``header_template``, ``footer_template``, ``margin``.
+    Accepted kwargs: ``format``, ``landscape``, ``display_header_footer``,
+    ``header_template``, ``footer_template``, ``margin``, ``outline``
+    (clickable PDF outline), ``tagged`` (accessible tagged PDF),
+    ``prefer_css_page_size`` (let CSS ``@page`` win over ``format``).
     """
     page = await new_page()
     try:
         await page.set_content(html)
         return await page.pdf(
             format=kwargs.get("format", "A4"),
+            landscape=kwargs.get("landscape", False),
             display_header_footer=kwargs.get("display_header_footer", True),
             header_template=kwargs.get("header_template", ""),
             footer_template=kwargs.get("footer_template", DEFAULT_FOOTER),
             margin=kwargs.get("margin", DEFAULT_MARGIN),
+            outline=kwargs.get("outline", False),
+            tagged=kwargs.get("tagged", False),
+            prefer_css_page_size=kwargs.get("prefer_css_page_size", False),
         )
     finally:
         await page.close()

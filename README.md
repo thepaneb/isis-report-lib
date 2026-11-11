@@ -87,14 +87,14 @@ isis-report render examples/sales_order.toon -o report.html
 | --- | --- | --- |
 | PDF | `generate_pdf` / `agenerate_pdf` | Needs Chromium (`playwright install chromium`) |
 | XLSX | `generate_xlsx` / `agenerate_xlsx` | One sheet per detail table (context columns repeated), bold totals, `Summary` sheet. Needs `pip install isis-report-lib[xlsx]` |
-| CSV | `generate_csv` / `agenerate_csv` | Locale-formatted values, `# table:` / `# summary` sections, `--delimiter` (`;` for Excel PT) |
+| CSV | `generate_csv` / `agenerate_csv` | Locale-formatted values, `# table:` / `# summary` sections, `--delimiter` (`;` for Excel PT), `--bom` (UTF-8 BOM for Excel) |
 | HTML | `render_html` / `arender_html` | Intermediate output, no browser needed |
 
 ```python
 from isis_report_lib import generate_csv, generate_xlsx
 
-generate_xlsx(payload)                    # -> bytes (.xlsx workbook)
-generate_csv(payload, delimiter=";")      # -> str
+generate_xlsx(payload)                    # -> bytes (.xlsx workbook, print titles + freeze + filters)
+generate_csv(payload, delimiter=";", bom=True)  # -> str (BOM for Excel)
 ```
 
 PDF options (forwarded to Playwright's `page.pdf`):
@@ -111,7 +111,7 @@ generate_pdf(
 )
 ```
 
-Via CLI: `--page-format`, `--header-template FILE`, `--footer-template FILE`. The report footer shows `meta.printed_at`, auto-filled with the current timestamp when absent.
+Via CLI: `--page-format`, `--header-template FILE`, `--footer-template FILE`. The report footer shows `meta.printed_at`, auto-filled with the current timestamp when absent. Footer date/page strings follow `meta.locale` (`pt` → "Impresso em / Página X de Y").
 
 Full example in `examples/`. Note: the sync API opens/closes the browser per call (no leaked processes); the async API reuses the shared pool.
 

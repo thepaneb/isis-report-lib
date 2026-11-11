@@ -7,6 +7,13 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 
 ## [Unreleased]
 ### Added
+- PDF passthrough: `outline` (clickable outline), `tagged` (accessible PDF), `prefer_css_page_size` via `pdf_options`
+- XLSX print polish: repeated header rows, frozen panes, autofilters on every sheet
+- CSV `--bom` flag / `bom=True` (UTF-8 BOM for Excel)
+- Localized page footer from `meta.locale` (pt → "Impresso em / Página X de Y")
+- `running_balance` opening balance: `{"of": "<field>", "start": <value>}`
+- Charts: `pie`/`donut` kinds and horizontal bars
+- `mypy` type-check gate in CI
 - Composed documents: `sections` payloads (`table` with the full tabular engine, `text`, `kpi`, `chart` with dependency-free inline SVG `bar`/`line` charts + `build_chart` API)
 - `running_balance` field option: cumulative sums computed in row order (e.g. statement balances)
 - XLSX/CSV export aware of sections (each section becomes sheet/CSV section)
