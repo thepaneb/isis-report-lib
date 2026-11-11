@@ -4,6 +4,8 @@
 [![PyPI](https://img.shields.io/pypi/v/isis-report-lib.svg)](https://pypi.org/project/isis-report-lib/)
 [![Python](https://img.shields.io/pypi/pyversions/isis-report-lib.svg)](https://pypi.org/project/isis-report-lib/)Python library for **tabular PDF reports** with customizable hierarchical layouts — extracted from the [isis_report](https://github.com/thepaneb/isis_report) PoC (Robyn microservice), without the server.
 
+**Landing page:** <https://thepaneb.github.io/isis-report-lib/>
+
 - Input: `dict`/`ReportPayload` (`meta` + optional `layout` + `data`) or **`.toon`** text
 - Rendering: Jinja2 (templates bundled in the package)
 - PDF: Playwright (Chromium)
