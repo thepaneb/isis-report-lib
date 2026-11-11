@@ -21,8 +21,10 @@ def prepare_report(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str, A
     """Build (dataset, layout, meta) from a normalized payload dict (shared by all outputs)."""
     from isis_report_lib.layout import build_report, infer_layout, is_template_format, template_header_layout
 
-    data = payload.get("data", [])
     meta = with_meta_defaults(payload.get("meta", {}) or {})
+    if "sections" in payload:
+        return _prepare_sections(payload.get("sections", []) or [], meta)
+    data = payload.get("data", [])
     layout_raw = payload.get("layout")
     if layout_raw:
         dataset, layout = build_report(data, layout_raw)
@@ -36,6 +38,50 @@ def prepare_report(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str, A
             "summary": None,
         }
     return dataset, layout, meta
+
+
+def _prepare_sections(sections: list[dict[str, Any]], meta: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """Build a composed document: table/text/kpi/chart sections sharing the report meta."""
+    from isis_report_lib.layout import build_report
+
+    built: list[dict[str, Any]] = []
+    for section in sections:
+        if not isinstance(section, dict):
+            raise ValueError(f"Invalid section (must be an object): {section!r}")
+        stype = section.get("type", "table")
+        if stype == "table":
+            dataset, layout = build_report(section.get("data", []), section.get("layout", {}))
+            built.append({"type": "table", "title": section.get("title"), "dataset": dataset, "layout": layout})
+        elif stype == "text":
+            paragraphs = section.get("paragraphs", [section["body"]] if "body" in section else [])
+            if not isinstance(paragraphs, list) or not all(isinstance(p, str) for p in paragraphs):
+                raise ValueError(f"Invalid text section (need paragraphs: [...]): {section!r}")
+            built.append({"type": "text", "title": section.get("title"), "paragraphs": paragraphs})
+        elif stype == "kpi":
+            items = section.get("items", [])
+            if not isinstance(items, list):
+                raise ValueError(f"Invalid kpi section (need items: [...]): {section!r}")
+            for item in items:
+                if not isinstance(item, dict) or "label" not in item:
+                    raise ValueError(f"Invalid kpi item (need at least a label): {item!r}")
+            built.append({"type": "kpi", "title": section.get("title"), "items": items})
+        elif stype == "chart":
+            from isis_report_lib.charts import build_chart
+
+            chart_spec = section.get("chart")
+            if not isinstance(chart_spec, dict):
+                chart_spec = {}
+            built.append(
+                {
+                    "type": "chart",
+                    "title": section.get("title") or chart_spec.get("title"),
+                    "svg": build_chart(chart_spec),
+                    "chart": chart_spec,
+                }
+            )
+        else:
+            raise ValueError(f"Unknown section type: {stype!r} (expected table|text|kpi|chart)")
+    return {"sections": built}, {"groups": {"header": []}}, meta
 
 
 class BaseReportService(ABC):
@@ -103,11 +149,14 @@ class TabularReportService(BaseReportService):
     async def _render_html(self, data: dict[str, Any], payload: dict[str, Any]) -> str:
         from isis_report_lib.rendering import arender_report_html
 
+        template_name = self._template_name
+        if "sections" in data.get("dataset", {}) and template_name == "tabular.jinja":
+            template_name = "sections.jinja"
         return await arender_report_html(
             dataset=data["dataset"],
             layout=data["layout"],
             meta=data["meta"],
-            template_name=self._template_name,
+            template_name=template_name,
             template_dir=self._template_dir,
         )
 

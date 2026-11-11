@@ -7,6 +7,9 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 
 ## [Unreleased]
 ### Added
+- Composed documents: `sections` payloads (`table` with the full tabular engine, `text`, `kpi`, `chart` with dependency-free inline SVG `bar`/`line` charts + `build_chart` API)
+- `running_balance` field option: cumulative sums computed in row order (e.g. statement balances)
+- XLSX/CSV export aware of sections (each section becomes sheet/CSV section)
 - Output formats: XLSX (one sheet per detail table, bold totals, `Summary` sheet; needs `.[xlsx]` extra) and CSV (locale-formatted, `# table:`/`# summary` sections), plus `collect_tables`; `isis-report generate --format pdf|xlsx|csv|html`
 - Report parameters: `meta.page` (size/orientation/margins), field `aggregate`
   (sum/count/avg/min/max → group footers, detail `tfoot`, grand summary),

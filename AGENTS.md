@@ -24,8 +24,9 @@ src/isis_report_lib/
 ├── formatting.py  # format_value (int/float/date/str masks)
 ├── rendering.py   # arender_report_html / render_report_html
 ├── pdf.py         # Playwright pool (ensure_browser, get_pdf_from_html, close_browser)
-├── service.py     # BaseReportService + TabularReportService (+prepare_report)
-├── export.py      # collect_tables + XLSX/CSV builders (no browser needed)
+├── service.py     # BaseReportService + TabularReportService (+prepare_report, sections)
+├── charts.py      # dependency-free inline SVG bar/line charts
+├── export.py      # collect_tables + XLSX/CSV builders (no browser needed, sections-aware)
 ├── cli.py         # isis-report generate/render (console script, --format pdf|xlsx|csv|html)
 └── templates/     # base/tabular*.jinja
 tests/             # test_formatting/layout/toon/service (mocks), test_pdf_e2e (browser)

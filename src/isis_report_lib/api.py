@@ -97,6 +97,8 @@ async def arender_html(
 
     from isis_report_lib.rendering import arender_report_html
 
+    if "sections" in data and template_name == "tabular.jinja":
+        template_name = "sections.jinja"
     return await arender_report_html(dataset=dataset, layout=layout, meta=meta, template_name=template_name, template_dir=template_dir)
 
 

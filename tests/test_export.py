@@ -277,3 +277,100 @@ def test_currency_symbol_lookup_failure_falls_back(monkeypatch):
 
     monkeypatch.setattr(babel.numbers, "get_currency_symbol", boom)
     assert _currency_symbol({"locale": "en-US", "currency": "USD"}) == "$"
+
+
+SECTIONS_EXPORT_PAYLOAD = {
+    "meta": {"title": "Board Pack", "mode": "exact"},
+    "sections": [
+        {"type": "text", "title": "Intro", "paragraphs": ["Hello."]},
+        {
+            "type": "table",
+            "title": "Sales",
+            "layout": {"product": {"label": "Product", "format_mask": "str", "alignment": "left"}},
+            "data": [{"product": "Pen"}],
+        },
+        {"type": "kpi", "title": "Totals", "items": [{"label": "Orders", "value": 42}]},
+        {"type": "chart", "title": "Trend", "chart": {"kind": "bar", "labels": ["Jan", "Feb"], "values": [10, 20]}},
+    ],
+}
+
+
+def test_collect_tables_with_sections():
+    from isis_report_lib.service import prepare_report
+
+    dataset, layout, _meta = prepare_report(SECTIONS_EXPORT_PAYLOAD)
+    tables, summaries = collect_tables(dataset, layout)
+    by_key = {t.key: t for t in tables}
+    assert set(by_key) == {"Sales", "Intro", "Totals", "Trend"}
+    assert by_key["Sales"].rows == [{"product": "Pen"}]
+    assert by_key["Intro"].rows == [{"text": "Hello."}]
+    assert by_key["Totals"].rows == [{"label": "Orders", "value": 42}]
+
+
+def test_generate_xlsx_from_sections():
+    import io
+
+    from openpyxl import load_workbook
+
+    from isis_report_lib import generate_xlsx
+
+    wb = load_workbook(io.BytesIO(generate_xlsx(SECTIONS_EXPORT_PAYLOAD)))
+    assert wb.sheetnames == ["Intro", "Sales", "Totals", "Trend"]
+
+
+def test_generate_csv_from_sections():
+    from isis_report_lib import generate_csv
+
+    text = generate_csv(SECTIONS_EXPORT_PAYLOAD)
+    assert "# table: Sales" in text
+    assert "Pen" in text
+    assert "# table: Intro" in text
+
+
+def test_collect_tables_skips_non_dict_sections():
+    tables, summaries = collect_tables({"groups": [], "summary": None, "sections": ["nope", 42]}, {"groups": {"header": []}})
+    assert tables == []
+    assert summaries == []
+
+
+def test_collect_tables_dedupes_section_table_names():
+    from isis_report_lib.service import prepare_report
+
+    payload = {
+        "meta": {"title": "T"},
+        "sections": [
+            {"type": "table", "layout": {"a": {"label": "A"}}, "data": [{"a": 1}]},
+            {"type": "table", "layout": {"a": {"label": "A"}}, "data": [{"a": 2}]},
+        ],
+    }
+    dataset, layout, _meta = prepare_report(payload)
+    tables, _summaries = collect_tables(dataset, layout)
+    assert sorted(t.key for t in tables) == ["table", "table_2"]
+    assert tables[1].rows == [{"a": 2}]
+
+
+def test_collect_tables_section_with_summary():
+    from isis_report_lib.service import prepare_report
+
+    payload = {
+        "meta": {"title": "T"},
+        "sections": [
+            {
+                "type": "table",
+                "title": "S",
+                "layout": {"v": {"label": "V", "format_mask": "int", "alignment": "right", "aggregate": "sum"}},
+                "data": [{"v": 1}, {"v": 2}],
+            }
+        ],
+    }
+    dataset, layout, _meta = prepare_report(payload)
+    tables, summaries = collect_tables(dataset, layout)
+    assert [t.key for t in tables] == ["S"]
+    assert ("S / V", 3, "int") in summaries
+
+
+def test_chart_section_with_non_dict_spec_raises():
+    from isis_report_lib import render_html
+
+    with pytest.raises(ValueError, match="non-empty"):
+        render_html({"meta": {"title": "T"}, "sections": [{"type": "chart", "chart": "nope"}]})

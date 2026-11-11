@@ -170,6 +170,19 @@ def test_sort_rows_mixed_types_fall_back_to_str():
     assert [r["o"] for r in sort_rows(rows, "o")] == [10, "a", "b"]
 
 
+def test_apply_running_balance():
+    from isis_report_lib.layout import _apply_running_balance
+
+    rows = [{"amount": 100}, {"amount": -30}, {"amount": "x"}, {"other": 1}]
+    field_defs = {"balance": {"label": "Balance", "running_balance": "amount"}}
+    result = _apply_running_balance(rows, field_defs)
+    assert [r["balance"] for r in result] == [100, 70, 70, 70]
+    assert rows[0].get("balance") is None  # input rows are not mutated
+    assert _apply_running_balance([], field_defs) == []
+    assert _apply_running_balance(rows, {}) == rows
+    assert _apply_running_balance(["not-a-dict"], field_defs)[0] == "not-a-dict"
+
+
 def test_field_visible():
     assert field_visible({"label": "A"}, [{"x": 1}]) is True
     assert field_visible({"label": "A", "visible": False}, [{"x": 1}]) is False

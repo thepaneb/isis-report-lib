@@ -115,6 +115,25 @@ Via CLI: `--page-format`, `--header-template FILE`, `--footer-template FILE`. Th
 
 Full example in `examples/`. Note: the sync API opens/closes the browser per call (no leaked processes); the async API reuses the shared pool.
 
+## Composed documents (sections)
+
+For free-form reports, pass `sections` instead of `data` + `layout`:
+
+```python
+payload = {
+    "meta": {"title": "Board Pack", "locale": "en-US"},
+    "sections": [
+        {"type": "text", "title": "Intro", "paragraphs": ["Hello.", "World."]},
+        {"type": "table", "title": "Sales", "layout": {...}, "data": [...]},
+        {"type": "kpi", "title": "Totals", "items": [{"label": "Orders", "value": 42, "format_mask": "int"}]},
+        {"type": "chart", "title": "Trend", "chart": {"kind": "bar", "labels": ["Jan", "Feb"], "values": [10, 20]}},
+    ],
+}
+generate_pdf(payload)   # HTML sections.jinja; XLSX/CSV flatten each table/text/kpi/chart section
+```
+
+A running balance column is just a field with `"running_balance": "<source field>"` — cumulative sums are computed in row order (e.g. bank statements).
+
 ## Custom templates
 
 Point `template_dir` at your own `.jinja` directory and pick a file with `template_name`:
@@ -220,6 +239,7 @@ See `examples/sales_order.toon`.
 | `generate_xlsx(payload) -> bytes` / `agenerate_xlsx` / `..._from_toon` | .xlsx workbook, no browser (needs `.[xlsx]` extra) |
 | `generate_csv(payload, delimiter=",") -> str` / `agenerate_csv` / `..._from_toon` | CSV text, no browser |
 | `render_html(payload)` / `arender_html` / `render_html_from_toon` | intermediate HTML (no browser) |
+| Sections payload (`meta` + `sections: [...]`) | composed documents: `table` (full tabular engine), `text`, `kpi`, `chart` (`bar`/`line` inline SVG) |
 | `ToonParser().parse(text)` / `parse_toon(text)` | `.toon` -> dict |
 | `collect_tables(dataset, layout)` | flat tables + summary rows (powers XLSX/CSV) |
 | `TabularReportService(pdf_options?)` | pipeline `execute(payload)` (Fetch→Process→HTML→PDF) |
