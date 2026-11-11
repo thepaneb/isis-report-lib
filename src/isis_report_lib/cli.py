@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from isis_report_lib.api import generate_pdf, render_html
+from isis_report_lib.api import generate_csv, generate_pdf, generate_xlsx, render_html
 from isis_report_lib.toon import parse_toon
 
 
@@ -25,6 +25,12 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["auto", "json", "toon"],
         default="auto",
         help="Input format (default: guessed from the file extension).",
+    )
+    gen.add_argument(
+        "--format",
+        choices=["auto", "pdf", "xlsx", "csv", "html"],
+        default="auto",
+        help="Output format (default: guessed from -o, else pdf).",
     )
     gen.add_argument("--page-format", default="A4", help="PDF page format (default: A4).")
     gen.add_argument("--locale", default=None, help="Override meta locale (e.g. en-US, pt-BR).")
@@ -100,6 +106,7 @@ def _cmd_generate(args: argparse.Namespace) -> int:
         if not is_json:
             payload = parse_toon(payload)
         payload = _apply_locale(payload, args.locale)
+        output_format = _detect_output_format(args)
         pdf_options: dict[str, Any] = {"format": args.page_format}
         header = _read_text_file(args.header_template, "Header template")
         if header is not None:
@@ -107,17 +114,36 @@ def _cmd_generate(args: argparse.Namespace) -> int:
         footer = _read_text_file(args.footer_template, "Footer template")
         if footer is not None:
             pdf_options["footer_template"] = footer
-        pdf = generate_pdf(payload, pdf_options, args.template_dir, args.template_name)
+        output = args.output or args.input.with_suffix(f".{output_format}")
+        if output_format == "pdf":
+            result = generate_pdf(payload, pdf_options, args.template_dir, args.template_name)
+            output.write_bytes(result)
+        elif output_format == "xlsx":
+            output.write_bytes(generate_xlsx(payload))
+        elif output_format == "csv":
+            output.write_text(generate_csv(payload), encoding="utf-8")
+        else:  # html
+            output.write_text(render_html(payload, args.template_dir, args.template_name), encoding="utf-8")
     except (FileNotFoundError, ValueError) as e:
         print(f"isis-report: error: {e}", file=sys.stderr)
         return 2
     except Exception as e:  # noqa: BLE001 - report any generation failure as exit 1
-        print(f"isis-report: failed to generate PDF: {e}", file=sys.stderr)
+        print(f"isis-report: failed to generate report: {e}", file=sys.stderr)
         return 1
-    output = args.output or args.input.with_suffix(".pdf")
-    output.write_bytes(pdf)
     print(str(output))
     return 0
+
+
+def _detect_output_format(args: argparse.Namespace) -> str:
+    """Resolve the output format: explicit --format wins, else the -o extension."""
+    if args.format != "auto":
+        return args.format
+    if args.output:
+        suffix = args.output.suffix.lower().lstrip(".")
+        if suffix in ("pdf", "xlsx", "csv", "html"):
+            return suffix
+        raise ValueError(f"Cannot guess output format from extension {args.output.suffix!r}; use --format.")
+    return "pdf"
 
 
 def _cmd_render(args: argparse.Namespace) -> int:

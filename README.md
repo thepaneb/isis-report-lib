@@ -2,9 +2,7 @@
 
 [![CI](https://github.com/thepaneb/isis-report-lib/actions/workflows/ci.yml/badge.svg)](https://github.com/thepaneb/isis-report-lib/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/isis-report-lib.svg)](https://pypi.org/project/isis-report-lib/)
-[![Python](https://img.shields.io/pypi/pyversions/isis-report-lib.svg)](https://pypi.org/project/isis-report-lib/)
-
-Python library for **tabular PDF reports** with customizable hierarchical layouts — extracted from the [isis_report](https://github.com/thepaneb/isis_report) PoC (Robyn microservice), without the server.
+[![Python](https://img.shields.io/pypi/pyversions/isis-report-lib.svg)](https://pypi.org/project/isis-report-lib/)Python library for **tabular PDF reports** with customizable hierarchical layouts — extracted from the [isis_report](https://github.com/thepaneb/isis_report) PoC (Robyn microservice), without the server.
 
 - Input: `dict`/`ReportPayload` (`meta` + optional `layout` + `data`) or **`.toon`** text
 - Rendering: Jinja2 (templates bundled in the package)
@@ -71,8 +69,30 @@ pdf = await agenerate_pdf_from_toon(toon_text)
 isis-report generate examples/sales_order.toon -o report.pdf
 isis-report generate payload.json --page-format Letter
 
+# Same report as XLSX, CSV or HTML (needs no browser)
+isis-report generate examples/sales_order.toon -o report.xlsx
+isis-report generate examples/sales_order.toon -o report.csv
+isis-report generate examples/sales_order.toon -o report.html
+isis-report generate input.toon --format xlsx   # or csv | html | pdf
+
 # Intermediate HTML without a browser (prints to stdout unless -o is given)
 isis-report render examples/sales_order.toon -o report.html
+```
+
+## Output formats
+
+| Format | API | Notes |
+| --- | --- | --- |
+| PDF | `generate_pdf` / `agenerate_pdf` | Needs Chromium (`playwright install chromium`) |
+| XLSX | `generate_xlsx` / `agenerate_xlsx` | One sheet per detail table (context columns repeated), bold totals, `Summary` sheet. Needs `pip install isis-report-lib[xlsx]` |
+| CSV | `generate_csv` / `agenerate_csv` | Locale-formatted values, `# table:` / `# summary` sections, `--delimiter` (`;` for Excel PT) |
+| HTML | `render_html` / `arender_html` | Intermediate output, no browser needed |
+
+```python
+from isis_report_lib import generate_csv, generate_xlsx
+
+generate_xlsx(payload)                    # -> bytes (.xlsx workbook)
+generate_csv(payload, delimiter=";")      # -> str
 ```
 
 PDF options (forwarded to Playwright's `page.pdf`):
@@ -195,8 +215,11 @@ See `examples/sales_order.toon`.
 | `generate_pdf(payload, pdf_options?) -> bytes` | sync PDF from dict/`ReportPayload` |
 | `agenerate_pdf(...)` | same, async |
 | `generate_pdf_from_toon(text, ...)` / `agenerate_pdf_from_toon` | PDF from `.toon` |
+| `generate_xlsx(payload) -> bytes` / `agenerate_xlsx` / `..._from_toon` | .xlsx workbook, no browser (needs `.[xlsx]` extra) |
+| `generate_csv(payload, delimiter=",") -> str` / `agenerate_csv` / `..._from_toon` | CSV text, no browser |
 | `render_html(payload)` / `arender_html` / `render_html_from_toon` | intermediate HTML (no browser) |
 | `ToonParser().parse(text)` / `parse_toon(text)` | `.toon` -> dict |
+| `collect_tables(dataset, layout)` | flat tables + summary rows (powers XLSX/CSV) |
 | `TabularReportService(pdf_options?)` | pipeline `execute(payload)` (Fetch→Process→HTML→PDF) |
 
 ## Tests

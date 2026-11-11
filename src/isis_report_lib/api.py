@@ -90,25 +90,10 @@ async def arender_html(
     template_name: str = "tabular.jinja",
 ) -> str:
     """Render only the intermediate HTML (async, no Playwright)."""
-    from isis_report_lib.layout import build_report, infer_layout, is_template_format, template_header_layout
+    from isis_report_lib.service import prepare_report
 
     data = _normalize_payload(payload)
-    raw = data.get("data", [])
-    layout_raw = data.get("layout")
-    from isis_report_lib.service import with_meta_defaults
-
-    meta = with_meta_defaults(data.get("meta", {}))
-    if layout_raw:
-        dataset, layout = build_report(raw, layout_raw)
-    elif is_template_format(raw):
-        layout = template_header_layout(raw)
-        dataset = {"groups": raw, "summary": None}
-    else:
-        layout = infer_layout(raw)
-        dataset = {
-            "groups": [{"fields": r} if isinstance(r, dict) else {"fields": {"value": r}} for r in raw],
-            "summary": None,
-        }
+    dataset, layout, meta = prepare_report(data)
 
     from isis_report_lib.rendering import arender_report_html
 
@@ -131,3 +116,53 @@ def render_html_from_toon(
 ) -> str:
     """Render HTML (sync) from `.toon` text."""
     return render_html(parse_toon(text), template_dir, template_name)
+
+
+async def agenerate_xlsx(payload: dict[str, Any] | ReportPayload) -> bytes:
+    """Generate an .xlsx workbook (async, no browser needed)."""
+    from isis_report_lib.export import build_workbook, collect_tables
+    from isis_report_lib.service import prepare_report
+
+    dataset, layout, meta = prepare_report(_normalize_payload(payload))
+    tables, summaries = collect_tables(dataset, layout)
+    return build_workbook(tables, summaries, meta)
+
+
+def generate_xlsx(payload: dict[str, Any] | ReportPayload) -> bytes:
+    """Generate an .xlsx workbook (sync, no browser needed)."""
+    return _run(agenerate_xlsx(payload))
+
+
+async def agenerate_xlsx_from_toon(text: str) -> bytes:
+    """Generate an .xlsx workbook (async) from `.toon` text."""
+    return await agenerate_xlsx(parse_toon(text))
+
+
+def generate_xlsx_from_toon(text: str) -> bytes:
+    """Generate an .xlsx workbook (sync) from `.toon` text."""
+    return _run(agenerate_xlsx_from_toon(text))
+
+
+async def agenerate_csv(payload: dict[str, Any] | ReportPayload, delimiter: str = ",") -> str:
+    """Generate CSV text (async, no browser needed)."""
+    from isis_report_lib.export import collect_tables, render_csv
+    from isis_report_lib.service import prepare_report
+
+    dataset, layout, meta = prepare_report(_normalize_payload(payload))
+    tables, summaries = collect_tables(dataset, layout)
+    return render_csv(tables, summaries, meta, delimiter=delimiter)
+
+
+def generate_csv(payload: dict[str, Any] | ReportPayload, delimiter: str = ",") -> str:
+    """Generate CSV text (sync, no browser needed)."""
+    return _run(agenerate_csv(payload, delimiter))
+
+
+async def agenerate_csv_from_toon(text: str, delimiter: str = ",") -> str:
+    """Generate CSV text (async) from `.toon` text."""
+    return await agenerate_csv(parse_toon(text), delimiter)
+
+
+def generate_csv_from_toon(text: str, delimiter: str = ",") -> str:
+    """Generate CSV text (sync) from `.toon` text."""
+    return _run(agenerate_csv_from_toon(text, delimiter))

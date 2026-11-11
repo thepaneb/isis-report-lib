@@ -413,10 +413,6 @@ def _convert_item(record: dict[str, Any], node: dict[str, Any]) -> dict[str, Any
 
 
 def _build_layout(node: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str, Any]:
-    """Build the render-ready layout fragment for one level (visibility-aware)."""
-
-
-def _build_layout(node: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str, Any]:
     """Build the render-ready layout fragment for one level (visibility-aware).
 
     Mirrors the data shape: ``header`` (own fields), ``groups`` (child fragment),

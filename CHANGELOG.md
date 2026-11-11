@@ -7,6 +7,7 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 
 ## [Unreleased]
 ### Added
+- Output formats: XLSX (one sheet per detail table, bold totals, `Summary` sheet; needs `.[xlsx]` extra) and CSV (locale-formatted, `# table:`/`# summary` sections), plus `collect_tables`; `isis-report generate --format pdf|xlsx|csv|html`
 - Report parameters: `meta.page` (size/orientation/margins), field `aggregate`
   (sum/count/avg/min/max → group footers, detail `tfoot`, grand summary),
   `$print_when` row filters, `$order_by` sorting, `visible`/`visible_when` columns
@@ -17,7 +18,6 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 - Locale-aware formatting via `meta.locale` (Babel/CLDR, default `pt-BR`) + `meta.currency` override; `--locale` CLI flag
 ### Changed
 - print timestamp moved to the repeated page footer (right side, next to page count), out of the report body
-- `meta.printed_at` auto-filled with the print timestamp; custom PDF header/footer via `pdf_options` and CLI flags
 ### Changed
 - Print timestamp moved to the repeated page footer (right side, next to page count), out of the report body
 - Coverage: 85% gate enforced in CI (currently ~97%)
