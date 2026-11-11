@@ -38,6 +38,10 @@ class Table:
 
 def collect_tables(dataset: dict[str, Any], layout: dict[str, Any]) -> tuple[list[Table], list[tuple[str, Any, str]]]:
     """Flatten (dataset, layout) into tables plus (label, value, mask) summary rows."""
+    return _collect(dataset, layout, default_name="data")
+
+
+def _collect(dataset: dict[str, Any], layout: dict[str, Any], default_name: str) -> tuple[list[Table], list[tuple[str, Any, str]]]:
     summaries: list[tuple[str, Any, str]] = []
     by_key: dict[str, Table] = {}
 
@@ -95,11 +99,54 @@ def collect_tables(dataset: dict[str, Any], layout: dict[str, Any]) -> tuple[lis
     for f in layout.get("summary", []) or []:
         if f["name"] in summary:
             summaries.append((f["label"], summary[f["name"]], f.get("format_mask", "str")))
+    for section in dataset.get("sections", []) or []:
+        if not isinstance(section, dict):
+            continue
+        stype = section.get("type", "table")
+        if stype == "table":
+            sub_tables, sub_summaries = _collect(section.get("dataset", {}), section.get("layout", {}), section.get("title") or "table")
+            title = section.get("title")
+            for table in sub_tables:
+                key = table.key if not title or table.key == title else f"{title} - {table.key}"
+                suffix, n = key, 2
+                while suffix in by_key:
+                    suffix, n = f"{key}_{n}", n + 1
+                table.key = suffix
+                by_key[suffix] = table
+            for label, value, mask in sub_summaries:
+                summaries.append((f"{title} / {label}" if title else label, value, mask))
+        elif stype == "text":
+            paragraphs = [p for p in section.get("paragraphs", []) if isinstance(p, str)]
+            if paragraphs:
+                by_key[section.get("title") or f"notes_{len(by_key)}"] = Table(
+                    key=section.get("title") or "notes",
+                    columns=[Column(key="text", label="Text")],
+                    rows=[{"text": p} for p in paragraphs],
+                )
+        elif stype == "kpi":
+            rows = [{"label": i.get("label"), "value": i.get("value")} for i in section.get("items", []) if isinstance(i, dict)]
+            if rows:
+                by_key[section.get("title") or "kpi"] = Table(
+                    key=section.get("title") or "kpi",
+                    columns=[Column(key="label", label="Label"), Column(key="value", label="Value")],
+                    rows=rows,
+                )
+        elif stype == "chart":
+            spec = section.get("chart", {}) if isinstance(section.get("chart"), dict) else {}
+            labels = [str(label) for label in spec.get("labels", [])]
+            rows = [{"label": lb, "value": v} for lb, v in zip(labels, spec.get("values", []), strict=True)]
+            if rows:
+                key = section.get("title") or spec.get("title") or "chart"
+                by_key[key] = Table(
+                    key=key,
+                    columns=[Column(key="label", label="Label"), Column(key="value", label="Value")],
+                    rows=rows,
+                )
     if not by_key and top:
         header = layout.get("groups", {}).get("header", [])
         columns = [Column(key=f["name"], label=f["label"], mask=f.get("format_mask", "str")) for f in header]
         if columns:
-            sheet = table_for("data", columns)
+            sheet = table_for(default_name, columns)
             for item in top:
                 if isinstance(item, dict):
                     fields = item.get("fields", {}) or {}

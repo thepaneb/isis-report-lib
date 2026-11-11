@@ -75,6 +75,18 @@
 {% macro render_divider() %}
     <hr class="divider-table"/>
 {% endmacro %}
+{% macro render_text(paragraphs) %}
+    {% for paragraph in paragraphs %}
+        <p>{{paragraph}}</p>
+    {% endfor %}
+{% endmacro %}
+{% macro render_kpi(items, fmt) %}
+    <section class="summary">
+        {% for item in items %}
+            {{render_section_content(item['label'], fmt(item.get('value'), item.get('format_mask', 'str')))}}
+        {% endfor %}
+    </section>
+{% endmacro %}
 {% macro render_summary(rows, layout, zip, fmt) %}
     <section class="summary">
         {% for field in layout %}

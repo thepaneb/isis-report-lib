@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from isis_report_lib import arender_html, render_html, render_html_from_toon
+from isis_report_lib.layout import build_report
 from isis_report_lib.service import TabularReportService
 
 PAYLOAD = {
@@ -317,6 +318,87 @@ AGG_PAYLOAD = {
         }
     ],
 }
+
+
+SECTIONS_PAYLOAD = {
+    "meta": {"title": "Board Pack", "mode": "exact"},
+    "sections": [
+        {"type": "text", "title": "Intro", "paragraphs": ["Hello.", "World."]},
+        {
+            "type": "table",
+            "title": "Sales",
+            "layout": {"product": {"label": "Product", "format_mask": "str", "alignment": "left"}},
+            "data": [{"product": "Pen"}],
+        },
+        {"type": "kpi", "items": [{"label": "Orders", "value": 42}]},
+        {"type": "chart", "title": "Trend", "chart": {"kind": "bar", "labels": ["Jan", "Feb"], "values": [10, 20]}},
+    ],
+}
+
+
+def test_sections_build_and_render():
+    html = render_html(SECTIONS_PAYLOAD)
+    assert "Board Pack" in html
+    assert "Hello." in html and "World." in html
+    assert "Pen" in html
+    assert "42" in html
+    assert "<svg" in html and "Trend" in html
+
+
+async def test_sections_generate_pdf_uses_sections_template():
+    service = TabularReportService()
+    with (
+        patch("isis_report_lib.rendering.arender_report_html", new_callable=AsyncMock) as mock_render,
+        patch("isis_report_lib.pdf.get_pdf_from_html", new_callable=AsyncMock) as mock_pdf,
+    ):
+        mock_render.return_value = "<html>OK</html>"
+        mock_pdf.return_value = b"%PDF-1.4"
+        await service.execute(SECTIONS_PAYLOAD)
+        assert mock_render.call_args.kwargs["template_name"] == "sections.jinja"
+        assert len(mock_render.call_args.kwargs["dataset"]["sections"]) == 4
+
+
+def test_sections_rejects_garbage():
+    with pytest.raises(ValueError, match="Invalid section"):
+        render_html({"meta": {"title": "T"}, "sections": ["nope"]})
+    with pytest.raises(ValueError, match="Unknown section type"):
+        render_html({"meta": {"title": "T"}, "sections": [{"type": "fancy"}]})
+    with pytest.raises(ValueError, match="Invalid text section"):
+        render_html({"meta": {"title": "T"}, "sections": [{"type": "text", "paragraphs": "nope"}]})
+    with pytest.raises(ValueError, match="Invalid kpi section"):
+        render_html({"meta": {"title": "T"}, "sections": [{"type": "kpi", "items": "nope"}]})
+    with pytest.raises(ValueError, match="Invalid kpi item"):
+        render_html({"meta": {"title": "T"}, "sections": [{"type": "kpi", "items": [{"value": 1}]}]})
+    with pytest.raises(ValueError, match="Unknown chart kind"):
+        render_html({"meta": {"title": "T"}, "sections": [{"type": "chart", "chart": {"kind": "pie"}}]})
+
+
+def test_running_balance_in_detail_table():
+    payload = {
+        "meta": {"title": "Statement", "mode": "exact"},
+        "layout": {
+            "date": {"label": "Date", "format_mask": "date", "alignment": "left"},
+            "moves": {
+                "desc": {"label": "Description", "format_mask": "str", "alignment": "left"},
+                "amount": {"label": "Amount", "format_mask": "float", "alignment": "right"},
+                "balance": {"label": "Balance", "format_mask": "float", "alignment": "right", "running_balance": "amount"},
+            },
+        },
+        "data": [
+            {
+                "date": "2024-01-01",
+                "moves": [
+                    {"desc": "In", "amount": 100},
+                    {"desc": "Out", "amount": -30},
+                ],
+            }
+        ],
+    }
+    html = render_html(payload)
+    assert "70,00" in html
+    dataset, _layout = build_report(payload["data"], payload["layout"])
+    rows = dataset["groups"][0]["details"]["moves"]["rows"]
+    assert [r["balance"] for r in rows] == [100, 70]
 
 
 def test_render_html_with_aggregates_shows_totals():

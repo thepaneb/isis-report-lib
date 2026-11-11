@@ -15,7 +15,7 @@ Input is the "raw" layout::
 Keys whose value is a dict **without** ``label`` are treated as nested groups.
 Keys starting with ``$`` are reserved level options (``$print_when``, ``$order_by``).
 
-Report parameters (Phase 1):
+Report parameters (Phase 1 + running balances):
 
 - field ``"aggregate"``: ``sum`` | ``count`` | ``avg`` | ``min`` | ``max`` — computed
   over sibling rows into group ``footer``\\ s, detail ``tfoot`` and the grand ``summary``.
@@ -24,6 +24,8 @@ Report parameters (Phase 1):
 - ``"$print_when": {condition}`` — keep only matching rows at that level.
 - ``"$order_by": [{"field": ..., "direction": "asc"|"desc"}]`` (or ``"field"``/``"-field"``
   shorthands) — sort rows at that level.
+- field ``"running_balance": "<source field>"`` — cumulative sum of the source
+  field in row order (new ``balance``-style columns, e.g. bank statements).
 
 Conditions: ``{"field": name, "equals"|"not_equals"|"in"|"not_in"|"gt"|"gte"|"lt"|"lte": value}``
 or ``{"field": name, "is_null"|"not_null": true}``.
@@ -384,6 +386,7 @@ def _convert_item(record: dict[str, Any], node: dict[str, Any]) -> dict[str, Any
         children = [c for c in children if isinstance(c, dict)]
         children = sort_rows(filter_rows(children, sub_node.get("$print_when")), sub_node.get("$order_by"))
         sub_fields, _sub_groups, _sub_options = split_layout_node(sub_node)
+        children = _apply_running_balance(children, sub_fields)
         if _has_nested_groups(sub_node):
             for f, d in sub_fields.items():
                 if d.get("aggregate") and f not in footer_funcs:
@@ -410,6 +413,32 @@ def _convert_item(record: dict[str, Any], node: dict[str, Any]) -> dict[str, Any
     if computed_footer is not None:
         item["footer"] = computed_footer
     return item
+
+
+def _apply_running_balance(rows: list[dict[str, Any]], field_defs: dict[str, Any]) -> list[dict[str, Any]]:
+    """Fill ``running_balance`` columns with the cumulative sum of their source field.
+
+    Rows are copied so user-supplied dicts are never mutated. Non-numeric source
+    values count as zero; the balance starts at zero.
+    """
+    specs = {k: v["running_balance"] for k, v in field_defs.items() if isinstance(v, dict) and v.get("running_balance")}
+    if not specs or not rows:
+        return rows
+    out: list[dict[str, Any]] = []
+    balances: dict[str, float] = {}
+    for row in rows:
+        row = dict(row) if isinstance(row, dict) else row
+        out.append(row)
+        if not isinstance(row, dict):
+            continue
+        for key, source in specs.items():
+            try:
+                delta = float(row.get(source, 0) or 0)
+            except (TypeError, ValueError):
+                delta = 0.0
+            balances[key] = balances.get(key, 0.0) + delta
+            row[key] = balances[key]
+    return out
 
 
 def _build_layout(node: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str, Any]:

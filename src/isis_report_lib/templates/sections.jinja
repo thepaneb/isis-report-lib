@@ -1,0 +1,26 @@
+{% extends 'base.jinja' %}
+{% from 'tabular_sections.jinja' import render_divider, render_group, render_kpi, render_summary, render_text %}
+{% block title %}{{meta.title}}{% endblock %}
+{% block mode %}{{meta.mode}}{% endblock %}
+{% block subtitle %}{{meta.sub_title}}{% endblock %}
+{% block printed_at %}{{meta.printed_at}}{% endblock %}
+{% block content %}
+    {% for section in dataset.sections %}
+        {% if section.title %}<h2 class="section-title">{{section.title}}</h2>{% endif %}
+        {% if section.type == "table" %}
+            {% if section.dataset.groups and section.layout.groups %}
+                {{render_group(section.dataset.groups, section.layout.groups, zip, fmt, 0)}}
+            {% endif %}
+            {% if section.dataset.summary and section.layout.summary %}
+                {{render_summary(section.dataset.summary, section.layout.summary, zip, fmt)}}
+            {% endif %}
+        {% elif section.type == "text" %}
+            {{render_text(section.paragraphs)}}
+        {% elif section.type == "kpi" %}
+            {{render_kpi(section['items'], fmt)}}
+        {% elif section.type == "chart" %}
+            <div class="chart">{{section.svg}}</div>
+        {% endif %}
+        {% if not loop.last %}{{render_divider()}}{% endif %}
+    {% endfor %}
+{% endblock %}
