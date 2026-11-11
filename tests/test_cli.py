@@ -189,6 +189,25 @@ def test_generate_missing_header_file_fails(tmp_path, capsys):
     assert "Header template file not found" in err
 
 
+def test_generate_explicit_format_flags(tmp_path, capsys):
+    src = _write(tmp_path, "in.toon", TOON)
+    dst = tmp_path / "custom.out"
+    assert main(["generate", str(src), "-o", str(dst), "--format", "xlsx"]) == 0
+    assert dst.read_bytes()[:4] == b"PK\x03\x04"
+    assert main(["generate", str(src), "--format", "csv"]) == 0
+    assert src.with_suffix(".csv").read_text(encoding="utf-8").splitlines()[0] == "# Order"
+    assert main(["generate", str(src), "--format", "html"]) == 0
+    assert "<html" in src.with_suffix(".html").read_text(encoding="utf-8")
+    capsys.readouterr()
+
+
+def test_generate_unknown_extension_fails(tmp_path, capsys):
+    src = _write(tmp_path, "in.toon", TOON)
+    assert main(["generate", str(src), "-o", str(tmp_path / "out.zzz")]) == 2
+    _, err = capsys.readouterr()
+    assert "Cannot guess output format" in err
+
+
 def test_read_text_file_oserror_becomes_value_error(tmp_path, monkeypatch, capsys):
     src = _write(tmp_path, "in.toon", TOON)
     monkeypatch.setattr(Path, "read_text", lambda *a, **k: (_ for _ in ()).throw(OSError("disk gone")))

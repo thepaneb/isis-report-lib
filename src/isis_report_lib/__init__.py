@@ -4,14 +4,23 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 
 from isis_report_lib.api import (
+    agenerate_csv,
+    agenerate_csv_from_toon,
     agenerate_pdf,
     agenerate_pdf_from_toon,
+    agenerate_xlsx,
+    agenerate_xlsx_from_toon,
     arender_html,
+    generate_csv,
+    generate_csv_from_toon,
     generate_pdf,
     generate_pdf_from_toon,
+    generate_xlsx,
+    generate_xlsx_from_toon,
     render_html,
     render_html_from_toon,
 )
+from isis_report_lib.export import collect_tables
 from isis_report_lib.formatting import format_value, formatter_for
 from isis_report_lib.layout import (
     build_report,
@@ -49,6 +58,15 @@ __all__ = [
     "generate_pdf",
     "agenerate_pdf_from_toon",
     "generate_pdf_from_toon",
+    "agenerate_xlsx",
+    "generate_xlsx",
+    "agenerate_xlsx_from_toon",
+    "generate_xlsx_from_toon",
+    "agenerate_csv",
+    "generate_csv",
+    "agenerate_csv_from_toon",
+    "generate_csv_from_toon",
+    "collect_tables",
     "arender_html",
     "render_html",
     "render_html_from_toon",

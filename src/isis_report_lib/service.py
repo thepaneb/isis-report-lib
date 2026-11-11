@@ -17,6 +17,27 @@ def with_meta_defaults(meta: dict[str, Any]) -> dict[str, Any]:
     return meta
 
 
+def prepare_report(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """Build (dataset, layout, meta) from a normalized payload dict (shared by all outputs)."""
+    from isis_report_lib.layout import build_report, infer_layout, is_template_format, template_header_layout
+
+    data = payload.get("data", [])
+    meta = with_meta_defaults(payload.get("meta", {}) or {})
+    layout_raw = payload.get("layout")
+    if layout_raw:
+        dataset, layout = build_report(data, layout_raw)
+    elif is_template_format(data):
+        layout = template_header_layout(data)
+        dataset = {"groups": data, "summary": None}
+    else:
+        layout = infer_layout(data)
+        dataset = {
+            "groups": [{"fields": r} if isinstance(r, dict) else {"fields": {"value": r}} for r in data],
+            "summary": None,
+        }
+    return dataset, layout, meta
+
+
 class BaseReportService(ABC):
     """Defines the report lifecycle; ``execute`` enforces the step order."""
 
@@ -74,25 +95,9 @@ class TabularReportService(BaseReportService):
         return payload.get("data", [])
 
     async def _process_data(self, data: Any, payload: dict[str, Any]) -> dict[str, Any]:
-        from isis_report_lib.layout import build_report, infer_layout, is_template_format, template_header_layout
-
-        meta = with_meta_defaults(payload.get("meta", {}))
+        dataset, layout, meta = prepare_report({**payload, "data": data})
         self._printed_at = meta.get("printed_at")
         self._page = meta.get("page", {}) or {}
-        layout_raw = payload.get("layout")
-
-        if layout_raw:
-            dataset, layout = build_report(data, layout_raw)
-        elif is_template_format(data):
-            layout = template_header_layout(data)
-            dataset = {"groups": data, "summary": None}
-        else:
-            layout = infer_layout(data)
-            # The template iterates over `row.fields`, so raw records must be wrapped.
-            dataset = {
-                "groups": [{"fields": r} if isinstance(r, dict) else {"fields": {"value": r}} for r in data],
-                "summary": None,
-            }
         return {"dataset": dataset, "layout": layout, "meta": meta}
 
     async def _render_html(self, data: dict[str, Any], payload: dict[str, Any]) -> str:
