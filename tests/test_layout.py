@@ -183,6 +183,18 @@ def test_apply_running_balance():
     assert _apply_running_balance(["not-a-dict"], field_defs)[0] == "not-a-dict"
 
 
+def test_apply_running_balance_with_start_and_validation():
+    from isis_report_lib.layout import _apply_running_balance
+
+    field_defs = {"balance": {"label": "Balance", "running_balance": {"of": "amount", "start": 1000}}}
+    result = _apply_running_balance([{"amount": 100}, {"amount": -30}], field_defs)
+    assert [r["balance"] for r in result] == [1100, 1070]
+    with pytest.raises(ValueError, match="Invalid running_balance start"):
+        _apply_running_balance([{"amount": 1}], {"balance": {"running_balance": {"of": "amount", "start": "x"}}})
+    with pytest.raises(ValueError, match="Invalid running_balance spec"):
+        _apply_running_balance([{"amount": 1}], {"balance": {"running_balance": 42}})
+
+
 def test_field_visible():
     assert field_visible({"label": "A"}, [{"x": 1}]) is True
     assert field_visible({"label": "A", "visible": False}, [{"x": 1}]) is False

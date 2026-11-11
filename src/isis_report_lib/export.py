@@ -243,10 +243,11 @@ def build_workbook(
 
     def new_sheet(name: str):
         nonlocal first
-        ws = wb.active if first else wb.create_sheet()
+        sheet = wb.active if first else wb.create_sheet()
+        assert sheet is not None
         first = False
-        ws.title = _sheet_name(name, used)
-        return ws
+        sheet.title = _sheet_name(name, used)
+        return sheet
 
     header_font = Font(bold=True, color="FFFFFF")
     header_fill = PatternFill("solid", fgColor="0A2F46")
@@ -276,6 +277,14 @@ def build_workbook(
             cell.fill = header_fill
             cell.alignment = wrap
             widths.append(len(column.label))
+        # Print polish: repeat the header on every printed page, freeze below
+        # it and offer column filters.
+        if table.columns:
+            first_col = ws.cell(row=header_row, column=1).column_letter
+            last_col = ws.cell(row=header_row, column=len(table.columns)).column_letter
+            ws.print_title_rows = f"{header_row}:{header_row}"
+            ws.freeze_panes = ws.cell(row=header_row + 1, column=1).coordinate
+            ws.auto_filter.ref = f"{first_col}{header_row}:{last_col}{header_row}"
         for pos, record in enumerate(table.rows):
             row_idx += 1
             is_total = pos in table.total_rows

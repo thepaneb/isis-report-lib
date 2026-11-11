@@ -216,6 +216,14 @@ def test_read_text_file_oserror_becomes_value_error(tmp_path, monkeypatch, capsy
     assert "Cannot read" in err
 
 
+def test_generate_csv_bom_flag(tmp_path, capsys):
+    src = _write(tmp_path, "in.toon", TOON)
+    dst = tmp_path / "out.csv"
+    assert main(["generate", str(src), "-o", str(dst), "--format", "csv", "--bom"]) == 0
+    assert dst.read_bytes().startswith(b"\xef\xbb\xbf# Order")
+    capsys.readouterr()
+
+
 @pytest.mark.browser
 def test_generate_e2e_real_pdf(tmp_path):
     from isis_report_lib.pdf import close_browser

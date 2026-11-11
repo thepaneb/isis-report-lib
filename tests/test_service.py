@@ -212,9 +212,17 @@ def test_default_footer_layout():
     html = default_footer("2024-01-01 10:00")
     assert "powered by" in html
     assert "<svg" in html
-    assert "Printed on 2024-01-01 10:00" in html
+    assert "Impresso em 2024-01-01 10:00" in html
     assert "pageNumber" in html
-    assert html.index("Printed on") < html.index("Page") < html.index("powered by")
+    assert html.index("Impresso em") < html.index("Página") < html.index("powered by")
+
+
+def test_default_footer_english():
+    from isis_report_lib.pdf import default_footer
+
+    html = default_footer("2024-01-01 10:00", locale="en-US")
+    assert "Printed on 2024-01-01 10:00" in html
+    assert "Page <span" in html and " of <span" in html
 
 
 def test_default_footer_without_date():
@@ -234,7 +242,19 @@ async def test_execute_puts_printed_at_in_pdf_footer():
         mock_pdf.return_value = b"%PDF-1.4"
         await service.execute({"meta": {"title": "T", "printed_at": "2024-01-01 10:00"}, "data": []})
         footer = mock_pdf.call_args.kwargs["footer_template"]
-        assert "Printed on 2024-01-01 10:00" in footer
+        assert "Impresso em 2024-01-01 10:00" in footer
+
+
+async def test_execute_footer_follows_meta_locale():
+    service = TabularReportService()
+    with (
+        patch("isis_report_lib.rendering.arender_report_html", new_callable=AsyncMock) as mock_render,
+        patch("isis_report_lib.pdf.get_pdf_from_html", new_callable=AsyncMock) as mock_pdf,
+    ):
+        mock_render.return_value = "<html>OK</html>"
+        mock_pdf.return_value = b"%PDF-1.4"
+        await service.execute({"meta": {"title": "T", "locale": "en-US"}, "data": []})
+        assert "Printed on" in mock_pdf.call_args.kwargs["footer_template"]
 
 
 async def test_execute_keeps_custom_footer_template():
@@ -262,6 +282,21 @@ async def test_execute_maps_meta_page_to_pdf_options():
         assert kwargs["format"] == "Letter"
         assert kwargs["landscape"] is True
         assert kwargs["margin"]["top"] == ".15in"
+
+
+async def test_execute_forwards_pdf_accessibility_options():
+    service = TabularReportService(pdf_options={"outline": True, "tagged": True, "prefer_css_page_size": True})
+    with (
+        patch("isis_report_lib.rendering.arender_report_html", new_callable=AsyncMock) as mock_render,
+        patch("isis_report_lib.pdf.get_pdf_from_html", new_callable=AsyncMock) as mock_pdf,
+    ):
+        mock_render.return_value = "<html>OK</html>"
+        mock_pdf.return_value = b"%PDF-1.4"
+        await service.execute({"meta": {"title": "T"}, "data": []})
+        kwargs = mock_pdf.call_args.kwargs
+        assert kwargs["outline"] is True
+        assert kwargs["tagged"] is True
+        assert kwargs["prefer_css_page_size"] is True
 
 
 async def test_execute_explicit_pdf_options_win_over_meta_page():
@@ -370,7 +405,7 @@ def test_sections_rejects_garbage():
     with pytest.raises(ValueError, match="Invalid kpi item"):
         render_html({"meta": {"title": "T"}, "sections": [{"type": "kpi", "items": [{"value": 1}]}]})
     with pytest.raises(ValueError, match="Unknown chart kind"):
-        render_html({"meta": {"title": "T"}, "sections": [{"type": "chart", "chart": {"kind": "pie"}}]})
+        render_html({"meta": {"title": "T"}, "sections": [{"type": "chart", "chart": {"kind": "radar"}}]})
 
 
 def test_running_balance_in_detail_table():

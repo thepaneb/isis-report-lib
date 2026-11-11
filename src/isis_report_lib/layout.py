@@ -178,6 +178,8 @@ def split_layout_node(node: dict[str, Any]) -> tuple[dict[str, Any], dict[str, A
 def evaluate_condition(row: dict[str, Any], condition: dict[str, Any]) -> bool:
     """Evaluate a ``$print_when``/``visible_when`` condition against a row."""
     field = condition.get("field")
+    if not isinstance(field, str):
+        raise ValueError(f"Condition needs a field name: {condition!r}")
     value = row.get(field) if isinstance(row, dict) else None
     for op in ("equals", "not_equals", "in", "not_in", "gt", "gte", "lt", "lte", "is_null", "not_null"):
         if op not in condition:
@@ -251,6 +253,8 @@ def sort_rows(rows: list[dict[str, Any]], order_by: Any) -> list[dict[str, Any]]
             field, direction = (spec[1:], "desc") if spec.startswith("-") else (spec, "asc")
         else:
             raise ValueError(f"Invalid $order_by spec: {spec!r}")
+        if not isinstance(field, str):
+            raise ValueError(f"Invalid $order_by spec (needs a field name): {spec!r}")
         if direction not in ("asc", "desc"):
             raise ValueError(f"Invalid sort direction: {direction!r}")
         result.sort(key=_sort_key(field))
@@ -311,16 +315,15 @@ def build_report(data_raw: list[dict[str, Any]], layout_raw: dict[str, Any]) -> 
     rows = sort_rows(filter_rows(data_raw, layout_raw.get("$print_when")), layout_raw.get("$order_by"))
     items = [_convert_item(record, layout_raw) for record in rows]
     inner = _build_layout(layout_raw, rows)
-    summary, summary_defs = _collect_summary(rows, layout_raw)
-    if not summary:
-        summary = None
+    collected, summary_defs = _collect_summary(rows, layout_raw)
+    summary: dict[str, Any] | None = collected or None
     layout: dict[str, Any] = {"groups": inner}
     if summary_defs:
         layout["summary"] = [format_field(f, summary_defs[f]) for f in summary_defs]
     return {"groups": items, "summary": summary}, layout
 
 
-def _collect_summary(rows: list[dict[str, Any]], node: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+def _collect_summary(rows: list[dict[str, Any]], node: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     """Grand totals: aggregates declared at any level, computed over all rows at that path."""
     field_defs, group_nodes, _options = split_layout_node(node)
     summary: dict[str, Any] = {}
@@ -418,10 +421,23 @@ def _convert_item(record: dict[str, Any], node: dict[str, Any]) -> dict[str, Any
 def _apply_running_balance(rows: list[dict[str, Any]], field_defs: dict[str, Any]) -> list[dict[str, Any]]:
     """Fill ``running_balance`` columns with the cumulative sum of their source field.
 
+    Spec form: ``"running_balance": "<source field>"`` (starts at zero) or
+    ``"running_balance": {"of": "<source field>", "start": <opening balance>}``.
     Rows are copied so user-supplied dicts are never mutated. Non-numeric source
-    values count as zero; the balance starts at zero.
+    values count as zero.
     """
-    specs = {k: v["running_balance"] for k, v in field_defs.items() if isinstance(v, dict) and v.get("running_balance")}
+    specs: dict[str, tuple[str, float]] = {}
+    for key, value in field_defs.items():
+        spec = value.get("running_balance") if isinstance(value, dict) else None
+        if isinstance(spec, str):
+            specs[key] = (spec, 0.0)
+        elif isinstance(spec, dict) and spec.get("of"):
+            try:
+                specs[key] = (spec["of"], float(spec.get("start", 0) or 0))
+            except (TypeError, ValueError) as e:
+                raise ValueError(f"Invalid running_balance start for {key!r}: {spec!r}") from e
+        elif spec is not None:
+            raise ValueError(f"Invalid running_balance spec for {key!r}: {spec!r}")
     if not specs or not rows:
         return rows
     out: list[dict[str, Any]] = []
@@ -431,12 +447,14 @@ def _apply_running_balance(rows: list[dict[str, Any]], field_defs: dict[str, Any
         out.append(row)
         if not isinstance(row, dict):
             continue
-        for key, source in specs.items():
+        for key, (source, start) in specs.items():
+            if key not in balances:
+                balances[key] = start
             try:
                 delta = float(row.get(source, 0) or 0)
             except (TypeError, ValueError):
                 delta = 0.0
-            balances[key] = balances.get(key, 0.0) + delta
+            balances[key] = balances[key] + delta
             row[key] = balances[key]
     return out
 

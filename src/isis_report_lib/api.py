@@ -145,26 +145,30 @@ def generate_xlsx_from_toon(text: str) -> bytes:
     return _run(agenerate_xlsx_from_toon(text))
 
 
-async def agenerate_csv(payload: dict[str, Any] | ReportPayload, delimiter: str = ",") -> str:
-    """Generate CSV text (async, no browser needed)."""
+async def agenerate_csv(payload: dict[str, Any] | ReportPayload, delimiter: str = ",", bom: bool = False) -> str:
+    """Generate CSV text (async, no browser needed).
+
+    ``bom=True`` prepends a UTF-8 BOM so Excel (PT) opens accented text correctly.
+    """
     from isis_report_lib.export import collect_tables, render_csv
     from isis_report_lib.service import prepare_report
 
     dataset, layout, meta = prepare_report(_normalize_payload(payload))
     tables, summaries = collect_tables(dataset, layout)
-    return render_csv(tables, summaries, meta, delimiter=delimiter)
+    text = render_csv(tables, summaries, meta, delimiter=delimiter)
+    return "\ufeff" + text if bom else text
 
 
-def generate_csv(payload: dict[str, Any] | ReportPayload, delimiter: str = ",") -> str:
+def generate_csv(payload: dict[str, Any] | ReportPayload, delimiter: str = ",", bom: bool = False) -> str:
     """Generate CSV text (sync, no browser needed)."""
-    return _run(agenerate_csv(payload, delimiter))
+    return _run(agenerate_csv(payload, delimiter, bom))
 
 
-async def agenerate_csv_from_toon(text: str, delimiter: str = ",") -> str:
+async def agenerate_csv_from_toon(text: str, delimiter: str = ",", bom: bool = False) -> str:
     """Generate CSV text (async) from `.toon` text."""
-    return await agenerate_csv(parse_toon(text), delimiter)
+    return await agenerate_csv(parse_toon(text), delimiter, bom)
 
 
-def generate_csv_from_toon(text: str, delimiter: str = ",") -> str:
+def generate_csv_from_toon(text: str, delimiter: str = ",", bom: bool = False) -> str:
     """Generate CSV text (sync) from `.toon` text."""
-    return _run(agenerate_csv_from_toon(text, delimiter))
+    return _run(agenerate_csv_from_toon(text, delimiter, bom))
