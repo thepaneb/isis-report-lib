@@ -25,7 +25,7 @@ def bar_chart(
     """Vertical bar chart as an inline SVG string."""
     numbers = _check_series([str(label) for label in labels], values)
     labels = [str(label) for label in labels]
-    top, bottom = 10, height - 30
+    top, bottom = 22, height - 30
     span = max(numbers) if max(numbers) > 0 else 1
     n = len(numbers)
     slot = width / n
@@ -54,7 +54,7 @@ def line_chart(
     """Line chart with dots as an inline SVG string."""
     numbers = _check_series([str(label) for label in labels], values)
     labels = [str(label) for label in labels]
-    top, bottom, left, right = 10, height - 30, 40, width - 10
+    top, bottom, left, right = 22, height - 30, 40, width - 10
     lo, hi = min(0, min(numbers)), max(numbers)
     span = (hi - lo) or 1
     n = len(numbers)
