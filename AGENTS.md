@@ -27,7 +27,8 @@ src/isis_report_lib/
 ├── service.py     # BaseReportService + TabularReportService (+prepare_report, sections)
 ├── charts.py      # dependency-free inline SVG bar/line charts
 ├── export.py      # collect_tables + XLSX/CSV builders (no browser needed, sections-aware)
-├── cli.py         # isis-report generate/render (console script, --format pdf|xlsx|csv|html)
+├── inputs.py      # from_dataframe/from_csv/from_json + payload_schema (optional pandas)
+├── cli.py         # isis-report generate/render/schema (console script, --format pdf|xlsx|csv|html)
 └── templates/     # base/tabular*.jinja
 tests/             # test_formatting/layout/toon/service (mocks), test_pdf_e2e (browser)
 examples/          # generate_example.py + sales_order.toon

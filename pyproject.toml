@@ -29,8 +29,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=9.2.0", "pytest-asyncio>=1.4.1.post1", "pytest-cov>=7.1.0", "pytest-timeout>=2", "ruff>=0.17.4", "openpyxl>=3.1", "mypy>=1.18", "types-openpyxl>=3.1"]
+dev = ["pytest>=9.2.0", "pytest-asyncio>=1.4.1.post1", "pytest-cov>=7.1.0", "pytest-timeout>=2", "ruff>=0.17.4", "openpyxl>=3.1", "mypy>=1.18", "types-openpyxl>=3.1", "pandas>=2.0"]
 xlsx = ["openpyxl>=3.1"]
+pandas = ["pandas>=2.0"]
 
 [project.scripts]
 isis-report = "isis_report_lib.cli:main"
@@ -78,7 +79,7 @@ warn_unused_ignores = true
 show_error_codes = true
 
 [[tool.mypy.overrides]]
-module = "playwright.*"
+module = ["playwright.*", "pandas.*"]
 ignore_missing_imports = true
 
 [tool.ruff]

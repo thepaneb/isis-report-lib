@@ -144,6 +144,8 @@ def test_evaluate_condition_operators():
     assert evaluate_condition(row, {"field": "total", "gt": "x"}) is False
     with pytest.raises(ValueError, match="no known operator"):
         evaluate_condition(row, {"field": "total", "approx": 100})
+    with pytest.raises(ValueError, match="needs a field name"):
+        evaluate_condition(row, {"equals": 1})
 
 
 def test_filter_rows():
@@ -163,6 +165,8 @@ def test_sort_rows():
         sort_rows(rows, [{"field": "o", "direction": "sideways"}])
     with pytest.raises(ValueError, match="Invalid \\$order_by spec"):
         sort_rows(rows, [42])
+    with pytest.raises(ValueError, match="needs a field name"):
+        sort_rows(rows, [{"direction": "desc"}])
 
 
 def test_sort_rows_mixed_types_fall_back_to_str():

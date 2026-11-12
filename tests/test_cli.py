@@ -36,6 +36,25 @@ def test_render_json_to_file(tmp_path):
     assert "Pen" in dst.read_text(encoding="utf-8")
 
 
+def test_generate_csv_input(tmp_path, capsys):
+    src = _write(tmp_path, "in.csv", "product,total\nPen,10\n")
+    dst = tmp_path / "out.csv"
+    assert main(["generate", str(src), "-o", str(dst)]) == 0
+    assert "Pen" in dst.read_text(encoding="utf-8")
+    assert main(["render", str(src), "--input-format", "csv"]) == 0
+    out, _ = capsys.readouterr()
+    assert "Pen" in out
+
+
+def test_schema_subcommand(tmp_path, capsys):
+    assert main(["schema"]) == 0
+    out, _ = capsys.readouterr()
+    assert '"ReportPayload"' in out
+    dst = tmp_path / "schema.json"
+    assert main(["schema", "-o", str(dst)]) == 0
+    assert "ReportPayload" in dst.read_text(encoding="utf-8")
+
+
 def test_render_explicit_format_overrides_extension(tmp_path, capsys):
     src = _write(tmp_path, "in.txt", TOON)
     assert main(["render", str(src), "--input-format", "toon"]) == 0
@@ -187,6 +206,12 @@ def test_generate_missing_header_file_fails(tmp_path, capsys):
     assert main(["generate", str(src), "--header-template", str(tmp_path / "nope.html")]) == 2
     _, err = capsys.readouterr()
     assert "Header template file not found" in err
+
+
+def test_generate_missing_csv_input_fails(tmp_path, capsys):
+    assert main(["generate", "nope.csv"]) == 2
+    _, err = capsys.readouterr()
+    assert "Input file not found" in err
 
 
 def test_generate_explicit_format_flags(tmp_path, capsys):

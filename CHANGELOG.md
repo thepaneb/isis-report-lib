@@ -7,6 +7,7 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 
 ## [Unreleased]
 ### Added
+- Data inputs: `from_dataframe` (pandas, optional `.[pandas]` extra), `from_csv`, `from_json`; `.csv` CLI input with `--delimiter`; `isis-report schema` JSON Schema export
 - PDF passthrough: `outline` (clickable outline), `tagged` (accessible PDF), `prefer_css_page_size` via `pdf_options`
 - XLSX print polish: repeated header rows, frozen panes, autofilters on every sheet
 - CSV `--bom` flag / `bom=True` (UTF-8 BOM for Excel)

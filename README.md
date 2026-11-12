@@ -67,9 +67,13 @@ pdf = await agenerate_pdf_from_toon(toon_text)
 ## CLI
 
 ```bash
-# PDF from .toon or .json (format guessed from extension)
+# PDF from .toon, .json or .csv (format guessed from extension)
 isis-report generate examples/sales_order.toon -o report.pdf
 isis-report generate payload.json --page-format Letter
+isis-report generate data.csv --delimiter ";" -o report.pdf
+
+# JSON Schema of the payload (editors, validation)
+isis-report schema -o payload.schema.json
 
 # Same report as XLSX, CSV or HTML (needs no browser)
 isis-report generate examples/sales_order.toon -o report.xlsx
@@ -80,6 +84,19 @@ isis-report generate input.toon --format xlsx   # or csv | html | pdf
 # Intermediate HTML without a browser (prints to stdout unless -o is given)
 isis-report render examples/sales_order.toon -o report.html
 ```
+
+## Data inputs
+
+```python
+from isis_report_lib import generate_pdf
+from isis_report_lib.inputs import from_csv, from_dataframe, from_json
+
+generate_pdf(from_dataframe(df, meta={"title": "Sales", "locale": "en-US"}))
+generate_pdf(from_csv("sales.csv", delimiter=";"))   # light int/float/bool coercion
+generate_pdf(from_json("payload.json"))              # list -> data; full payload passes through
+```
+
+`pandas` is optional: `pip install isis-report-lib[pandas]` (`NaN`/`NaT` become `None`, `Timestamp` becomes `datetime`).
 
 ## Output formats
 
@@ -241,6 +258,8 @@ See `examples/sales_order.toon`.
 | `render_html(payload)` / `arender_html` / `render_html_from_toon` | intermediate HTML (no browser) |
 | Sections payload (`meta` + `sections: [...]`) | composed documents: `table` (full tabular engine), `text`, `kpi`, `chart` (`bar`/`line` inline SVG) |
 | `ToonParser().parse(text)` / `parse_toon(text)` | `.toon` -> dict |
+| `from_dataframe(df, ...)` / `from_csv(...)` / `from_json(...)` | payload builders (needs `.[pandas]` for DataFrame) |
+| `payload_schema()` | JSON Schema of the payload (`isis-report schema`) |
 | `collect_tables(dataset, layout)` | flat tables + summary rows (powers XLSX/CSV) |
 | `TabularReportService(pdf_options?)` | pipeline `execute(payload)` (Fetch→Process→HTML→PDF) |
 
