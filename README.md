@@ -2,7 +2,8 @@
 
 [![CI](https://github.com/thepaneb/isis-report-lib/actions/workflows/ci.yml/badge.svg)](https://github.com/thepaneb/isis-report-lib/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/isis-report-lib.svg)](https://pypi.org/project/isis-report-lib/)
-[![Python](https://img.shields.io/pypi/pyversions/isis-report-lib.svg)](https://pypi.org/project/isis-report-lib/)Python library for **tabular PDF reports** with customizable hierarchical layouts — extracted from the [isis_report](https://github.com/thepaneb/isis_report) PoC (Robyn microservice), without the server.
+[![Python](https://img.shields.io/pypi/pyversions/isis-report-lib.svg)](https://pypi.org/project/isis-report-lib/)
+[![Wiki](https://img.shields.io/badge/docs-wiki-blue)](https://github.com/thepaneb/isis-report-lib/wiki)Python library for **tabular PDF reports** with customizable hierarchical layouts — extracted from the [isis_report](https://github.com/thepaneb/isis_report) PoC (Robyn microservice), without the server.
 
 **Landing page:** <https://thepaneb.github.io/isis-report-lib/>
 
