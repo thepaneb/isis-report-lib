@@ -1,4 +1,6 @@
-"""Signing tests: HMAC + Ed25519 round-trips, tampering, CLI (no browser needed)."""
+"""Signing tests: HMAC + Ed25519 round-trips, tampering, CLI (browser only for one e2e)."""
+
+import pytest
 
 import pytest
 
@@ -314,8 +316,9 @@ def test_verify_unsupported_version():
     assert "unsupported signature version" in verify_pdf(tampered, generate_hmac_key()).reason
 
 
+@pytest.mark.browser
 def test_sign_then_generate_end_to_end():
-    """A real generated PDF signs and verifies (needs the wheel-built package? no, local)."""
+    """A real generated PDF signs and verifies (needs Chromium)."""
     from isis_report_lib import generate_pdf
     from isis_report_lib.signing import generate_hmac_key, sign_pdf, verify_pdf
 
