@@ -28,6 +28,7 @@ src/isis_report_lib/
 ├── charts.py      # dependency-free inline SVG bar/line charts
 ├── export.py      # collect_tables + XLSX/CSV builders (no browser needed, sections-aware)
 ├── inputs.py      # from_dataframe/from_csv/from_json + payload_schema (optional pandas)
+├── signing.py     # sign_pdf/verify_pdf (HMAC stdlib, Ed25519 optional) + key helpers
 ├── cli.py         # isis-report generate/render/schema (console script, --format pdf|xlsx|csv|html)
 └── templates/     # base/tabular*.jinja
 tests/             # test_formatting/layout/toon/service (mocks), test_pdf_e2e (browser)

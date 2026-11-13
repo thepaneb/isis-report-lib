@@ -35,6 +35,7 @@ from isis_report_lib.layout import (
 )
 from isis_report_lib.models import MetaInfo, ReportPayload
 from isis_report_lib.service import BaseReportService, TabularReportService
+from isis_report_lib.signing import SignatureInfo, generate_ed25519_keypair, generate_hmac_key, sign_pdf, verify_pdf
 from isis_report_lib.toon import ToonParser, parse_toon
 
 try:
@@ -56,6 +57,11 @@ __all__ = [
     "from_dataframe",
     "from_json",
     "payload_schema",
+    "SignatureInfo",
+    "generate_hmac_key",
+    "generate_ed25519_keypair",
+    "sign_pdf",
+    "verify_pdf",
     "convert_layout",
     "convert_data",
     "build_report",
