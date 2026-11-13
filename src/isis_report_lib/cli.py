@@ -64,6 +64,27 @@ def build_parser() -> argparse.ArgumentParser:
     sch.add_argument("-o", "--output", type=Path, default=None, help="Output file (default: stdout).")
     sch.set_defaults(func=_cmd_schema)
 
+    keygen = sub.add_parser("keygen", help="Generate a signing key.")
+    keygen.add_argument("--kind", choices=["hmac", "ed25519"], default="hmac", help="Key kind (default: hmac).")
+    keygen.add_argument("-o", "--output", type=Path, required=True, help="Private key/secret output file.")
+    keygen.add_argument("--public-out", type=Path, default=None, help="Public key output file (ed25519 only).")
+    keygen.set_defaults(func=_cmd_keygen)
+
+    sign = sub.add_parser("sign", help="Append a tamper-evident signature block to a PDF.")
+    sign.add_argument("input", type=Path, help="Input PDF file.")
+    sign.add_argument("--key-file", type=Path, required=True, help="Secret (hmac) or private PEM (ed25519) file.")
+    sign.add_argument("--alg", choices=["hmac-sha256", "ed25519"], default="hmac-sha256")
+    sign.add_argument("--key-id", default=None, help="Key identifier recorded in the envelope.")
+    sign.add_argument("-o", "--output", type=Path, default=None, help="Signed PDF output (default: <input>.signed.pdf).")
+    sign.set_defaults(func=_cmd_sign)
+
+    verify = sub.add_parser("verify", help="Verify a signed PDF (exit 0 = valid).")
+    verify.add_argument("input", type=Path, help="Signed PDF file.")
+    verify.add_argument("--key-file", type=Path, required=True, help="Secret (hmac) or public PEM (ed25519) file.")
+    verify.add_argument("--alg", choices=["hmac-sha256", "ed25519"], default="hmac-sha256")
+    verify.add_argument("--json", action="store_true", help="Print the full verification report as JSON.")
+    verify.set_defaults(func=_cmd_verify)
+
     return parser
 
 
@@ -193,6 +214,84 @@ def _cmd_schema(args: argparse.Namespace) -> int:
     else:
         print(text)
     return 0
+
+
+def _read_key_file(path: Path) -> bytes:
+    try:
+        return path.read_bytes()
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Key file not found: {path}") from None
+    except OSError as e:
+        raise ValueError(f"Cannot read key file {path}: {e}") from None
+
+
+def _cmd_keygen(args: argparse.Namespace) -> int:
+    from isis_report_lib.signing import generate_ed25519_keypair, generate_hmac_key
+
+    try:
+        if args.kind == "hmac":
+            if args.public_out is not None:
+                print("isis-report: error: --public-out only applies to ed25519", file=sys.stderr)
+                return 2
+            args.output.write_bytes(generate_hmac_key())
+        else:
+            private_pem, public_pem = generate_ed25519_keypair()
+            args.output.write_bytes(private_pem)
+            if args.public_out is not None:
+                args.public_out.write_bytes(public_pem)
+    except (FileNotFoundError, ValueError, ImportError) as e:
+        print(f"isis-report: error: {e}", file=sys.stderr)
+        return 2
+    print(str(args.output))
+    return 0
+
+
+def _cmd_sign(args: argparse.Namespace) -> int:
+    from isis_report_lib.signing import sign_pdf
+
+    try:
+        try:
+            pdf = args.input.read_bytes()
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Input file not found: {args.input}") from None
+        signed = sign_pdf(pdf, _read_key_file(args.key_file), alg=args.alg, key_id=args.key_id)
+    except (FileNotFoundError, ValueError, ImportError) as e:
+        print(f"isis-report: error: {e}", file=sys.stderr)
+        return 2
+    output = args.output or args.input.with_name(f"{args.input.stem}.signed.pdf")
+    output.write_bytes(signed)
+    print(str(output))
+    return 0
+
+
+def _cmd_verify(args: argparse.Namespace) -> int:
+    from isis_report_lib.signing import verify_pdf
+
+    try:
+        try:
+            signed = args.input.read_bytes()
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Input file not found: {args.input}") from None
+        info = verify_pdf(signed, _read_key_file(args.key_file), alg=args.alg)
+    except (FileNotFoundError, ValueError, ImportError) as e:
+        print(f"isis-report: error: {e}", file=sys.stderr)
+        return 2
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "valid": info.valid,
+                    "reason": info.reason,
+                    "alg": info.alg,
+                    "sha256": info.sha256,
+                    "key_id": info.key_id,
+                    "issued_at": info.issued_at,
+                }
+            )
+        )
+    else:
+        print("VALID" if info.valid else f"INVALID: {info.reason}")
+    return 0 if info.valid else 1
 
 
 def main(argv: list[str] | None = None) -> int:

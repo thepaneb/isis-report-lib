@@ -7,6 +7,7 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 
 ## [Unreleased]
 ### Added
+- Report signing: `sign_pdf`/`verify_pdf` (HMAC-SHA256 stdlib + Ed25519 via `.[sign]` extra), `keygen`/`sign`/`verify` CLI commands, `SignatureInfo` verdicts
 - Batch generation: `generate_many` / `agenerate_many` (semaphore-limited concurrency over the shared pool, ordered rejoin)
 - Conditional cell formatting: field `cell_rules` (`{operator, color, background, bold, italic}`, first match wins, optional catch-all) in HTML and XLSX
 - Email-ready HTML: `inline_css=True` / `--inline-css` (needs `.[email]` extra)

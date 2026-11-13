@@ -86,6 +86,26 @@ isis-report generate input.toon --format xlsx   # or csv | html | pdf
 isis-report render examples/sales_order.toon -o report.html
 ```
 
+## Report signing (tamper-evident seal)
+
+```bash
+isis-report keygen -o secret.key                                  # shared secret (self-validation)
+isis-report keygen --kind ed25519 -o private.pem --public-out public.pem   # third-party validation
+isis-report sign report.pdf --key-file secret.key --key-id portal-1 -o report.signed.pdf
+isis-report verify report.signed.pdf --key-file secret.key       # exit 0 = VALID
+```
+
+```python
+from isis_report_lib import generate_hmac_key, sign_pdf, verify_pdf
+
+secret = generate_hmac_key()
+signed = sign_pdf(pdf_bytes, secret, key_id="portal-1")
+info = verify_pdf(signed, secret)
+assert info.valid  # + info.reason/alg/sha256/key_id/issued_at
+```
+
+A `%ISIS-SIGNATURE` block is appended after the PDF `%%EOF` (readers ignore it; any modification invalidates the seal). `verify_pdf` never raises — check `.valid`. This is an origin/integrity seal, not Adobe PAdES.
+
 ## Data inputs
 
 ```python
