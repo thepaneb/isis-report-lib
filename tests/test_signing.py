@@ -2,8 +2,6 @@
 
 import pytest
 
-import pytest
-
 PDF = b"%PDF-1.4\n%\xe2\xe3\n1 0 obj<</>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n"
 
 
