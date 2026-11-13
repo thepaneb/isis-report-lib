@@ -6,7 +6,7 @@ optionally overrides the currency code (default: the locale's territory currency
 """
 
 import datetime
-from functools import partial
+from functools import lru_cache, partial
 from typing import Any
 
 from babel.core import Locale, UnknownLocaleError
@@ -17,6 +17,7 @@ from babel.numbers import format_currency as _format_currency
 DEFAULT_LOCALE = "pt-BR"
 
 
+@lru_cache(maxsize=32)
 def normalize_locale(locale: str) -> str:
     """Accept ``pt-BR`` or ``pt_BR``; raise ``ValueError`` for unknown locales."""
     norm = locale.replace("-", "_")
@@ -27,6 +28,7 @@ def normalize_locale(locale: str) -> str:
     return norm
 
 
+@lru_cache(maxsize=32)
 def default_currency(normalized_locale: str) -> str:
     """Return the locale territory's currency code (``USD`` fallback)."""
     try:
@@ -86,3 +88,72 @@ def formatter_for(meta: dict[str, Any]):
         locale=meta.get("locale", DEFAULT_LOCALE),
         currency=meta.get("currency"),
     )
+
+
+CONDITION_OPS = ("equals", "not_equals", "in", "not_in", "gt", "gte", "lt", "lte", "is_null", "not_null")
+
+STYLE_KEYS = ("color", "background", "bold", "italic")
+
+
+def match_rule(value: Any, rule: dict[str, Any]) -> bool:
+    """Match a single value against ``{operator: expected, ...}`` (other keys ignored)."""
+    for op in CONDITION_OPS:
+        if op not in rule:
+            continue
+        expected = rule[op]
+        if op == "equals":
+            return bool(value == expected)
+        if op == "not_equals":
+            return bool(value != expected)
+        if op == "in":
+            return value in expected
+        if op == "not_in":
+            return value not in expected
+        if op == "is_null":
+            return value is None
+        if op == "not_null":
+            return value is not None
+        try:
+            if op == "gt":
+                return bool(value > expected)
+            if op == "gte":
+                return bool(value >= expected)
+            if op == "lt":
+                return bool(value < expected)
+            if op == "lte":
+                return bool(value <= expected)
+        except TypeError:
+            return False
+    raise ValueError(f"Rule has no known operator: {rule!r}")
+
+
+def cell_style_dict(value: Any, field_def: dict[str, Any]) -> dict[str, Any]:
+    """First matching ``cell_rules`` entry as a style dict ({} when none match).
+
+    Rule form: ``{"lt": 0, "color": "#C00000", "bold": True}`` — one comparison
+    operator plus any of ``color``/``background``/``bold``/``italic``.
+    """
+    for rule in field_def.get("cell_rules", []) or []:
+        if not isinstance(rule, dict):
+            raise ValueError(f"Invalid cell rule (must be an object): {rule!r}")
+        unknown = [k for k in rule if k not in CONDITION_OPS + STYLE_KEYS]
+        if unknown:
+            raise ValueError(f"Invalid cell rule keys {unknown!r}: {rule!r}")
+        if not any(k in CONDITION_OPS for k in rule) or match_rule(value, rule):
+            return {k: rule[k] for k in STYLE_KEYS if k in rule}
+    return {}
+
+
+def cell_style(value: Any, field_def: dict[str, Any]) -> str:
+    """First matching ``cell_rules`` entry as inline CSS ("" when none match)."""
+    style = cell_style_dict(value, field_def)
+    parts = []
+    if style.get("color"):
+        parts.append(f"color:{style['color']}")
+    if style.get("background"):
+        parts.append(f"background:{style['background']}")
+    if style.get("bold"):
+        parts.append("font-weight:bold")
+    if style.get("italic"):
+        parts.append("font-style:italic")
+    return ";".join(parts)

@@ -241,6 +241,14 @@ def test_read_text_file_oserror_becomes_value_error(tmp_path, monkeypatch, capsy
     assert "Cannot read" in err
 
 
+def test_render_cli_inline_css_flag(tmp_path, capsys):
+    src = _write(tmp_path, "in.toon", TOON)
+    assert main(["render", str(src), "--inline-css"]) == 0
+    out, _ = capsys.readouterr()
+    assert 'style="' in out
+    assert "<style" not in out
+
+
 def test_generate_csv_bom_flag(tmp_path, capsys):
     src = _write(tmp_path, "in.toon", TOON)
     dst = tmp_path / "out.csv"

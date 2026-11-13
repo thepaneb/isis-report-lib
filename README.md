@@ -255,8 +255,8 @@ See `examples/sales_order.toon`.
 | `agenerate_pdf(...)` | same, async |
 | `generate_pdf_from_toon(text, ...)` / `agenerate_pdf_from_toon` | PDF from `.toon` |
 | `generate_xlsx(payload) -> bytes` / `agenerate_xlsx` / `..._from_toon` | .xlsx workbook, no browser (needs `.[xlsx]` extra) |
-| `generate_csv(payload, delimiter=",") -> str` / `agenerate_csv` / `..._from_toon` | CSV text, no browser |
-| `render_html(payload)` / `arender_html` / `render_html_from_toon` | intermediate HTML (no browser) |
+| `generate_csv(payload, delimiter=",") -> str` / `agenerate_csv` / `..._from_toon` | CSV text, no browser (`bom=True` for Excel) |
+| `render_html(payload, inline_css=False)` / `arender_html` / `render_html_from_toon` | intermediate HTML (no browser); `inline_css=True` for email clients (needs `.[email]` extra) |
 | Sections payload (`meta` + `sections: [...]`) | composed documents: `table` (full tabular engine), `text`, `kpi`, `chart` (`bar`/`line` inline SVG) |
 | `ToonParser().parse(text)` / `parse_toon(text)` | `.toon` -> dict |
 | `from_dataframe(df, ...)` / `from_csv(...)` / `from_json(...)` | payload builders (needs `.[pandas]` for DataFrame) |

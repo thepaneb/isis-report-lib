@@ -107,6 +107,29 @@ def test_generate_xlsx_title_and_subtitle_rows():
     assert wb["items"]["A2"].value == "S"
 
 
+def test_generate_xlsx_applies_cell_rules():
+    from openpyxl import load_workbook
+
+    payload = {
+        "meta": {"title": "T", "mode": "exact"},
+        "layout": {
+            "total": {
+                "label": "Total",
+                "format_mask": "float",
+                "alignment": "right",
+                "cell_rules": [{"lt": 0, "color": "C00000", "bold": True}],
+            },
+        },
+        "data": [{"total": -5}, {"total": 10}],
+    }
+    wb = load_workbook(io.BytesIO(generate_xlsx(payload)))
+    ws = wb["data"]
+    assert ws["A2"].value == "Total"
+    assert ws["A3"].font.color.rgb.endswith("C00000")
+    assert ws["A3"].font.bold is True
+    assert ws["A4"].font.bold is not True
+
+
 def test_generate_xlsx_print_setup():
     from openpyxl import load_workbook
 

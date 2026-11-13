@@ -88,6 +88,7 @@ async def arender_html(
     payload: dict[str, Any] | ReportPayload,
     template_dir: str | Path | None = None,
     template_name: str = "tabular.jinja",
+    inline_css: bool = False,
 ) -> str:
     """Render only the intermediate HTML (async, no Playwright)."""
     from isis_report_lib.service import prepare_report
@@ -99,25 +100,29 @@ async def arender_html(
 
     if "sections" in data and template_name == "tabular.jinja":
         template_name = "sections.jinja"
-    return await arender_report_html(dataset=dataset, layout=layout, meta=meta, template_name=template_name, template_dir=template_dir)
+    return await arender_report_html(
+        dataset=dataset, layout=layout, meta=meta, template_name=template_name, template_dir=template_dir, inline_css=inline_css
+    )
 
 
 def render_html(
     payload: dict[str, Any] | ReportPayload,
     template_dir: str | Path | None = None,
     template_name: str = "tabular.jinja",
+    inline_css: bool = False,
 ) -> str:
     """Render only the intermediate HTML (sync, no Playwright)."""
-    return _run(arender_html(payload, template_dir, template_name))
+    return _run(arender_html(payload, template_dir, template_name, inline_css))
 
 
 def render_html_from_toon(
     text: str,
     template_dir: str | Path | None = None,
     template_name: str = "tabular.jinja",
+    inline_css: bool = False,
 ) -> str:
     """Render HTML (sync) from `.toon` text."""
-    return render_html(parse_toon(text), template_dir, template_name)
+    return render_html(parse_toon(text), template_dir, template_name, inline_css)
 
 
 async def agenerate_xlsx(payload: dict[str, Any] | ReportPayload) -> bytes:

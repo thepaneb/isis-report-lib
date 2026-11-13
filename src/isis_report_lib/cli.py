@@ -36,6 +36,7 @@ def build_parser() -> argparse.ArgumentParser:
     gen.add_argument("--page-format", default="A4", help="PDF page format (default: A4).")
     gen.add_argument("--locale", default=None, help="Override meta locale (e.g. en-US, pt-BR).")
     gen.add_argument("--bom", action="store_true", help="Prepend a UTF-8 BOM to CSV output (for Excel).")
+    gen.add_argument("--inline-css", action="store_true", help="Inline CSS into style attributes (email-friendly HTML).")
     gen.add_argument("--delimiter", default=",", help="CSV delimiter for input and output (default: ',').")
     gen.add_argument("--template-dir", type=Path, default=None, help="Directory with custom .jinja templates.")
     gen.add_argument("--template-name", default="tabular.jinja", help="Template file to render (default: tabular.jinja).")
@@ -55,6 +56,7 @@ def build_parser() -> argparse.ArgumentParser:
     ren.add_argument("--template-dir", type=Path, default=None, help="Directory with custom .jinja templates.")
     ren.add_argument("--template-name", default="tabular.jinja", help="Template file to render (default: tabular.jinja).")
     ren.add_argument("--locale", default=None, help="Override meta locale (e.g. en-US, pt-BR).")
+    ren.add_argument("--inline-css", action="store_true", help="Inline CSS into style attributes (email-friendly HTML).")
     ren.add_argument("--delimiter", default=",", help="CSV delimiter for input (default: ',').")
     ren.set_defaults(func=_cmd_render)
 
@@ -138,7 +140,7 @@ def _cmd_generate(args: argparse.Namespace) -> int:
         elif output_format == "csv":
             output.write_text(generate_csv(payload, delimiter=args.delimiter, bom=args.bom), encoding="utf-8")
         else:  # html
-            output.write_text(render_html(payload, args.template_dir, args.template_name), encoding="utf-8")
+            output.write_text(render_html(payload, args.template_dir, args.template_name, args.inline_css), encoding="utf-8")
     except (FileNotFoundError, ValueError) as e:
         print(f"isis-report: error: {e}", file=sys.stderr)
         return 2
@@ -166,7 +168,7 @@ def _cmd_render(args: argparse.Namespace) -> int:
         fmt = _detect_format(args.input, args.input_format)
         payload, _is_json = _load_payload(args.input, fmt, args.delimiter)
         payload = _apply_locale(payload, args.locale)
-        html = render_html(payload, args.template_dir, args.template_name)
+        html = render_html(payload, args.template_dir, args.template_name, args.inline_css)
     except (FileNotFoundError, ValueError) as e:
         print(f"isis-report: error: {e}", file=sys.stderr)
         return 2
