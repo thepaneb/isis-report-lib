@@ -107,6 +107,7 @@ def test_cell_style_first_match_wins():
     assert cell_style(500, field) == ""
     assert cell_style(1, {}) == ""
     assert cell_style_dict(1, {"cell_rules": [{"background": "#EEE"}]}) == {"background": "#EEE"}
+    assert cell_style(1, {"cell_rules": [{"background": "#EEE"}]}) == "background:#EEE"
     with pytest.raises(ValueError, match="Invalid cell rule keys"):
         cell_style_dict(1, {"cell_rules": [{"lt": 1, "blink": True}]})
     with pytest.raises(ValueError, match="must be an object"):

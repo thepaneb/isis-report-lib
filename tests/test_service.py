@@ -1,5 +1,6 @@
 """HTML rendering tests (no browser needed) and pipeline tests with mocks."""
 
+import asyncio
 import re
 from unittest.mock import AsyncMock, patch
 
@@ -315,6 +316,72 @@ async def test_execute_forwards_pdf_accessibility_options():
         assert kwargs["outline"] is True
         assert kwargs["tagged"] is True
         assert kwargs["prefer_css_page_size"] is True
+
+
+async def test_agenerate_many_keeps_input_order():
+    from isis_report_lib import agenerate_many
+
+    calls = []
+
+    async def fake_pdf(html, **kwargs):
+        n = len(calls) + 1
+        calls.append(html)
+        await asyncio.sleep(0.01 * (3 - n))  # later calls finish first
+        return f"%PDF-{n}".encode()
+
+    with patch("isis_report_lib.pdf.get_pdf_from_html", new_callable=AsyncMock) as mock_pdf:
+        mock_pdf.side_effect = fake_pdf
+        payloads = [
+            {"meta": {"title": "A"}, "data": []},
+            {"meta": {"title": "B"}, "data": []},
+            {"meta": {"title": "C"}, "data": []},
+        ]
+        results = await agenerate_many(payloads)
+        assert results == [b"%PDF-1", b"%PDF-2", b"%PDF-3"]
+        assert len(calls) == 3
+
+
+async def test_agenerate_many_respects_max_concurrency():
+    from isis_report_lib import agenerate_many
+
+    current, peak = 0, 0
+
+    async def tracking_pdf(html, **kwargs):
+        nonlocal current, peak
+        current += 1
+        peak = max(peak, current)
+        await asyncio.sleep(0.01)
+        current -= 1
+        return b"%PDF"
+
+    with patch("isis_report_lib.pdf.get_pdf_from_html", new_callable=AsyncMock) as mock_pdf:
+        mock_pdf.side_effect = tracking_pdf
+        payloads = [{"meta": {"title": "T"}, "data": []} for _ in range(6)]
+        results = await agenerate_many(payloads, max_concurrency=2)
+        assert len(results) == 6
+        assert peak <= 2
+
+
+async def test_agenerate_many_rejects_bad_concurrency():
+    from isis_report_lib import agenerate_many
+
+    with pytest.raises(ValueError, match="max_concurrency"):
+        await agenerate_many([], max_concurrency=0)
+
+
+async def test_agenerate_many_empty_list():
+    from isis_report_lib import agenerate_many
+
+    assert await agenerate_many([]) == []
+
+
+def test_generate_many_sync():
+    from isis_report_lib import generate_many
+
+    with patch("isis_report_lib.pdf.get_pdf_from_html", new_callable=AsyncMock) as mock_pdf:
+        mock_pdf.return_value = b"%PDF-1.4"
+        results = generate_many([{"meta": {"title": "A"}, "data": []}, {"meta": {"title": "B"}, "data": []}])
+        assert results == [b"%PDF-1.4", b"%PDF-1.4"]
 
 
 async def test_execute_explicit_pdf_options_win_over_meta_page():

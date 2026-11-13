@@ -135,6 +135,40 @@ async def agenerate_xlsx(payload: dict[str, Any] | ReportPayload) -> bytes:
     return build_workbook(tables, summaries, meta)
 
 
+async def agenerate_many(
+    payloads: list[dict[str, Any] | ReportPayload],
+    pdf_options: dict[str, Any] | None = None,
+    max_concurrency: int = 4,
+    template_dir: str | Path | None = None,
+    template_name: str = "tabular.jinja",
+) -> list[bytes]:
+    """Generate several PDFs concurrently, rejoining results in input order.
+
+    Pages share the browser pool; ``max_concurrency`` caps simultaneous pages.
+    For mixed options per report, use ``asyncio.gather`` over ``agenerate_pdf`` directly.
+    """
+    if max_concurrency < 1:
+        raise ValueError(f"max_concurrency must be >= 1, got {max_concurrency!r}")
+    semaphore = asyncio.Semaphore(max_concurrency)
+
+    async def _one(payload: dict[str, Any] | ReportPayload) -> bytes:
+        async with semaphore:
+            return await agenerate_pdf(payload, pdf_options, template_dir, template_name)
+
+    return list(await asyncio.gather(*[_one(payload) for payload in payloads]))
+
+
+def generate_many(
+    payloads: list[dict[str, Any] | ReportPayload],
+    pdf_options: dict[str, Any] | None = None,
+    max_concurrency: int = 4,
+    template_dir: str | Path | None = None,
+    template_name: str = "tabular.jinja",
+) -> list[bytes]:
+    """Generate several PDFs concurrently (sync); results come back in input order."""
+    return _run(agenerate_many(payloads, pdf_options, max_concurrency, template_dir, template_name))
+
+
 def generate_xlsx(payload: dict[str, Any] | ReportPayload) -> bytes:
     """Generate an .xlsx workbook (sync, no browser needed)."""
     return _run(agenerate_xlsx(payload))

@@ -253,6 +253,7 @@ See `examples/sales_order.toon`.
 | --- | --- |
 | `generate_pdf(payload, pdf_options?) -> bytes` | sync PDF from dict/`ReportPayload` |
 | `agenerate_pdf(...)` | same, async |
+| `generate_many(payloads, max_concurrency=4) -> list[bytes]` / `agenerate_many` | concurrent PDFs sharing the pool, results in input order |
 | `generate_pdf_from_toon(text, ...)` / `agenerate_pdf_from_toon` | PDF from `.toon` |
 | `generate_xlsx(payload) -> bytes` / `agenerate_xlsx` / `..._from_toon` | .xlsx workbook, no browser (needs `.[xlsx]` extra) |
 | `generate_csv(payload, delimiter=",") -> str` / `agenerate_csv` / `..._from_toon` | CSV text, no browser (`bom=True` for Excel) |
