@@ -120,6 +120,24 @@ def test_render_report_html_sync_entrypoint():
     assert "T" in html
 
 
+def test_render_html_inline_css():
+    html = render_html({"meta": {"title": "T"}, "data": [{"a": 1}]}, inline_css=True)
+    assert "<style" not in html
+    assert 'style="' in html
+    plain = render_html({"meta": {"title": "T"}, "data": [{"a": 1}]})
+    assert "<style>" in plain or "<style" in plain
+
+
+def test_inline_css_missing_extra(monkeypatch):
+    import sys
+
+    from isis_report_lib import rendering
+
+    monkeypatch.setitem(sys.modules, "css_inline", None)
+    with pytest.raises(ImportError, match="pip install isis-report-lib\\[email\\]"):
+        rendering._inline_css("<html></html>")
+
+
 def test_render_with_custom_template_dir(tmp_path):
     tpl = tmp_path / "custom.jinja"
     tpl.write_text("<html><body>CUSTOM:{{ meta.title }}</body></html>", encoding="utf-8")
@@ -443,6 +461,24 @@ def test_render_html_with_aggregates_shows_totals():
     # Group footer: 6.000,00. Summary: 6.000,00 and 7.
     assert html.count("6.000,00") >= 2
     assert ">7<" in html
+
+
+def test_render_html_applies_cell_rules():
+    payload = {
+        "meta": {"title": "T", "mode": "exact"},
+        "layout": {
+            "total": {
+                "label": "Total",
+                "format_mask": "float",
+                "alignment": "right",
+                "aggregate": "sum",
+                "cell_rules": [{"lt": 0, "color": "#C00000", "bold": True}],
+            },
+        },
+        "data": [{"total": -5}, {"total": 10}],
+    }
+    html = render_html(payload)
+    assert "color:#C00000;font-weight:bold" in html
 
 
 async def test_execute_propagates_render_error():

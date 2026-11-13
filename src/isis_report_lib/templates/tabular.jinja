@@ -5,9 +5,9 @@
 {% block subtitle %}{{meta.sub_title}}{% endblock %}
 {% block content %}
     {% if dataset.groups and layout.groups %}
-        {{render_group(dataset.groups, layout.groups, zip, fmt, 0)}}
+        {{render_group(dataset.groups, layout.groups, zip, fmt, 0, cellstyle)}}
     {% endif %}
     {% if dataset.summary and layout.summary %}
-        {{render_summary(dataset.summary, layout.summary, zip, fmt)}}
+        {{render_summary(dataset.summary, layout.summary, zip, fmt, cellstyle)}}
     {% endif %}
 {% endblock %}

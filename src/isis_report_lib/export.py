@@ -20,6 +20,7 @@ class Column:
     key: str
     label: str
     mask: str = "str"
+    rules: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -61,7 +62,16 @@ def _collect(dataset: dict[str, Any], layout: dict[str, Any], default_name: str)
                 continue
             fields = item.get("fields", {}) or {}
             ctx = list(context) + [
-                (Column(key=f["name"], label=f["label"], mask=f.get("format_mask", "str")), fields.get(f["name"])) for f in header
+                (
+                    Column(
+                        key=f["name"],
+                        label=f["label"],
+                        mask=f.get("format_mask", "str"),
+                        rules=list(f.get("cell_rules", []) or []),
+                    ),
+                    fields.get(f["name"]),
+                )
+                for f in header
             ]
             details = item.get("details", {}) or {}
             layouts = frag.get("details", {}) or {}
@@ -144,7 +154,10 @@ def _collect(dataset: dict[str, Any], layout: dict[str, Any], default_name: str)
                 )
     if not by_key and top:
         header = layout.get("groups", {}).get("header", [])
-        columns = [Column(key=f["name"], label=f["label"], mask=f.get("format_mask", "str")) for f in header]
+        columns = [
+            Column(key=f["name"], label=f["label"], mask=f.get("format_mask", "str"), rules=list(f.get("cell_rules", []) or []))
+            for f in header
+        ]
         if columns:
             sheet = table_for(default_name, columns)
             for item in top:
@@ -160,7 +173,14 @@ def _merge_columns(ctx_cols: list[Column], table_fields: list[dict[str, Any]]) -
     seen = {c.key for c in cols}
     for f in table_fields:
         if f["name"] not in seen:
-            cols.append(Column(key=f["name"], label=f["label"], mask=f.get("format_mask", "str")))
+            cols.append(
+                Column(
+                    key=f["name"],
+                    label=f["label"],
+                    mask=f.get("format_mask", "str"),
+                    rules=list(f.get("cell_rules", []) or []),
+                )
+            )
             seen.add(f["name"])
     return cols
 
@@ -249,11 +269,26 @@ def build_workbook(
         sheet.title = _sheet_name(name, used)
         return sheet
 
+    from isis_report_lib.formatting import cell_style_dict
+
     header_font = Font(bold=True, color="FFFFFF")
     header_fill = PatternFill("solid", fgColor="0A2F46")
     bold = Font(bold=True)
     thin_top = Border(top=Side(style="thin"))
     wrap = Alignment(vertical="center", wrap_text=False)
+
+    def apply_cell_style(cell, raw_value: Any, column) -> None:
+        """Layer conditional formatting over the cell (no-op without matching rules)."""
+        style = cell_style_dict(raw_value, {"cell_rules": column.rules})
+        if not style:
+            return
+        cell.font = Font(
+            color=style["color"].lstrip("#") if style.get("color") else cell.font.color,
+            bold=bool(style.get("bold", cell.font.bold or False)),
+            italic=bool(style.get("italic", cell.font.italic or False)),
+        )
+        if style.get("background"):
+            cell.fill = PatternFill("solid", fgColor=style["background"].lstrip("#"))
 
     if not tables and not summaries:
         ws = new_sheet(meta.get("title") or "Report")
@@ -295,6 +330,7 @@ def build_workbook(
                 if is_total:
                     cell.font = bold
                     cell.border = thin_top
+                apply_cell_style(cell, raw, column)
                 number_format = _number_format(column.mask, currency_symbol)
                 if number_format and isinstance(value, (int, float)):
                     cell.number_format = number_format

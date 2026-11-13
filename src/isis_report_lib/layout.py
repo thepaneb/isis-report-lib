@@ -38,12 +38,15 @@ AGGREGATIONS = ("sum", "count", "avg", "min", "max")
 
 def format_field(name: str, field_def: dict[str, Any]) -> dict[str, Any]:
     """Normalize a field definition with defaults (label=name, alignment=left)."""
-    return {
+    out: dict[str, Any] = {
         "name": name,
         "label": field_def.get("label", name),
         "format_mask": field_def.get("format_mask", "str"),
         "alignment": field_def.get("alignment", "left"),
     }
+    if field_def.get("cell_rules"):
+        out["cell_rules"] = field_def["cell_rules"]
+    return out
 
 
 def convert_layout(layout_raw: dict[str, Any]) -> dict[str, Any]:
@@ -177,38 +180,13 @@ def split_layout_node(node: dict[str, Any]) -> tuple[dict[str, Any], dict[str, A
 
 def evaluate_condition(row: dict[str, Any], condition: dict[str, Any]) -> bool:
     """Evaluate a ``$print_when``/``visible_when`` condition against a row."""
+    from isis_report_lib.formatting import match_rule
+
     field = condition.get("field")
     if not isinstance(field, str):
         raise ValueError(f"Condition needs a field name: {condition!r}")
     value = row.get(field) if isinstance(row, dict) else None
-    for op in ("equals", "not_equals", "in", "not_in", "gt", "gte", "lt", "lte", "is_null", "not_null"):
-        if op not in condition:
-            continue
-        expected = condition[op]
-        if op == "equals":
-            return value == expected
-        if op == "not_equals":
-            return value != expected
-        if op == "in":
-            return value in expected
-        if op == "not_in":
-            return value not in expected
-        if op == "is_null":
-            return value is None
-        if op == "not_null":
-            return value is not None
-        try:
-            if op == "gt":
-                return value > expected
-            if op == "gte":
-                return value >= expected
-            if op == "lt":
-                return value < expected
-            if op == "lte":
-                return value <= expected
-        except TypeError:
-            return False
-    raise ValueError(f"Condition has no known operator: {condition!r}")
+    return match_rule(value, condition)
 
 
 def filter_rows(rows: list[dict[str, Any]], print_when: dict[str, Any] | None) -> list[dict[str, Any]]:

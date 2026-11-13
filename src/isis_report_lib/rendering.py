@@ -43,13 +43,19 @@ async def arender_report_html(
     meta: dict[str, Any],
     template_name: str = "tabular.jinja",
     template_dir: str | Path | None = None,
+    inline_css: bool = False,
 ) -> str:
-    """Render the report HTML (async for API parity; Jinja itself is sync)."""
-    from isis_report_lib.formatting import formatter_for
+    """Render the report HTML (async for API parity; Jinja itself is sync).
+
+    ``inline_css=True`` inlines the stylesheet into ``style`` attributes
+    (email-client friendly; needs the ``email`` extra).
+    """
+    from isis_report_lib.formatting import cell_style, formatter_for
 
     env = get_jinja_env(template_dir)
     template = env.get_template(template_name)
-    return template.render(dataset=dataset, layout=layout, meta=meta, fmt=formatter_for(meta), zip=zip)
+    html = template.render(dataset=dataset, layout=layout, meta=meta, fmt=formatter_for(meta), cellstyle=cell_style, zip=zip)
+    return _inline_css(html) if inline_css else html
 
 
 def render_report_html(
@@ -58,10 +64,21 @@ def render_report_html(
     meta: dict[str, Any],
     template_name: str = "tabular.jinja",
     template_dir: str | Path | None = None,
+    inline_css: bool = False,
 ) -> str:
-    """Synchronous version of the HTML rendering."""
-    from isis_report_lib.formatting import formatter_for
+    """Synchronous version of the HTML rendering (see :func:`arender_report_html`)."""
+    from isis_report_lib.formatting import cell_style, formatter_for
 
     env = get_jinja_env(template_dir)
     template = env.get_template(template_name)
-    return template.render(dataset=dataset, layout=layout, meta=meta, fmt=formatter_for(meta), zip=zip)
+    html = template.render(dataset=dataset, layout=layout, meta=meta, fmt=formatter_for(meta), cellstyle=cell_style, zip=zip)
+    return _inline_css(html) if inline_css else html
+
+
+def _inline_css(html: str) -> str:
+    """Inline a document's stylesheet (lazy optional dependency)."""
+    try:
+        import css_inline
+    except ImportError as e:
+        raise ImportError("Inline CSS requires the 'email' extra: pip install isis-report-lib[email]") from e
+    return css_inline.inline(html)

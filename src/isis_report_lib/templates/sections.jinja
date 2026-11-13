@@ -9,10 +9,10 @@
         {% if section.title %}<h2 class="section-title">{{section.title}}</h2>{% endif %}
         {% if section.type == "table" %}
             {% if section.dataset.groups and section.layout.groups %}
-                {{render_group(section.dataset.groups, section.layout.groups, zip, fmt, 0)}}
+                {{render_group(section.dataset.groups, section.layout.groups, zip, fmt, 0, cellstyle)}}
             {% endif %}
             {% if section.dataset.summary and section.layout.summary %}
-                {{render_summary(section.dataset.summary, section.layout.summary, zip, fmt)}}
+                {{render_summary(section.dataset.summary, section.layout.summary, zip, fmt, cellstyle)}}
             {% endif %}
         {% elif section.type == "text" %}
             {{render_text(section.paragraphs)}}

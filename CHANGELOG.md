@@ -7,6 +7,9 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 
 ## [Unreleased]
 ### Added
+- Conditional cell formatting: field `cell_rules` (`{operator, color, background, bold, italic}`, first match wins, optional catch-all) in HTML and XLSX
+- Email-ready HTML: `inline_css=True` / `--inline-css` (needs `.[email]` extra)
+- `bench/bench.py` timing harness (3000-row baseline: render 0.55s, csv 0.53s, xlsx 1.8s)
 - Data inputs: `from_dataframe` (pandas, optional `.[pandas]` extra), `from_csv`, `from_json`; `.csv` CLI input with `--delimiter`; `isis-report schema` JSON Schema export
 - PDF passthrough: `outline` (clickable outline), `tagged` (accessible PDF), `prefer_css_page_size` via `pdf_options`
 - XLSX print polish: repeated header rows, frozen panes, autofilters on every sheet

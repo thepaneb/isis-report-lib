@@ -1,5 +1,7 @@
 """Value formatting tests."""
 
+import pytest
+
 from isis_report_lib.formatting import format_value
 
 
@@ -81,6 +83,34 @@ def test_default_currency_unknown_locale_raises():
 
     with pytest.raises(ValueError, match="Unknown locale"):
         default_currency("xx_YY")
+
+
+def test_match_rule_operators():
+    from isis_report_lib.formatting import match_rule
+
+    assert match_rule(5, {"gt": 3}) is True
+    assert match_rule("a", {"in": ["a", "b"]}) is True
+    assert match_rule(None, {"is_null": True}) is True
+    assert match_rule(1, {"not_null": True, "gt": 0}) is True
+    with pytest.raises(ValueError, match="no known operator"):
+        match_rule(1, {"color": "red"})
+
+
+def test_cell_style_first_match_wins():
+    from isis_report_lib.formatting import cell_style, cell_style_dict
+
+    field = {"cell_rules": [{"lt": 0, "color": "#C00000", "bold": True}, {"lt": 100, "italic": True}]}
+    assert cell_style_dict(-5, field) == {"color": "#C00000", "bold": True}
+    assert cell_style(-5, field) == "color:#C00000;font-weight:bold"
+    assert cell_style_dict(50, field) == {"italic": True}
+    assert cell_style(50, field) == "font-style:italic"
+    assert cell_style(500, field) == ""
+    assert cell_style(1, {}) == ""
+    assert cell_style_dict(1, {"cell_rules": [{"background": "#EEE"}]}) == {"background": "#EEE"}
+    with pytest.raises(ValueError, match="Invalid cell rule keys"):
+        cell_style_dict(1, {"cell_rules": [{"lt": 1, "blink": True}]})
+    with pytest.raises(ValueError, match="must be an object"):
+        cell_style_dict(1, {"cell_rules": ["nope"]})
 
 
 def test_date_object_localized():
