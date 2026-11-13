@@ -117,7 +117,7 @@ def test_generate_xlsx_applies_cell_rules():
                 "label": "Total",
                 "format_mask": "float",
                 "alignment": "right",
-                "cell_rules": [{"lt": 0, "color": "C00000", "bold": True}],
+                "cell_rules": [{"lt": 0, "color": "C00000", "bold": True, "background": "FFFF00"}],
             },
         },
         "data": [{"total": -5}, {"total": 10}],
@@ -127,6 +127,7 @@ def test_generate_xlsx_applies_cell_rules():
     assert ws["A2"].value == "Total"
     assert ws["A3"].font.color.rgb.endswith("C00000")
     assert ws["A3"].font.bold is True
+    assert ws["A3"].fill.fgColor.rgb.endswith("FFFF00")
     assert ws["A4"].font.bold is not True
 
 

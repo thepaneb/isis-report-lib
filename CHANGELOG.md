@@ -7,6 +7,7 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 
 ## [Unreleased]
 ### Added
+- Batch generation: `generate_many` / `agenerate_many` (semaphore-limited concurrency over the shared pool, ordered rejoin)
 - Conditional cell formatting: field `cell_rules` (`{operator, color, background, bold, italic}`, first match wins, optional catch-all) in HTML and XLSX
 - Email-ready HTML: `inline_css=True` / `--inline-css` (needs `.[email]` extra)
 - `bench/bench.py` timing harness (3000-row baseline: render 0.55s, csv 0.53s, xlsx 1.8s)

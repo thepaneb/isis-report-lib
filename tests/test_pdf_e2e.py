@@ -63,3 +63,12 @@ async def test_agenerate_pdf_reuses_shared_browser():
     # Second call on the same loop: exercises pool reuse without relaunching the browser.
     assert (await agenerate_pdf(PAYLOAD)).startswith(b"%PDF")
     assert (await agenerate_pdf(PAYLOAD)).startswith(b"%PDF")
+
+
+@needs_chromium
+async def test_agenerate_many_e2e():
+    from isis_report_lib import agenerate_many
+
+    results = await agenerate_many([PAYLOAD, PAYLOAD, PAYLOAD], max_concurrency=2)
+    assert len(results) == 3
+    assert all(pdf.startswith(b"%PDF") for pdf in results)
