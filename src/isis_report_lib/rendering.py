@@ -5,9 +5,12 @@ prepended to the loader, so it can override bundled templates (e.g. a custom
 ``tabular.jinja``) or provide new ones referenced by ``template_name``.
 
 Every template receives: ``dataset``, ``layout``, ``meta``, plus the ``fmt``
-value formatter and ``zip``.
+value formatter and ``cellstyle``. With ``inline_css=True`` the stylesheet is
+inlined and CSS variables are resolved to literal values (email clients such
+as Outlook largely ignore ``var()``).
 """
 
+import re
 from importlib import resources
 from pathlib import Path
 from typing import Any
@@ -75,10 +78,31 @@ def render_report_html(
     return _inline_css(html) if inline_css else html
 
 
+def _resolve_css_vars(html: str) -> str:
+    """Replace ``var(--name[, fallback])`` with the ``:root`` value or fallback.
+
+    Email clients (notably Outlook) ignore CSS variables, while the bundled
+    templates style everything through them. Later ``:root`` blocks win, so a
+    ``meta.accent_color`` override is honored.
+    """
+    variables: dict[str, str] = {}
+    for block in re.findall(r":root\s*\{([^}]*)\}", html):
+        for name, value in re.findall(r"--([\w-]+)\s*:\s*([^;]+);", block):
+            variables[name] = value.strip()
+
+    def _replace(match: re.Match[str]) -> str:
+        name, fallback = match.group(1), match.group(2)
+        if name in variables:
+            return variables[name]
+        return fallback.strip() if fallback is not None else match.group(0)
+
+    return re.sub(r"var\(\s*--([\w-]+)\s*(?:,\s*([^)]*))?\)", _replace, html)
+
+
 def _inline_css(html: str) -> str:
     """Inline a document's stylesheet (lazy optional dependency)."""
     try:
         import css_inline
     except ImportError as e:
         raise ImportError("Inline CSS requires the 'email' extra: pip install isis-report-lib[email]") from e
-    return css_inline.inline(html)
+    return css_inline.inline(_resolve_css_vars(html))
