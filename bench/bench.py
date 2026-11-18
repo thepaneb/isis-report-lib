@@ -1,10 +1,12 @@
 """Benchmarks: build + render + export timings for growing datasets.
 
-Usage: ``python bench/bench.py [--rows N] [--no-pdf]``. Not a CI gate — run
-manually and record notable numbers in this directory's notes.
+Usage: ``python bench/bench.py [--rows N] [--no-pdf]``. ``--check`` runs the
+fixed ``bench_budgets.json`` workload and fails when a median exceeds its
+smoke-level budget (CI perf gate).
 """
 
 import argparse
+import json
 import statistics
 import sys
 import time
@@ -63,7 +65,11 @@ def main() -> int:
     parser.add_argument("--orders", type=int, default=10, help="number of orders")
     parser.add_argument("--no-pdf", action="store_true", help="skip PDF (needs Chromium)")
     parser.add_argument("--repeats", type=int, default=3)
+    parser.add_argument("--check", action="store_true", help="fail when a median exceeds bench_budgets.json")
     args = parser.parse_args()
+
+    if args.check:
+        return check_budgets()
 
     payload = make_payload(args.orders, args.rows // max(args.orders, 1))
     detail_rows = sum(len(o["items"]) for o in payload["data"][0]["orders"])
@@ -73,6 +79,32 @@ def main() -> int:
     print(f"generate_xlsx: {timed(generate_xlsx, payload, repeats=args.repeats):8.3f}s (median)")
     if not args.no_pdf:
         print(f"generate_pdf: {timed(generate_pdf, payload, repeats=args.repeats):8.3f}s (median)")
+    return 0
+
+
+def check_budgets() -> int:
+    """Run the fixed budget workload; return 1 listing every overrun."""
+    config = json.loads(Path(__file__).parent.joinpath("bench_budgets.json").read_text(encoding="utf-8"))
+    cfg_args = config["args"]
+    payload = make_payload(cfg_args["orders"], cfg_args["rows"] // max(cfg_args["orders"], 1))
+    steps = [
+        ("render_html", render_html),
+        ("generate_csv", generate_csv),
+        ("generate_xlsx", generate_xlsx),
+        ("generate_pdf", generate_pdf),
+    ]
+    failures = []
+    for name, fn in steps:
+        elapsed = timed(fn, payload, repeats=cfg_args["repeats"])
+        budget = config["budgets"][name]
+        status = "OK " if elapsed <= budget else "OVER"
+        print(f"{name:13} {elapsed:8.3f}s / budget {budget:6.1f}s  [{status}]")
+        if elapsed > budget:
+            failures.append(f"{name}: {elapsed:.3f}s > budget {budget:.1f}s")
+    if failures:
+        print("budget exceeded:\n- " + "\n- ".join(failures))
+        return 1
+    print("all perf budgets met")
     return 0
 
 

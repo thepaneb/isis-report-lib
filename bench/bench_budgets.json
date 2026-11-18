@@ -1,0 +1,1 @@
+{"comment": "Smoke-level perf budgets for `bench.py --check` (CI gate). Generous headroom for shared-runner noise: they catch pathological regressions, not small drifts. Tune from e2e logs when hardware changes.", "args": {"rows": 300, "orders": 5, "repeats": 2}, "budgets": {"render_html": 2.0, "generate_csv": 1.0, "generate_xlsx": 3.0, "generate_pdf": 12.0}}

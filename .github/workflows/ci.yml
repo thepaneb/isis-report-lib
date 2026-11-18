@@ -77,6 +77,9 @@ jobs:
       - name: Full tests with coverage (incl. browser)
         run: timeout 600 python -m pytest tests -q --cov=isis_report_lib --cov-report=term-missing --cov-report=xml
 
+      - name: Perf budgets
+        run: timeout 300 python bench/bench.py --check
+
       - name: Upload coverage report
         uses: actions/upload-artifact@v7
         with:
