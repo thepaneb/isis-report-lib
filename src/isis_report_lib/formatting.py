@@ -90,48 +90,105 @@ def formatter_for(meta: dict[str, Any]):
     )
 
 
-CONDITION_OPS = ("equals", "not_equals", "in", "not_in", "gt", "gte", "lt", "lte", "is_null", "not_null")
+CONDITION_OPS = (
+    "equals",
+    "not_equals",
+    "in",
+    "not_in",
+    "gt",
+    "gte",
+    "lt",
+    "lte",
+    "between",
+    "contains",
+    "is_null",
+    "not_null",
+)
 
 STYLE_KEYS = ("color", "background", "bold", "italic")
 
 
 def match_rule(value: Any, rule: dict[str, Any]) -> bool:
-    """Match a single value against ``{operator: expected, ...}`` (other keys ignored)."""
+    """Match a value against every comparison operator in the rule (AND).
+
+    Operators: ``equals`` · ``not_equals`` · ``in`` · ``not_in`` ·
+    ``gt`` · ``gte`` · ``lt`` · ``lte`` · ``between`` (``[lo, hi]``,
+    inclusive) · ``contains`` (substring of the stringified value) ·
+    ``is_null`` · ``not_null``. Style keys (``color`` …) and unknown keys
+    are ignored here (``cell_style_dict`` rejects the latter). A rule with
+    no comparison operator matches everything (catch-all default).
+    """
+    matched = False
     for op in CONDITION_OPS:
         if op not in rule:
             continue
+        matched = True
         expected = rule[op]
         if op == "equals":
-            return bool(value == expected)
-        if op == "not_equals":
-            return bool(value != expected)
-        if op == "in":
-            return value in expected
-        if op == "not_in":
-            return value not in expected
-        if op == "is_null":
-            return value is None
-        if op == "not_null":
-            return value is not None
-        try:
-            if op == "gt":
-                return bool(value > expected)
-            if op == "gte":
-                return bool(value >= expected)
-            if op == "lt":
-                return bool(value < expected)
-            if op == "lte":
-                return bool(value <= expected)
-        except TypeError:
-            return False
-    raise ValueError(f"Rule has no known operator: {rule!r}")
+            if not value == expected:
+                return False
+        elif op == "not_equals":
+            if not value != expected:
+                return False
+        elif op == "in":
+            try:
+                if value not in expected:
+                    return False
+            except TypeError:
+                return False
+        elif op == "not_in":
+            try:
+                if value in expected:
+                    return False
+            except TypeError:
+                return False
+        elif op == "is_null":
+            if value is not None:
+                return False
+        elif op == "not_null":
+            if value is None:
+                return False
+        elif op == "between":
+            try:
+                lo, hi = expected
+            except (TypeError, ValueError) as e:
+                raise ValueError(f"'between' needs a [lo, hi] pair: {rule!r}") from e
+            try:
+                if not lo <= value <= hi:
+                    return False
+            except TypeError:
+                return False
+        elif op == "contains":
+            if not isinstance(expected, str):
+                raise ValueError(f"'contains' needs a string needle: {rule!r}")
+            if value is None or expected not in str(value):
+                return False
+        else:  # gt / gte / lt / lte
+            try:
+                if op == "gt":
+                    ok = bool(value > expected)
+                elif op == "gte":
+                    ok = bool(value >= expected)
+                elif op == "lt":
+                    ok = bool(value < expected)
+                else:
+                    ok = bool(value <= expected)
+            except TypeError:
+                return False
+            if not ok:
+                return False
+    if not matched:
+        raise ValueError(f"Rule has no known operator: {rule!r}")
+    return True
 
 
 def cell_style_dict(value: Any, field_def: dict[str, Any]) -> dict[str, Any]:
     """First matching ``cell_rules`` entry as a style dict ({} when none match).
 
-    Rule form: ``{"lt": 0, "color": "#C00000", "bold": True}`` — one comparison
-    operator plus any of ``color``/``background``/``bold``/``italic``.
+    Rule form: ``{"gte": 1000, "lt": 5000, "color": "#C00000", "bold": True}``
+    — all comparison operators in the rule must hold (AND); a rule with no
+    comparison operator is a catch-all default. Style keys are any of
+    ``color``/``background``/``bold``/``italic``.
     """
     for rule in field_def.get("cell_rules", []) or []:
         if not isinstance(rule, dict):

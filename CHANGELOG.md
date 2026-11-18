@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format follows
 the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 
 ## [Unreleased]
+### Added
+- Compound rule conditions: several comparison operators in one rule combine with AND (`{"gte": 10, "lt": 20}`); new `between` (`[lo, hi]`, inclusive) and `contains` (substring) operators for `cell_rules`, `$print_when` and `visible_when`; `in`/`not_in` against a non-container is a no-match instead of `TypeError`
 
 ## [0.9.0] - 2026-11-13
 ### Added

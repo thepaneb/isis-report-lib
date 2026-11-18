@@ -134,3 +134,55 @@ def test_bool():
 
 def test_unknown_mask():
     assert format_value("hello", "unknown") == "hello"
+
+
+def test_match_rule_compound_and():
+    from isis_report_lib.formatting import match_rule
+
+    assert match_rule(15, {"gte": 10, "lt": 20}) is True
+    assert match_rule(25, {"gte": 10, "lt": 20}) is False
+    assert match_rule(5, {"gte": 10, "lt": 20}) is False
+    assert match_rule(1, {"not_null": True, "gt": 0}) is True
+    assert match_rule(None, {"not_null": True, "gt": 0}) is False
+
+
+def test_match_rule_between():
+    from isis_report_lib.formatting import match_rule
+
+    assert match_rule(10, {"between": [10, 20]}) is True  # inclusive
+    assert match_rule(20, {"between": [10, 20]}) is True
+    assert match_rule(21, {"between": [10, 20]}) is False
+    assert match_rule("m", {"between": ["a", "z"]}) is True
+    assert match_rule(None, {"between": [1, 2]}) is False
+    import pytest
+
+    with pytest.raises(ValueError, match="'between' needs a"):
+        match_rule(5, {"between": 10})
+
+
+def test_match_rule_contains():
+    import pytest
+
+    from isis_report_lib.formatting import match_rule
+
+    assert match_rule("cancelled by user", {"contains": "cancel"}) is True
+    assert match_rule("paid", {"contains": "cancel"}) is False
+    assert match_rule(None, {"contains": "x"}) is False
+    assert match_rule(12345, {"contains": "234"}) is True
+    with pytest.raises(ValueError, match="'contains' needs a string"):
+        match_rule("abc", {"contains": 5})
+
+
+def test_match_rule_in_type_error_is_no_match():
+    from isis_report_lib.formatting import match_rule
+
+    assert match_rule("a", {"in": 5}) is False
+    assert match_rule("a", {"not_in": 5}) is False
+
+
+def test_cell_style_compound_rule():
+    from isis_report_lib.formatting import cell_style_dict
+
+    field = {"cell_rules": [{"gte": 1000, "lt": 5000, "color": "#C00000"}, {"bold": True}]}
+    assert cell_style_dict(2000, field) == {"color": "#C00000"}
+    assert cell_style_dict(9000, field) == {"bold": True}  # catch-all default

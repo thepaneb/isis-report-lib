@@ -245,9 +245,10 @@ payload = {
 | --- | --- | --- |
 | `meta.page` | `meta` | `{size, orientation: portrait\|landscape, margins}` → PDF page (explicit `pdf_options` win) |
 | `aggregate` | field def | `sum\|count\|avg\|min\|max` → group footers, detail `tfoot`, grand summary. Flat child lists render as tables (several per item allowed); deeper nesting renders as sections |
-| `$print_when` | any level | keep only rows matching `{field, equals\|not_equals\|in\|not_in\|gt\|gte\|lt\|lte\|is_null\|not_null}` |
+| `$print_when` | any level | keep only rows matching `{field, equals\|not_equals\|in\|not_in\|gt\|gte\|lt\|lte\|between\|contains\|is_null\|not_null}` (several operators combine with AND) |
 | `$order_by` | any level | sort rows: `[{field, direction}]` or `"field"` / `"-field"` (nulls last) |
 | `visible` / `visible_when` | field def | hide a column; `visible_when` supports `{..., scope: any\|all}` |
+| `cell_rules` | field def | `[{operator(s), color\|background\|bold\|italic}]` → conditional cell style in HTML and XLSX; first matching rule wins, several operators combine with AND, operator-less rule is a catch-all default (e.g. `{"gte": 1000, "lt": 5000, "color": "#C00000"}`) |
 
 ## `.toon` syntax
 
