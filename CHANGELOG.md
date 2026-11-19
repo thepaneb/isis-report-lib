@@ -8,6 +8,7 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 ## [Unreleased]
 ### Added
 - Dynamic pivot tables: `crosstab` sections (`rows`/`columns` buckets, `measure` + `sum|count|avg|min|max`, row/column/grand totals, `empty_text`) in HTML, XLSX and CSV
+- Sparklines: `sparkline` format mask (list of numbers → inline SVG `line`/`bar` nanoplot; `spark_kind`/`spark_color` field options) in HTML/PDF, block-art text (`▁▂▃▄▅▆▇█`) in CSV/XLSX
 - Explicit missing data: field `missing_text` (display text for `None`) and `substitutions` (`{raw: display}` map applied before formatting) in HTML, XLSX and CSV; `empty_text` on flat detail lists, `table` sections and `meta` (whole report) renders a message instead of an empty table (note row/line in XLSX/CSV)
 - Perf gate: `bench/bench_budgets.json` smoke budgets + `bench.py --check`, enforced as a CI step in the `e2e` job
 - Email-safe inline HTML: `inline_css=True` now resolves CSS variables to literal values (Outlook ignores `var()`), sets `<html lang>` from `meta.locale` and declares `color-scheme: light`

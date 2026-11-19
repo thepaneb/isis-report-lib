@@ -77,7 +77,9 @@ def format_value(
 
     Masks: ``str`` · ``int`` · ``float`` · ``percent`` (fraction, e.g. ``0.09`` → ``9%``) ·
     ``currency`` · ``bool`` (``Yes``/``No``) · ``date`` (``date``/``datetime`` objects are
-    localized; strings pass through). ``None`` → ``""``.
+    localized; strings pass through) · ``sparkline`` (list of numbers → inline
+    SVG nanoplot; ``spark_kind`` ``line``|``bar`` and ``spark_color`` field options).
+    ``None`` → ``""``.
 
     ``field`` (the layout field definition) applies ``substitutions`` first,
     then ``missing_text`` for ``None`` — see :func:`field_text`. Templates pass
@@ -88,6 +90,15 @@ def format_value(
         return mapped
     if value is None:
         return ""
+    if format_mask == "sparkline":
+        from isis_report_lib.charts import sparkline
+
+        options = field if isinstance(field, dict) else {}
+        return sparkline(
+            value,
+            kind=options.get("spark_kind", "line"),
+            color=options.get("spark_color", "#0A2F46"),
+        )
     norm = normalize_locale(locale)
     if format_mask == "int":
         try:
@@ -146,6 +157,23 @@ CONDITION_OPS = (
 )
 
 STYLE_KEYS = ("color", "background", "bold", "italic")
+
+SPARK_BLOCKS = (" ", "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█")
+
+
+def sparkline_text(value: Any) -> str:
+    """Unicode block-art nanoplot (``""`` when there is no data).
+
+    Text-safe fallback for CSV/XLSX, where inline SVG cannot be embedded.
+    """
+    from isis_report_lib.charts import _spark_numbers
+
+    numbers = _spark_numbers(value)
+    if not numbers:
+        return ""
+    lo, hi = min(numbers), max(numbers)
+    span = (hi - lo) or 1.0
+    return "".join(SPARK_BLOCKS[1 + int((v - lo) / span * 7)] for v in numbers)
 
 
 def match_rule(value: Any, rule: dict[str, Any]) -> bool:

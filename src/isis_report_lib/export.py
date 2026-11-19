@@ -237,6 +237,10 @@ def _native_value(value: Any, mask: str) -> Any:
     """Convert to an Excel-native value (numbers/dates stay numeric)."""
     if value is None:
         return None
+    if mask == "sparkline":
+        from isis_report_lib.formatting import sparkline_text
+
+        return sparkline_text(value)
     if mask == "bool":
         if isinstance(value, str):
             return "Yes" if value.strip().lower() in {"true", "yes", "y", "1"} else "No"
@@ -447,7 +451,7 @@ def render_csv(
     import io
     from functools import partial
 
-    from isis_report_lib.formatting import format_value
+    from isis_report_lib.formatting import format_value, sparkline_text
 
     meta = meta or {}
     fmt = partial(format_value, locale=meta.get("locale", "pt-BR"), currency=meta.get("currency"))
@@ -461,7 +465,12 @@ def render_csv(
         if not table.rows and table.note:
             writer.writerow([f"# {table.note}"])
         for row in table.rows:
-            writer.writerow([fmt(row.get(c.key), c.mask, field=c.field) for c in table.columns])
+            writer.writerow(
+                [
+                    sparkline_text(row.get(c.key)) if c.mask == "sparkline" else fmt(row.get(c.key), c.mask, field=c.field)
+                    for c in table.columns
+                ]
+            )
     if summaries:
         writer.writerow(["# summary"])
         writer.writerow(["Item", "Value"])

@@ -207,7 +207,7 @@ It overrides the `--brand-color` CSS variable. More masks: `str` · `int` · `fl
 | `layout` | object | no | hierarchical field definition; omit to infer from data |
 | `data` | array | yes | raw records or template format (`{"fields": ..., "groups": ...}`) |
 
-Masks (locale-aware via Babel/CLDR): `str` · `int` · `float` · `date` (localized for `date`/`datetime` objects) · `percent` · `currency` · `bool` (`Yes`/`No`).
+Masks (locale-aware via Babel/CLDR): `str` · `int` · `float` · `date` (localized for `date`/`datetime` objects) · `percent` · `currency` · `bool` (`Yes`/`No`) · `sparkline` (list of numbers → inline SVG nanoplot in HTML/PDF, `▁▂▃▄▅▆▇█` block art in CSV/XLSX; field options `spark_kind: line|bar`, `spark_color`).
 
 ```python
 payload = {

@@ -107,6 +107,67 @@ def _horizontal_bar_chart(labels: list[str], values: list[Any], width: int, heig
     return "".join(parts)
 
 
+def _spark_numbers(value: Any) -> list[float]:
+    """Coerce a sparkline value to numbers (scalar becomes one point; junk is skipped)."""
+    items = list(value) if isinstance(value, (list, tuple)) else [value]
+    numbers: list[float] = []
+    for item in items:
+        if item is None or isinstance(item, bool):
+            continue
+        try:
+            numbers.append(float(item))
+        except (TypeError, ValueError):
+            continue
+    return numbers
+
+
+def sparkline(
+    values: Any,
+    kind: str = "line",
+    width: int = 96,
+    height: int = 28,
+    color: str = "#0A2F46",
+) -> str:
+    """Inline SVG nanoplot (``kind``: line or bar); ``""`` when there is no data."""
+    if kind not in ("line", "bar"):
+        raise ValueError(f"Unknown sparkline kind: {kind!r} (expected line|bar)")
+    numbers = _spark_numbers(values)
+    if not numbers:
+        return ""
+    lo, hi = min(numbers), max(numbers)
+    span = (hi - lo) or 1.0
+    pad = 2.0
+    n = len(numbers)
+    parts = [f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" xmlns="http://www.w3.org/2000/svg" role="img">']
+    if kind == "line":
+        step = (width - 2 * pad) / (n - 1) if n > 1 else 0.0
+
+        def point(i: int, v: float) -> str:
+            x = pad if n == 1 else pad + step * i
+            y = height - pad - (v - lo) / span * (height - 2 * pad)
+            return f"{x:.1f},{y:.1f}"
+
+        if n == 1:
+            parts.append(f'<circle cx="{width / 2:.1f}" cy="{height / 2:.1f}" r="2.5" fill="{color}"/>')
+        else:
+            parts.append(
+                f'<polyline points="{" ".join(point(i, v) for i, v in enumerate(numbers))}"'
+                f' fill="none" stroke="{color}" stroke-width="1.5"/>'
+            )
+            last = point(n - 1, numbers[-1])
+            x, y = last.split(",")
+            parts.append(f'<circle cx="{x}" cy="{y}" r="2" fill="{color}"/>')
+    else:
+        slot = (width - 2 * pad) / n
+        bar_w = max(slot * 0.7, 1.0)
+        for i, v in enumerate(numbers):
+            bar_h = max((v - lo) / span * (height - 2 * pad), 1.0 if v != lo or hi == lo else 0.0)
+            left = pad + slot * i + (slot - bar_w) / 2
+            parts.append(f'<rect x="{left:.1f}" y="{height - pad - bar_h:.1f}" width="{bar_w:.1f}" height="{bar_h:.1f}" fill="{color}"/>')
+    parts.append("</svg>")
+    return "".join(parts)
+
+
 def pie_chart(
     labels: list[str],
     values: list[Any],
