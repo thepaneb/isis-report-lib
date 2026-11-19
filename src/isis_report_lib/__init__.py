@@ -22,6 +22,7 @@ from isis_report_lib.api import (
     render_html,
     render_html_from_toon,
 )
+from isis_report_lib.crosstab import Crosstab, build_crosstab
 from isis_report_lib.export import collect_tables
 from isis_report_lib.formatting import cell_style, cell_style_dict, field_text, format_value, formatter_for, match_rule
 from isis_report_lib.inputs import from_csv, from_dataframe, from_json, payload_schema
@@ -71,6 +72,8 @@ __all__ = [
     "template_header_layout",
     "BaseReportService",
     "TabularReportService",
+    "Crosstab",
+    "build_crosstab",
     "agenerate_pdf",
     "generate_pdf",
     "agenerate_many",

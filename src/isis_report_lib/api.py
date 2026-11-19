@@ -131,7 +131,7 @@ async def agenerate_xlsx(payload: dict[str, Any] | ReportPayload) -> bytes:
     from isis_report_lib.service import prepare_report
 
     dataset, layout, meta = prepare_report(_normalize_payload(payload))
-    tables, summaries = collect_tables(dataset, layout)
+    tables, summaries = collect_tables(dataset, layout, meta)
     return build_workbook(tables, summaries, meta)
 
 
@@ -193,7 +193,7 @@ async def agenerate_csv(payload: dict[str, Any] | ReportPayload, delimiter: str 
     from isis_report_lib.service import prepare_report
 
     dataset, layout, meta = prepare_report(_normalize_payload(payload))
-    tables, summaries = collect_tables(dataset, layout)
+    tables, summaries = collect_tables(dataset, layout, meta)
     text = render_csv(tables, summaries, meta, delimiter=delimiter)
     return "\ufeff" + text if bom else text
 

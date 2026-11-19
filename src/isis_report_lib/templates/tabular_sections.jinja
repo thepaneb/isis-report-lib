@@ -98,3 +98,46 @@
         {% endfor %}
     </section>
 {% endmacro %}
+{% macro render_crosstab(ct, zip, fmt, cellstyle) %}
+    {% if ct.has_data %}
+    <table class="report">
+        <thead>
+            <tr>
+                <th style="text-align: left">{{ct.row_label}}</th>
+                {% for header in ct.col_headers %}
+                    <th style="text-align: right">{{fmt(header, ct.col_field.get('format_mask', 'str'), field=ct.col_field)}}</th>
+                {% endfor %}
+                {% if ct.totals %}
+                    <th style="text-align: right">{{ct.total_label}}</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row_header, cells, total in zip(ct.row_headers, ct.cells, ct.row_totals) %}
+                <tr>
+                    <td style="text-align: left"><p>{{fmt(row_header, ct.row_field.get('format_mask', 'str'), field=ct.row_field)}}</p></td>
+                    {% for cell in cells %}
+                        <td style="text-align: right;{{cellstyle(cell, ct.measure_field)}}"><p>{{fmt(cell, ct.mask, field=ct.measure_field)}}</p></td>
+                    {% endfor %}
+                    {% if ct.totals %}
+                        <td style="text-align: right;{{cellstyle(total, ct.measure_field)}}"><p>{{fmt(total, ct.mask, field=ct.measure_field)}}</p></td>
+                    {% endif %}
+                </tr>
+            {% endfor %}
+        </tbody>
+        {% if ct.totals %}
+        <tfoot>
+            <tr>
+                <td style="text-align: left"><p>{{ct.total_label}}</p></td>
+                {% for total in ct.col_totals %}
+                    <td style="text-align: right;{{cellstyle(total, ct.measure_field)}}"><p>{{fmt(total, ct.mask, field=ct.measure_field)}}</p></td>
+                {% endfor %}
+                <td style="text-align: right;{{cellstyle(ct.grand_total, ct.measure_field)}}"><p>{{fmt(ct.grand_total, ct.mask, field=ct.measure_field)}}</p></td>
+            </tr>
+        </tfoot>
+        {% endif %}
+    </table>
+    {% elif ct.empty_text %}
+    <p class="empty-table">{{ct.empty_text}}</p>
+    {% endif %}
+{% endmacro %}

@@ -44,12 +44,16 @@ class Table:
     note: str = ""
 
 
-def collect_tables(dataset: dict[str, Any], layout: dict[str, Any]) -> tuple[list[Table], list[tuple[str, Any, str]]]:
+def collect_tables(
+    dataset: dict[str, Any], layout: dict[str, Any], meta: dict[str, Any] | None = None
+) -> tuple[list[Table], list[tuple[str, Any, str]]]:
     """Flatten (dataset, layout) into tables plus (label, value, mask) summary rows."""
-    return _collect(dataset, layout, default_name="data")
+    return _collect(dataset, layout, meta, default_name="data")
 
 
-def _collect(dataset: dict[str, Any], layout: dict[str, Any], default_name: str) -> tuple[list[Table], list[tuple[str, Any, str]]]:
+def _collect(
+    dataset: dict[str, Any], layout: dict[str, Any], meta: dict[str, Any] | None, default_name: str
+) -> tuple[list[Table], list[tuple[str, Any, str]]]:
     summaries: list[tuple[str, Any, str]] = []
     by_key: dict[str, Table] = {}
 
@@ -124,7 +128,9 @@ def _collect(dataset: dict[str, Any], layout: dict[str, Any], default_name: str)
             continue
         stype = section.get("type", "table")
         if stype == "table":
-            sub_tables, sub_summaries = _collect(section.get("dataset", {}), section.get("layout", {}), section.get("title") or "table")
+            sub_tables, sub_summaries = _collect(
+                section.get("dataset", {}), section.get("layout", {}), meta, section.get("title") or "table"
+            )
             title = section.get("title")
             for table in sub_tables:
                 key = table.key if not title or table.key == title else f"{title} - {table.key}"
@@ -162,6 +168,21 @@ def _collect(dataset: dict[str, Any], layout: dict[str, Any], default_name: str)
                     columns=[Column(key="label", label="Label"), Column(key="value", label="Value")],
                     rows=rows,
                 )
+        elif stype == "crosstab":
+            from isis_report_lib.crosstab import build_crosstab, crosstab_table
+
+            ct = section.get("crosstab")
+            if ct is None:
+                ct = build_crosstab(section.get("data", []), section)
+            table = crosstab_table(ct, meta)
+            if table.rows or table.note:
+                title = section.get("title")
+                key = title if title else table.key
+                suffix, n = key, 2
+                while suffix in by_key:
+                    suffix, n = f"{key}_{n}", n + 1
+                table.key = suffix
+                by_key[suffix] = table
     if not by_key and top:
         header = layout.get("groups", {}).get("header", [])
         columns = [

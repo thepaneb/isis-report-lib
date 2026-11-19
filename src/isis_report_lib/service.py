@@ -82,8 +82,13 @@ def _prepare_sections(sections: list[dict[str, Any]], meta: dict[str, Any]) -> t
                     "chart": chart_spec,
                 }
             )
+        elif stype == "crosstab":
+            from isis_report_lib.crosstab import build_crosstab
+
+            ct = build_crosstab(section.get("data", []), section)
+            built.append({"type": "crosstab", "title": section.get("title"), "crosstab": ct})
         else:
-            raise ValueError(f"Unknown section type: {stype!r} (expected table|text|kpi|chart)")
+            raise ValueError(f"Unknown section type: {stype!r} (expected table|text|kpi|chart|crosstab)")
     return {"sections": built}, {"groups": {"header": []}}, meta
 
 
