@@ -107,7 +107,7 @@ def test_deep_inputs_fail_closed():
     from isis_report_lib.inputs import from_json
 
     with pytest.raises(ValueError, match="nested too deeply"):
-        from_json(io.StringIO("[" * 100000))
+        from_json(io.StringIO("[" * 50000 + "]" * 50000))
     node = cur = {}
     for _ in range(2000):
         cur["g"] = {}
