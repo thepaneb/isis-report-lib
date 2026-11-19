@@ -8,6 +8,7 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 ## [Unreleased]
 ### Added
 - Provenance: field `footnote` (`"text"` or `{"mark", "text"}`) with auto marks (`*†‡§‖¶`, then numbers) listed per report/section and exported to the XLSX `Notes` sheet and CSV `# [mark]` lines; `meta.source_note` / section `source` provenance lines
+- Expressiveness: `median`/`distinct` aggregates; `color_scale` gradient fills (explicit `cell_rules` win) and `data_bar` native Excel bars; `meta.summary_side` top/bottom grand-summary placement; keep-together print CSS for group headers/rows
 - Dynamic pivot tables: `crosstab` sections (`rows`/`columns` buckets, `measure` + `sum|count|avg|min|max`, row/column/grand totals, `empty_text`) in HTML, XLSX and CSV
 - Sparklines: `sparkline` format mask (list of numbers → inline SVG `line`/`bar` nanoplot; `spark_kind`/`spark_color` field options) in HTML/PDF, block-art text (`▁▂▃▄▅▆▇█`) in CSV/XLSX
 - Explicit missing data: field `missing_text` (display text for `None`) and `substitutions` (`{raw: display}` map applied before formatting) in HTML, XLSX and CSV; `empty_text` on flat detail lists, `table` sections and `meta` (whole report) renders a message instead of an empty table (note row/line in XLSX/CSV)

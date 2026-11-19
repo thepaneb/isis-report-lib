@@ -336,6 +336,27 @@ def _number_format(mask: str, currency_symbol: str | None = None) -> str | None:
     return None
 
 
+def _apply_data_bars(ws: Any, header_row: int, table: Table) -> None:
+    """Native Excel data bars for columns whose field sets ``data_bar: true``."""
+    from openpyxl.formatting.rule import DataBarRule
+
+    if not table.rows:
+        return
+    for col, column in enumerate(table.columns, start=1):
+        if not isinstance(column.field, dict) or column.field.get("data_bar") is not True:
+            continue
+        raw_values = [record.get(column.key) for record in table.rows]
+        numbers = [float(v) for v in raw_values if isinstance(v, (int, float)) and not isinstance(v, bool)]
+        if len(numbers) < 1 or min(numbers) >= max(numbers):
+            continue
+        letter = ws.cell(row=header_row, column=col).column_letter
+        first, last = header_row + 1, header_row + len(table.rows)
+        ws.conditional_formatting.add(
+            f"{letter}{first}:{letter}{last}",
+            DataBarRule(start_type="num", start_value=min(numbers), end_type="num", end_value=max(numbers), color="FF0A2F46"),
+        )
+
+
 def _sheet_name(base: str, used: set[str]) -> str:
     """Sanitize an Excel sheet name (≤31 chars, no \\ / * ? : [ ]) and dedupe."""
     clean = "".join(c if c not in "\\/*?:[]" else "-" for c in base).strip() or "Sheet"
@@ -345,6 +366,14 @@ def _sheet_name(base: str, used: set[str]) -> str:
         name, i = clean[: 31 - len(suffix)] + suffix, i + 1
     used.add(name)
     return name
+
+
+def _argb(spec: str) -> str:
+    """Normalize a ``#rrggbb``/``rrggbb`` color to openpyxl's ``AARRGGBB`` (opaque)."""
+    hexpart = spec.lstrip("#")
+    if len(hexpart) == 3:
+        hexpart = "".join(c * 2 for c in hexpart)
+    return f"FF{hexpart}" if len(hexpart) == 6 else hexpart
 
 
 def build_workbook(
@@ -373,27 +402,28 @@ def build_workbook(
         sheet.title = _sheet_name(name, used)
         return sheet
 
-    from isis_report_lib.formatting import cell_style_dict, field_text
+    from isis_report_lib.formatting import cell_style_dict, field_text, scale_fill
 
-    header_font = Font(bold=True, color="FFFFFF")
-    header_fill = PatternFill("solid", fgColor="0A2F46")
+    header_font = Font(bold=True, color=_argb("FFFFFF"))
+    header_fill = PatternFill("solid", fgColor=_argb("0A2F46"))
     bold = Font(bold=True)
-    note_font = Font(italic=True, color="6B7280")
+    note_font = Font(italic=True, color=_argb("6B7280"))
     thin_top = Border(top=Side(style="thin"))
     wrap = Alignment(vertical="center", wrap_text=False)
 
     def apply_cell_style(cell, raw_value: Any, column) -> None:
         """Layer conditional formatting over the cell (no-op without matching rules)."""
         style = cell_style_dict(raw_value, {"cell_rules": column.rules})
-        if not style:
-            return
-        cell.font = Font(
-            color=style["color"].lstrip("#") if style.get("color") else cell.font.color,
-            bold=bool(style.get("bold", cell.font.bold or False)),
-            italic=bool(style.get("italic", cell.font.italic or False)),
-        )
+        if style:
+            cell.font = Font(
+                color=_argb(style["color"]) if style.get("color") else cell.font.color,
+                bold=bool(style.get("bold", cell.font.bold or False)),
+                italic=bool(style.get("italic", cell.font.italic or False)),
+            )
         if style.get("background"):
-            cell.fill = PatternFill("solid", fgColor=style["background"].lstrip("#"))
+            cell.fill = PatternFill("solid", fgColor=_argb(style["background"]))
+        elif (fill := scale_fill(raw_value, column.field)) is not None:
+            cell.fill = PatternFill("solid", fgColor=_argb(fill))
 
     if not tables and not summaries:
         ws = new_sheet(meta.get("title") or "Report")
@@ -451,6 +481,7 @@ def build_workbook(
                 widths.append(len(str(value if value is not None else "")))
         for col, width in enumerate(widths, start=1):
             ws.column_dimensions[ws.cell(row=header_row, column=col).column_letter].width = min(max(width + 2, 10), 50)
+        _apply_data_bars(ws, header_row, table)
 
     if summaries:
         ws = new_sheet("Summary")

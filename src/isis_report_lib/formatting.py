@@ -221,6 +221,40 @@ def assign_footnote_marks(fields: list[dict[str, Any]], state: dict[str, Any] | 
     return state
 
 
+def _parse_hex_color(spec: Any, where: str) -> tuple[int, int, int]:
+    if not isinstance(spec, str) or not spec.startswith("#"):
+        raise ValueError(f"Invalid color for {where} (need #rrggbb): {spec!r}")
+    hexpart = spec[1:]
+    if len(hexpart) == 3:
+        hexpart = "".join(c * 2 for c in hexpart)
+    if len(hexpart) != 6:
+        raise ValueError(f"Invalid color for {where} (need #rrggbb): {spec!r}")
+    try:
+        return int(hexpart[0:2], 16), int(hexpart[2:4], 16), int(hexpart[4:6], 16)
+    except ValueError as e:
+        raise ValueError(f"Invalid color for {where} (need #rrggbb): {spec!r}") from e
+
+
+def normalize_color_scale(spec: Any, where: str) -> dict[str, str]:
+    """Validate a ``color_scale`` (``{min, max}`` #rrggbb colors)."""
+    if not isinstance(spec, dict):
+        raise ValueError(f"Invalid color_scale for {where} (need {{min, max}} colors): {spec!r}")
+    unknown = [k for k in spec if k not in ("min", "max")]
+    if unknown or "min" not in spec or "max" not in spec:
+        raise ValueError(f"Invalid color_scale for {where} (need {{min, max}} colors): {spec!r}")
+    _parse_hex_color(spec["min"], where)
+    _parse_hex_color(spec["max"], where)
+    return {"min": spec["min"], "max": spec["max"]}
+
+
+def color_scale_fill(value: float, low: float, high: float, min_color: str, max_color: str) -> str:
+    """Interpolate a ``#rrggbb`` fill between min/max colors (clamped)."""
+    lo_rgb, hi_rgb = _parse_hex_color(min_color, "color_scale"), _parse_hex_color(max_color, "color_scale")
+    t = 0.5 if high == low else min(1.0, max(0.0, (value - low) / (high - low)))
+    mixed = tuple(round(lo + (hi - lo) * t) for lo, hi in zip(lo_rgb, hi_rgb, strict=True))
+    return f"#{mixed[0]:02X}{mixed[1]:02X}{mixed[2]:02X}"
+
+
 SPARK_BLOCKS = (" ", "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█")
 
 
@@ -333,15 +367,40 @@ def cell_style_dict(value: Any, field_def: dict[str, Any]) -> dict[str, Any]:
 
 
 def cell_style(value: Any, field_def: dict[str, Any]) -> str:
-    """First matching ``cell_rules`` entry as inline CSS ("" when none match)."""
+    """First matching ``cell_rules`` entry as inline CSS ("" when none match).
+
+    A ``color_scale`` gradient fill applies when no rule set a background and
+    the field carries a computed ``color_domain`` (see ``layout``).
+    """
     style = cell_style_dict(value, field_def)
     parts = []
     if style.get("color"):
         parts.append(f"color:{style['color']}")
-    if style.get("background"):
-        parts.append(f"background:{style['background']}")
+    background = style.get("background") or scale_fill(value, field_def)
+    if background:
+        parts.append(f"background:{background}")
     if style.get("bold"):
         parts.append("font-weight:bold")
     if style.get("italic"):
         parts.append("font-style:italic")
     return ";".join(parts)
+
+
+def scale_fill(value: Any, field_def: dict[str, Any] | None) -> str | None:
+    """Gradient fill for ``color_scale`` fields with a ``color_domain`` (else None)."""
+    if not isinstance(field_def, dict):
+        return None
+    scale = field_def.get("color_scale")
+    domain = field_def.get("color_domain")
+    if not isinstance(scale, dict) or not isinstance(domain, (list, tuple)) or len(domain) != 2:
+        return None
+    if isinstance(value, bool):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    try:
+        return color_scale_fill(number, float(domain[0]), float(domain[1]), scale["min"], scale["max"])
+    except (TypeError, ValueError, KeyError):
+        return None

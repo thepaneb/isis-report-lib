@@ -16,6 +16,8 @@ def with_meta_defaults(meta: dict[str, Any]) -> dict[str, Any]:
         meta["printed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     if "source_note" in meta and (not isinstance(meta["source_note"], str) or not meta["source_note"]):
         raise ValueError(f"Invalid meta.source_note (must be a non-empty string): {meta['source_note']!r}")
+    if "summary_side" in meta and meta["summary_side"] not in ("top", "bottom"):
+        raise ValueError(f"Invalid meta.summary_side (expected top|bottom): {meta['summary_side']!r}")
     return meta
 
 

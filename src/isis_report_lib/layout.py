@@ -17,13 +17,21 @@ Keys starting with ``$`` are reserved level options (``$print_when``, ``$order_b
 
 Report parameters (Phase 1 + running balances):
 
-- field ``"aggregate"``: ``sum`` | ``count`` | ``avg`` | ``min`` | ``max`` — computed
-  over sibling rows into group ``footer``\\ s, detail ``tfoot`` and the grand ``summary``.
+- field ``"aggregate"``: ``sum`` | ``count`` | ``avg`` | ``min`` | ``max`` |
+  ``median`` | ``distinct`` — computed over sibling rows into group
+  ``footer``\\ s, detail ``tfoot`` and the grand summary (``distinct`` counts
+  distinct non-``None`` values).
 - field ``"footnote"``: ``"text"`` or ``{"mark", "text"}`` — numbered note
   (auto marks ``*†‡§‖¶`` then ``1, 2, …`` in render order); collected per
   report/section and exported to XLSX (``Notes`` sheet) and CSV (``# [mark]``).
 - ``"source_note"`` (``meta``) / ``"source"`` (section) — provenance line
   under the report/section (``# [source]`` in CSV, ``Notes`` sheet in XLSX).
+- field ``"color_scale"``: ``{"min": color, "max": color}`` — gradient cell
+  fill by value (column domain computed at build time; explicit
+  ``cell_rules`` backgrounds win). Field ``"data_bar": true`` adds native
+  Excel data bars to the column (XLSX only).
+- ``meta.summary_side``: ``"top"`` | ``"bottom"`` (default) — grand summary
+  placement.
 - field ``"visible": false`` — drop the column; ``"visible_when": {condition}`` —
   drop it unless any/all rows match (``"scope": "any"``, default, or ``"all"``).
 - ``"$print_when": {condition}`` — keep only matching rows at that level.
@@ -46,7 +54,7 @@ Missing data (explicit is faithful):
 
 from typing import Any
 
-AGGREGATIONS = ("sum", "count", "avg", "min", "max")
+AGGREGATIONS = ("sum", "count", "avg", "min", "max", "median", "distinct")
 
 
 def format_field(name: str, field_def: dict[str, Any]) -> dict[str, Any]:
@@ -69,6 +77,14 @@ def format_field(name: str, field_def: dict[str, Any]) -> dict[str, Any]:
         out["footnote"] = normalize_footnote(field_def["footnote"], f"field {name!r}")
     if "footnote_mark" in field_def:
         out["footnote_mark"] = field_def["footnote_mark"]
+    if "color_scale" in field_def:
+        from isis_report_lib.formatting import normalize_color_scale
+
+        out["color_scale"] = normalize_color_scale(field_def["color_scale"], f"field {name!r}")
+    if "data_bar" in field_def:
+        if not isinstance(field_def["data_bar"], bool):
+            raise ValueError(f"Invalid data_bar for field {name!r} (must be true/false): {field_def['data_bar']!r}")
+        out["data_bar"] = field_def["data_bar"]
     return out
 
 
@@ -152,6 +168,24 @@ def assign_report_footnotes(layout: dict[str, Any], sections: list[dict[str, Any
             assign_footnote_marks([ct.row_field, ct.col_field, ct.measure_field], state)
         elif stype == "kpi" and isinstance(section.get("items"), list):
             assign_footnote_marks([i for i in section["items"] if isinstance(i, dict)], state)
+
+
+def color_domain(values: list[Any]) -> list[float] | None:
+    """Min/max over numeric values (bools/None skipped); None when empty."""
+    numbers = [float(v) for v in values if isinstance(v, (int, float)) and not isinstance(v, bool)]
+    if not numbers:
+        return None
+    return [min(numbers), max(numbers)]
+
+
+def _apply_color_domains(fields: list[dict[str, Any]], rows: list[dict[str, Any]]) -> None:
+    """Attach each ``color_scale`` field's ``color_domain`` from sibling rows."""
+    for f in fields:
+        if not isinstance(f, dict) or "color_scale" not in f:
+            continue
+        domain = color_domain([r.get(f["name"]) for r in rows if isinstance(r, dict)])
+        if domain is not None:
+            f["color_domain"] = domain
 
 
 def convert_layout(layout_raw: dict[str, Any]) -> dict[str, Any]:
@@ -370,6 +404,16 @@ def aggregate_values(rows: list[dict[str, Any]], field: str, func: str) -> Any:
         raise ValueError(f"Unknown aggregate: {func!r} (expected one of {AGGREGATIONS})")
     if func == "count":
         return sum(1 for r in rows if isinstance(r, dict))
+    if func == "distinct":
+        seen: set[Any] = set()
+        for row in rows:
+            if not isinstance(row, dict) or field not in row or row[field] is None:
+                continue
+            try:
+                seen.add(row[field])
+            except TypeError:
+                seen.add(str(row[field]))
+        return len(seen)
     numbers: list[float] = []
     for row in rows:
         if not isinstance(row, dict):
@@ -384,6 +428,10 @@ def aggregate_values(rows: list[dict[str, Any]], field: str, func: str) -> Any:
         return sum(numbers)
     if func == "avg":
         return sum(numbers) / len(numbers)
+    if func == "median":
+        from statistics import median
+
+        return median(numbers)
     if func == "min":
         return min(numbers)
     return max(numbers)
@@ -556,6 +604,7 @@ def _build_layout(node: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str,
     field_defs, group_nodes, _options = split_layout_node(node)
     visible = _visible_fields(field_defs, rows)
     header = [format_field(k, field_defs[k]) for k in visible]
+    _apply_color_domains(header, rows)
 
     child_rows: dict[str, list[dict[str, Any]]] = {}
     for gkey in group_nodes:
@@ -586,6 +635,7 @@ def _build_layout(node: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str,
             continue
         sub_fields, _sg, _so = split_layout_node(sub)
         details[gkey] = [format_field(k, sub_fields[k]) for k in _visible_fields(sub_fields, child_rows[gkey])]
+        _apply_color_domains(details[gkey], child_rows[gkey])
 
     fragment: dict[str, Any] = {"header": header}
     if child_layout is not None:

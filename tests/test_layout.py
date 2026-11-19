@@ -251,11 +251,15 @@ def test_aggregate_values():
     assert aggregate_values(rows, "v", "avg") == 15
     assert aggregate_values(rows, "v", "min") == 10
     assert aggregate_values(rows, "v", "max") == 20
+    assert aggregate_values(rows, "v", "median") == 15
+    assert aggregate_values([{"v": "a"}, {"v": "a"}, {"v": "b"}, {"v": None}, {"x": 1}], "v", "distinct") == 2
+    assert aggregate_values([], "v", "median") == ""
+    assert aggregate_values([], "v", "distinct") == 0
     assert aggregate_values([], "v", "sum") == ""
     assert aggregate_values([{"x": 1}], "v", "sum") == ""
     assert aggregate_values([{"v": 10}, "not-a-dict", 42], "v", "sum") == 10
     with pytest.raises(ValueError, match="Unknown aggregate"):
-        aggregate_values(rows, "v", "median")
+        aggregate_values(rows, "v", "mode")
 
 
 def test_build_report_footers_and_summary():

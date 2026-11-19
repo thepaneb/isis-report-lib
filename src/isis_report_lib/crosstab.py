@@ -46,7 +46,9 @@ def _field_def(spec: Any, kind: str) -> dict[str, Any]:
     if isinstance(spec, str):
         return {"field": spec, "label": spec}
     if isinstance(spec, dict) and isinstance(spec.get("field"), str):
-        out = {"field": spec["field"], "label": spec.get("label", spec["field"])}
+        from isis_report_lib.formatting import normalize_color_scale
+
+        out: dict[str, Any] = {"field": spec["field"], "label": spec.get("label", spec["field"])}
         for key in ("format_mask", "alignment", "missing_text", "substitutions", "cell_rules"):
             if key in spec:
                 out[key] = spec[key]
@@ -54,6 +56,12 @@ def _field_def(spec: Any, kind: str) -> dict[str, Any]:
             from isis_report_lib.formatting import normalize_footnote
 
             out["footnote"] = normalize_footnote(spec["footnote"], f"crosstab {kind} {spec['field']!r}")
+        if "color_scale" in spec:
+            out["color_scale"] = normalize_color_scale(spec["color_scale"], f"crosstab {kind} {spec['field']!r}")
+        if "data_bar" in spec:
+            if not isinstance(spec["data_bar"], bool):
+                raise ValueError(f"Invalid data_bar for crosstab {kind} {spec['field']!r} (must be true/false): {spec['data_bar']!r}")
+            out["data_bar"] = spec["data_bar"]
         return out
     raise ValueError(f"Invalid crosstab {kind} (need a field name or {{field, ...}}): {spec!r}")
 
@@ -89,10 +97,10 @@ def build_crosstab(data: list[Any], spec: dict[str, Any]) -> Crosstab:
     func = spec.get("function", "sum")
     if func not in FUNCTIONS:
         raise ValueError(f"Unknown crosstab function: {func!r} (expected one of {FUNCTIONS})")
-    measure = spec.get("measure")
+    measure: Any = spec.get("measure")
     if measure is None and func != "count":
         raise ValueError(f"Crosstab {func!r} needs a measure field")
-    measure_def = _field_def(measure, "measure") if measure is not None else {"field": "", "label": "Count"}
+    measure_def: dict[str, Any] = _field_def(measure, "measure") if measure is not None else {"field": "", "label": "Count"}
     measure_def.setdefault("format_mask", "int" if func == "count" else "float")
 
     totals = spec.get("totals", True)
@@ -116,6 +124,13 @@ def build_crosstab(data: list[Any], spec: dict[str, Any]) -> Crosstab:
 
     col_totals = [_cell_value([r for r in rows if r.get(col_def["field"]) == cv], measure_def["field"], func) for cv in col_values]
     grand_total = _cell_value(rows, measure_def["field"], func)
+    if "color_scale" in measure_def:
+        from isis_report_lib.layout import color_domain
+
+        flat = [v for row in cells for v in row] + row_totals + col_totals + [grand_total]
+        domain = color_domain([v for v in flat if v != ""])
+        if domain is not None:
+            measure_def["color_domain"] = domain
 
     empty_text = spec.get("empty_text", "")
     if empty_text is not None and not isinstance(empty_text, str):

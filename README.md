@@ -247,7 +247,7 @@ payload = {
 | Parameter | Where | Effect |
 | --- | --- | --- |
 | `meta.page` | `meta` | `{size, orientation: portrait\|landscape, margins}` → PDF page (explicit `pdf_options` win) |
-| `aggregate` | field def | `sum\|count\|avg\|min\|max` → group footers, detail `tfoot`, grand summary. Flat child lists render as tables (several per item allowed); deeper nesting renders as sections |
+| `aggregate` | field def | `sum\|count\|avg\|min\|max\|median\|distinct` → group footers, detail `tfoot`, grand summary (`distinct` counts distinct non-`None`). Flat child lists render as tables (several per item allowed); deeper nesting renders as sections |
 | `$print_when` | any level | keep only rows matching `{field, equals\|not_equals\|in\|not_in\|gt\|gte\|lt\|lte\|between\|contains\|is_null\|not_null}` (several operators combine with AND) |
 | `$order_by` | any level | sort rows: `[{field, direction}]` or `"field"` / `"-field"` (nulls last) |
 | `visible` / `visible_when` | field def | hide a column; `visible_when` supports `{..., scope: any\|all}` |
@@ -256,6 +256,8 @@ payload = {
 | `empty_text` | flat detail list / `table` section / `meta` | message rendered instead of an empty table (`meta.empty_text` covers the whole report); exported as a note row/line in XLSX/CSV |
 | `footnote` | field def | `"text"` or `{"mark", "text"}` → superscript mark on the column label, notes listed per report/section (auto marks `*†‡§‖¶` then numbers); XLSX `Notes` sheet, CSV `# [mark]` lines |
 | `source_note` / `source` | `meta` / any section | provenance line under the report/section (`# [source]` in CSV, `Notes` sheet in XLSX) |
+| `color_scale` / `data_bar` | field def | `color_scale: {min, max}` gradient fill by value (explicit `cell_rules` win); `data_bar: true` native Excel bars (XLSX only) |
+| `meta.summary_side` | `meta` | `top\|bottom` (default) grand-summary placement |
 
 ## `.toon` syntax
 

@@ -4,12 +4,15 @@
 {% block mode %}{{meta.mode}}{% endblock %}
 {% block subtitle %}{{meta.sub_title}}{% endblock %}
 {% block content %}
+    {% if meta.summary_side == "top" and dataset.summary and layout.summary %}
+        {{render_summary(dataset.summary, layout.summary, zip, fmt, cellstyle)}}
+    {% endif %}
     {% if dataset.groups and layout.groups %}
         {{render_group(dataset.groups, layout.groups, zip, fmt, 0, cellstyle)}}
     {% elif meta.empty_text %}
         <p class="empty-report">{{meta.empty_text}}</p>
     {% endif %}
-    {% if dataset.summary and layout.summary %}
+    {% if meta.summary_side != "top" and dataset.summary and layout.summary %}
         {{render_summary(dataset.summary, layout.summary, zip, fmt, cellstyle)}}
     {% endif %}
     {% if layout.footnotes %}

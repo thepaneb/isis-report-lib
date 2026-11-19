@@ -78,7 +78,7 @@ python -m mypy src
 ## Conventions
 - Code and docstrings in English; pipeline methods use short verbs
   (`_fetch_data`, `_process_data`, `_render_html`, `_generate_pdf`).
-- Masks are locale-aware (Babel/CLDR, `meta.locale`, default `pt-BR`): `str` · `int` · `float` · `date` · `percent` · `currency` (territory default, `meta.currency` override) · `bool` (`Yes`/`No`).
+- Masks are locale-aware (Babel/CLDR, `meta.locale`, default `pt-BR`): `str` · `int` · `float` · `date` · `percent` · `currency` (territory default, `meta.currency` override) · `bool` (`Yes`/`No`) · `sparkline` (list of numbers → inline SVG; `spark_kind`/`spark_color` field options).
 - Templates extend `base.jinja`; formatting via the Jinja `fmt(value, mask)` helper.
   Custom dirs layer over bundled templates (`template_dir`/`template_name`); every
   template gets `dataset`, `layout`, `meta`, `fmt`, `zip`.

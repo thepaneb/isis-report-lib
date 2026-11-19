@@ -54,7 +54,7 @@ def test_build_crosstab_validation():
     with pytest.raises(ValueError, match="needs a measure"):
         build_crosstab(DATA, {"rows": "r", "columns": "c", "function": "sum"})
     with pytest.raises(ValueError, match="Unknown crosstab function"):
-        build_crosstab(DATA, {**SPEC, "function": "median"})
+        build_crosstab(DATA, {**SPEC, "function": "mode"})
     with pytest.raises(ValueError, match="Invalid crosstab rows"):
         build_crosstab(DATA, {**SPEC, "rows": {"label": "x"}})
     with pytest.raises(ValueError, match="Invalid crosstab totals"):

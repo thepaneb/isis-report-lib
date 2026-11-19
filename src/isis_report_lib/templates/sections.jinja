@@ -8,12 +8,15 @@
     {% for section in dataset.sections %}
         {% if section.title %}<h2 class="section-title">{{section.title}}</h2>{% endif %}
         {% if section.type == "table" %}
+            {% if meta.summary_side == "top" and section.dataset.summary and section.layout.summary %}
+                {{render_summary(section.dataset.summary, section.layout.summary, zip, fmt, cellstyle)}}
+            {% endif %}
             {% if section.dataset.groups and section.layout.groups %}
                 {{render_group(section.dataset.groups, section.layout.groups, zip, fmt, 0, cellstyle)}}
             {% elif section.empty_text %}
                 <p class="empty-table">{{section.empty_text}}</p>
             {% endif %}
-            {% if section.dataset.summary and section.layout.summary %}
+            {% if meta.summary_side != "top" and section.dataset.summary and section.layout.summary %}
                 {{render_summary(section.dataset.summary, section.layout.summary, zip, fmt, cellstyle)}}
             {% endif %}
         {% elif section.type == "crosstab" %}
