@@ -72,7 +72,14 @@ jobs:
             playwright-${{ runner.os }}-
 
       - name: Install Chromium
-        run: python -m playwright install --with-deps chromium
+        # Ubuntu mirrors flake (503s); retry instead of failing the whole run.
+        run: |
+          for attempt in 1 2 3 4; do
+            python -m playwright install --with-deps chromium && break
+            echo "Chromium install failed (attempt $attempt), retrying in 30s..."
+            sleep 30
+          done
+          python -m playwright install chromium
 
       - name: Full tests with coverage (incl. browser)
         run: timeout 600 python -m pytest tests -q --cov=isis_report_lib --cov-report=term-missing --cov-report=xml
