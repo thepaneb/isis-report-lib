@@ -15,9 +15,10 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import FileSystemLoader
+from jinja2.sandbox import SandboxedEnvironment
 
-_envs: dict[str | None, Environment] = {}
+_envs: dict[str | None, SandboxedEnvironment] = {}
 
 
 def _templates_dir() -> str:
@@ -25,7 +26,7 @@ def _templates_dir() -> str:
     return str(resources.files("isis_report_lib") / "templates")
 
 
-def get_jinja_env(template_dir: str | Path | None = None) -> Environment:
+def get_jinja_env(template_dir: str | Path | None = None) -> SandboxedEnvironment:
     """Return a Jinja2 environment, optionally layered over a custom template dir.
 
     Raises:
@@ -36,9 +37,12 @@ def get_jinja_env(template_dir: str | Path | None = None) -> Environment:
         if template_dir is not None and not Path(template_dir).is_dir():
             raise ValueError(f"Template directory not found: {template_dir}")
         searchpath = [str(template_dir), _templates_dir()] if template_dir is not None else [_templates_dir()]
-        # Autoescape is ON: report data is untrusted input and the HTML output
-        # is also shipped to email clients. Charts/sparklines return Markup (safe SVG).
-        _envs[key] = Environment(loader=FileSystemLoader(searchpath=searchpath), autoescape=True)
+        # Autoescape is ON and the environment is sandboxed: report data is untrusted
+        # and templates must not reach Python internals (defense in depth for SSTI).
+        # Charts/sparklines return Markup (pre-built safe SVG).
+        from jinja2.sandbox import SandboxedEnvironment
+
+        _envs[key] = SandboxedEnvironment(loader=FileSystemLoader(searchpath=searchpath), autoescape=True)
     return _envs[key]
 
 
@@ -55,11 +59,16 @@ async def arender_report_html(
     ``inline_css=True`` inlines the stylesheet into ``style`` attributes
     (email-client friendly; needs the ``email`` extra).
     """
+    from jinja2.sandbox import SecurityError
+
     from isis_report_lib.formatting import cell_style, formatter_for
 
     env = get_jinja_env(template_dir)
-    template = env.get_template(template_name)
-    html = template.render(dataset=dataset, layout=layout, meta=meta, fmt=formatter_for(meta), cellstyle=cell_style, zip=zip)
+    try:
+        template = env.get_template(template_name)
+        html = template.render(dataset=dataset, layout=layout, meta=meta, fmt=formatter_for(meta), cellstyle=cell_style, zip=zip)
+    except SecurityError as e:
+        raise ValueError(f"Template {template_name!r} uses blocked constructs: {e}") from e
     return _inline_css(html) if inline_css else html
 
 
@@ -72,11 +81,16 @@ def render_report_html(
     inline_css: bool = False,
 ) -> str:
     """Synchronous version of the HTML rendering (see :func:`arender_report_html`)."""
+    from jinja2.sandbox import SecurityError
+
     from isis_report_lib.formatting import cell_style, formatter_for
 
     env = get_jinja_env(template_dir)
-    template = env.get_template(template_name)
-    html = template.render(dataset=dataset, layout=layout, meta=meta, fmt=formatter_for(meta), cellstyle=cell_style, zip=zip)
+    try:
+        template = env.get_template(template_name)
+        html = template.render(dataset=dataset, layout=layout, meta=meta, fmt=formatter_for(meta), cellstyle=cell_style, zip=zip)
+    except SecurityError as e:
+        raise ValueError(f"Template {template_name!r} uses blocked constructs: {e}") from e
     return _inline_css(html) if inline_css else html
 
 

@@ -410,7 +410,8 @@ def build_workbook(
     def new_sheet(name: str):
         nonlocal first
         sheet = wb.active if first else wb.create_sheet()
-        assert sheet is not None
+        if sheet is None:
+            raise RuntimeError("openpyxl returned no worksheet")
         first = False
         sheet.title = _sheet_name(name, used)
         return sheet

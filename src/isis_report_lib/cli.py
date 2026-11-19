@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -129,7 +130,8 @@ def _load_payload(path: Path, fmt: str, delimiter: str = ",") -> tuple[dict[str,
         except FileNotFoundError:
             raise FileNotFoundError(f"Input file not found: {path}") from None
     text = _read_text_file(path, "Input")
-    assert text is not None
+    if text is None:
+        raise ValueError(f"Cannot read input file: {path}")
     if fmt == "json":
         try:
             loaded = json.loads(text)
@@ -218,11 +220,17 @@ def _cmd_schema(args: argparse.Namespace) -> int:
 
 def _read_key_file(path: Path) -> bytes:
     try:
-        return path.read_bytes()
+        data = path.read_bytes()
     except FileNotFoundError:
         raise FileNotFoundError(f"Key file not found: {path}") from None
     except OSError as e:
         raise ValueError(f"Cannot read key file {path}: {e}") from None
+    if os.name == "posix" and bool(path.stat().st_mode & 0o077):
+        print(
+            f"warning: key file {path} is readable by group/others; restrict it (chmod 600)",
+            file=sys.stderr,
+        )
+    return data
 
 
 def _cmd_keygen(args: argparse.Namespace) -> int:

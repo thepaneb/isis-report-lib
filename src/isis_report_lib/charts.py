@@ -9,6 +9,16 @@ from markupsafe import Markup
 DEFAULT_COLORS = ["#0A2F46", "#1B7A3D", "#B8860B", "#8B3A3A", "#4A6FA5", "#6B4A8B"]
 
 
+def _svg_attr(value: Any) -> str:
+    """Escape a value interpolated into a double-quoted SVG attribute."""
+    return escape(str(value), {'"': "&quot;"})
+
+
+def _svg(parts: list[str]) -> Markup:
+    """Assemble a pre-built SVG fragment (all interpolations escaped or numeric)."""
+    return Markup("".join(parts))  # noqa: S704 - see docstring
+
+
 def _check_series(labels: list[str], values: list[float]) -> list[float]:
     if not labels or not values:
         raise ValueError("Chart needs non-empty labels and values.")
@@ -31,6 +41,7 @@ def bar_chart(
     """Bar chart as an inline SVG string (``orientation``: vertical or horizontal)."""
     if orientation not in ("vertical", "horizontal"):
         raise ValueError(f"Unknown bar orientation: {orientation!r} (expected vertical|horizontal)")
+    color = _svg_attr(color)
     if orientation == "horizontal":
         return _horizontal_bar_chart(labels, values, width, height, color)
     numbers = _check_series([str(label) for label in labels], values)
@@ -51,7 +62,7 @@ def bar_chart(
         parts.append(f'<text x="{slot * i + slot / 2:.1f}" y="{height - 8}" text-anchor="middle" font-size="11">{escape(label)}</text>')
     parts.append(f'<line x1="0" y1="{bottom}" x2="{width}" y2="{bottom}" stroke="#999"/>')
     parts.append("</svg>")
-    return Markup("".join(parts))
+    return _svg(parts)
 
 
 def line_chart(
@@ -62,6 +73,7 @@ def line_chart(
     color: str = "#0A2F46",
 ) -> str:
     """Line chart with dots as an inline SVG string."""
+    color = _svg_attr(color)
     numbers = _check_series([str(label) for label in labels], values)
     labels = [str(label) for label in labels]
     top, bottom, left, right = 22, height - 30, 40, width - 10
@@ -85,7 +97,7 @@ def line_chart(
         parts.append(f'<text x="{x(i):.1f}" y="{height - 8}" text-anchor="middle" font-size="11">{escape(label)}</text>')
     parts.append(f'<line x1="{left}" y1="{bottom}" x2="{right}" y2="{bottom}" stroke="#999"/>')
     parts.append("</svg>")
-    return Markup("".join(parts))
+    return _svg(parts)
 
 
 def _horizontal_bar_chart(labels: list[str], values: list[Any], width: int, height: int, color: str) -> str:
@@ -106,7 +118,7 @@ def _horizontal_bar_chart(labels: list[str], values: list[Any], width: int, heig
             parts.append(f'<text x="{left + bar_w + 4:.1f}" y="{y + 17}" font-size="11">{value:g}</text>')
         parts.append(f'<text x="{left - 6}" y="{y + 17}" text-anchor="end" font-size="11">{escape(label)}</text>')
     parts.append("</svg>")
-    return Markup("".join(parts))
+    return _svg(parts)
 
 
 def _spark_numbers(value: Any) -> list[float]:
@@ -133,6 +145,7 @@ def sparkline(
     """Inline SVG nanoplot (``kind``: line or bar); ``""`` when there is no data."""
     if kind not in ("line", "bar"):
         raise ValueError(f"Unknown sparkline kind: {kind!r} (expected line|bar)")
+    color = _svg_attr(color)
     numbers = _spark_numbers(values)
     if not numbers:
         return ""
@@ -167,7 +180,7 @@ def sparkline(
             left = pad + slot * i + (slot - bar_w) / 2
             parts.append(f'<rect x="{left:.1f}" y="{height - pad - bar_h:.1f}" width="{bar_w:.1f}" height="{bar_h:.1f}" fill="{color}"/>')
     parts.append("</svg>")
-    return Markup("".join(parts))
+    return _svg(parts)
 
 
 def pie_chart(
@@ -179,12 +192,12 @@ def pie_chart(
     donut: bool = False,
 ) -> str:
     """Pie (or donut) chart with legend as an inline SVG string."""
+    colors = [_svg_attr(c) for c in (colors or DEFAULT_COLORS)]
     numbers = _check_series([str(label) for label in labels], values)
     labels = [str(label) for label in labels]
     total = sum(numbers)
     if total <= 0:
         raise ValueError("Pie chart needs a positive total.")
-    colors = colors or DEFAULT_COLORS
     cx, cy, radius = 150, height // 2, min(140, height // 2 - 10)
     legend_x = 320
     parts = [f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" xmlns="http://www.w3.org/2000/svg" role="img">']
@@ -204,7 +217,7 @@ def pie_chart(
     if donut:
         parts.append(f'<circle cx="{cx}" cy="{cy}" r="{radius // 2}" fill="white"/>')
     parts.append("</svg>")
-    return Markup("".join(parts))
+    return _svg(parts)
 
 
 def build_chart(spec: dict[str, Any]) -> str:

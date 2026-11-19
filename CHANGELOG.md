@@ -7,6 +7,7 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 
 ## [Unreleased]
 ### Security
+- Formal alignment: OWASP ASVS 4.0.3 applicability mapping (`docs/ASVS.md`, L1 target with L2/L3 where met), `SECURITY.md` disclosure policy with private vulnerability reporting enabled, Jinja `SandboxedEnvironment` (SSTI defense in depth), `ruff` S-rules, single-char CSV delimiter validation, world-readable key-file warning
 - Stored XSS closed: Jinja autoescaping is now enabled (charts/sparklines emit pre-built `Markup` SVG); remote `<link>` stylesheets are stripped before CSS inlining (no server-side fetches); Chromium renders pages with JavaScript disabled
 - Spreadsheet formula injection neutralized: text cells starting with `= + - @` (or tab/CR) are `'`-prefixed in CSV/XLSX (numeric values, including negatives, untouched)
 - `verify_pdf` is total again: malformed envelopes/keys report `invalid` instead of raising

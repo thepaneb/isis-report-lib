@@ -132,7 +132,8 @@ async def ensure_browser(headless: bool = True) -> None:
 async def new_page():
     """Return a new Page from the shared browser (close it with ``await page.close()``)."""
     await ensure_browser()
-    assert _context is not None
+    if _context is None:
+        raise RuntimeError("Browser context is not initialized")
     return await _context.new_page()
 
 

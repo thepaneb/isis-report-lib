@@ -129,6 +129,10 @@ payload (dict | ReportPayload | .toon)
 
 ## 3. Security
 
+The binding control mapping lives in [`ASVS.md`](ASVS.md)
+(OWASP ASVS 4.0.3, L1 target with L2/L3 where met); vulnerability reports
+follow [`SECURITY.md`](../SECURITY.md). This section states the rules.
+
 ### 3.1 Trust boundaries
 
 | Zone | Examples | Rule |
@@ -236,3 +240,16 @@ Amendments ship as PRs against this file with rationale and, when they
 alter guarantees (escaping, exports, verification), regression tests. The
 maxim outranks every rule: on conflict, prefer the option that keeps
 displayed data faithful.
+
+## References (normative for §3)
+
+- OWASP Application Security Verification Standard 4.0.3 —
+  `docs/ASVS.md` maps each applicable requirement to evidence.
+- OWASP Cheat Sheets: Cross Site Scripting Prevention, Injection
+  Prevention in Python, Deserialization, Key Management, Logging.
+- CWE: CWE-79 (XSS), CWE-918 (SSRF), CWE-502 (deserialization),
+  CWE-327/798/320 (crypto/keys), CWE-400 (DoS), CWE-22/73/78/98
+  (path/file injection), CWE-116/176 (encoding), CWE-829 (untrusted includes).
+- SLSA / Sigstore provenance model: releases ship via OIDC trusted
+  publishing; Actions are SHA-pinned.
+- Keep a Changelog + Conventional Commits (process standards).

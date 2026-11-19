@@ -61,6 +61,17 @@ def test_inline_css_strips_remote_stylesheets():
     assert "font-size:14px" in out or "font-size: 14px" in out
 
 
+def test_sandboxed_env_blocks_template_injection(tmp_path):
+    import pytest
+
+    from isis_report_lib import render_html
+
+    tpl = tmp_path / "evil.jinja"
+    tpl.write_text("{{ ().__class__.__bases__ }}|{{ [].__class__ }}|{{ meta.title }}", encoding="utf-8")
+    with pytest.raises(ValueError, match="blocked constructs"):
+        render_html({"meta": {"title": "T"}, "data": []}, template_dir=tmp_path, template_name="evil.jinja")
+
+
 def test_csv_neutralizes_formulas_but_not_numbers():
     text = generate_csv(
         {
@@ -114,6 +125,10 @@ def test_deep_inputs_fail_closed(monkeypatch):
     monkeypatch.setattr(json_module, "load", boom)
     with pytest.raises(ValueError, match="nested too deeply"):
         from_json(io.StringIO("[1]"))
+    from isis_report_lib.inputs import from_csv
+
+    with pytest.raises(ValueError, match="single character"):
+        from_csv(io.StringIO("a,b\n1,2"), delimiter=";;")
     node = cur = {}
     for _ in range(2000):
         cur["g"] = {}
@@ -181,3 +196,22 @@ def test_reset_closes_context(monkeypatch):
     assert browser.context.closed is True
     assert browser.closed is True
     assert pool._context is None
+
+
+def test_key_file_world_readable_warns(tmp_path, capsys):
+    import os
+
+    if os.name != "posix":
+        pytest.skip("POSIX-only permission check")
+    from isis_report_lib.cli import _read_key_file
+
+    secret = tmp_path / "secret.key"
+    secret.write_bytes(b"x" * 32)
+    secret.chmod(0o644)
+    assert _read_key_file(secret) == b"x" * 32
+    _, err = capsys.readouterr()
+    assert "chmod 600" in err
+    secret.chmod(0o600)
+    assert _read_key_file(secret) == b"x" * 32
+    _, err = capsys.readouterr()
+    assert "chmod 600" not in err

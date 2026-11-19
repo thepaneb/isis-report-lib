@@ -53,6 +53,8 @@ def from_csv(
     """Build a payload from a CSV file (path or file object) with light type coercion."""
     from isis_report_lib.toon import ToonParser
 
+    if not isinstance(delimiter, str) or len(delimiter) != 1:
+        raise ValueError(f"Invalid CSV delimiter (must be a single character): {delimiter!r}")
     coerce = ToonParser._convert_value
     close = False
     if isinstance(source, (str, Path)):
