@@ -69,18 +69,19 @@ def generate_ed25519_keypair() -> tuple[bytes, bytes]:
 
 
 def _split_blocks(signed: bytes) -> tuple[bytes, list[dict[str, Any]]]:
-    """Split (original bytes, [envelopes]) at the first ``%%EOF`` line end."""
+    """Split (original bytes, [envelopes]) at the first ``%%EOF`` line end.
+
+    Envelope discovery scans the trailing bytes with a lazy regex (no large
+    intermediate lists), so verifying a huge file cannot exhaust memory.
+    """
     match = re.search(rb"%%EOF[^\n]*\n?", signed)
     if not match:
         raise ValueError("Not a PDF (missing %%EOF marker): cannot sign or verify.")
     original = signed[: match.end()]
     envelopes = []
-    for line in signed[match.end() :].split(b"\n"):
-        line = line.strip()
-        if not line.startswith(MARKER):
-            continue
+    for found in re.finditer(rb"^%ISIS-SIGNATURE (\{.*\})$", signed[match.end() :], re.MULTILINE):
         try:
-            envelope = json.loads(line[len(MARKER) :].decode("utf-8"))
+            envelope = json.loads(found.group(1).decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as e:
             raise ValueError(f"Corrupt signature block: {e}") from e
         if isinstance(envelope, dict):
@@ -174,6 +175,8 @@ def verify_pdf(signed: bytes, key: bytes, *, alg: str = "hmac-sha256") -> Signat
     for name in ("v", "alg", "sha256", "sig"):
         if name not in envelope:
             return SignatureInfo(valid=False, reason=f"signature block is missing {name!r}", details={"envelope": envelope})
+    if not isinstance(envelope["sig"], str):
+        return SignatureInfo(valid=False, reason="signature block has a non-string 'sig'", details={"envelope": envelope})
     if envelope["v"] != SIGNATURE_VERSION:
         return SignatureInfo(valid=False, reason=f"unsupported signature version: {envelope['v']!r}")
     if envelope["alg"] != alg:
@@ -187,7 +190,7 @@ def verify_pdf(signed: bytes, key: bytes, *, alg: str = "hmac-sha256") -> Signat
     body = {k: v for k, v in envelope.items() if k != "sig"}
     try:
         ok = _verify_bytes(_canonical(body), envelope["sig"], key, alg)
-    except (ImportError, ValueError) as e:
+    except (ImportError, ValueError, TypeError) as e:
         return SignatureInfo(valid=False, reason=str(e), alg=alg)
     if not ok:
         return SignatureInfo(valid=False, reason="signature mismatch: wrong key or tampered envelope", alg=alg)

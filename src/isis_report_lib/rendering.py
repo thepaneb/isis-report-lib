@@ -36,7 +36,9 @@ def get_jinja_env(template_dir: str | Path | None = None) -> Environment:
         if template_dir is not None and not Path(template_dir).is_dir():
             raise ValueError(f"Template directory not found: {template_dir}")
         searchpath = [str(template_dir), _templates_dir()] if template_dir is not None else [_templates_dir()]
-        _envs[key] = Environment(loader=FileSystemLoader(searchpath=searchpath), autoescape=False)
+        # Autoescape is ON: report data is untrusted input and the HTML output
+        # is also shipped to email clients. Charts/sparklines return Markup (safe SVG).
+        _envs[key] = Environment(loader=FileSystemLoader(searchpath=searchpath), autoescape=True)
     return _envs[key]
 
 
@@ -100,9 +102,15 @@ def _resolve_css_vars(html: str) -> str:
 
 
 def _inline_css(html: str) -> str:
-    """Inline a document's stylesheet (lazy optional dependency)."""
+    """Inline a document's stylesheet (lazy optional dependency).
+
+    External ``<link rel=stylesheet>`` tags are stripped first: email clients
+    ignore them, and fetching them would turn report rendering into a
+    server-side request forgery (SSRF) vector for attacker-controlled data.
+    """
     try:
         import css_inline
     except ImportError as e:
         raise ImportError("Inline CSS requires the 'email' extra: pip install isis-report-lib[email]") from e
-    return css_inline.inline(_resolve_css_vars(html))
+    no_links = re.sub(r"<link\b[^>]*>", "", html, flags=re.IGNORECASE)
+    return css_inline.inline(_resolve_css_vars(no_links))

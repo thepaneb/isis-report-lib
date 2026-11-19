@@ -4,6 +4,8 @@ import math
 from typing import Any
 from xml.sax.saxutils import escape
 
+from markupsafe import Markup
+
 DEFAULT_COLORS = ["#0A2F46", "#1B7A3D", "#B8860B", "#8B3A3A", "#4A6FA5", "#6B4A8B"]
 
 
@@ -49,7 +51,7 @@ def bar_chart(
         parts.append(f'<text x="{slot * i + slot / 2:.1f}" y="{height - 8}" text-anchor="middle" font-size="11">{escape(label)}</text>')
     parts.append(f'<line x1="0" y1="{bottom}" x2="{width}" y2="{bottom}" stroke="#999"/>')
     parts.append("</svg>")
-    return "".join(parts)
+    return Markup("".join(parts))
 
 
 def line_chart(
@@ -83,7 +85,7 @@ def line_chart(
         parts.append(f'<text x="{x(i):.1f}" y="{height - 8}" text-anchor="middle" font-size="11">{escape(label)}</text>')
     parts.append(f'<line x1="{left}" y1="{bottom}" x2="{right}" y2="{bottom}" stroke="#999"/>')
     parts.append("</svg>")
-    return "".join(parts)
+    return Markup("".join(parts))
 
 
 def _horizontal_bar_chart(labels: list[str], values: list[Any], width: int, height: int, color: str) -> str:
@@ -104,7 +106,7 @@ def _horizontal_bar_chart(labels: list[str], values: list[Any], width: int, heig
             parts.append(f'<text x="{left + bar_w + 4:.1f}" y="{y + 17}" font-size="11">{value:g}</text>')
         parts.append(f'<text x="{left - 6}" y="{y + 17}" text-anchor="end" font-size="11">{escape(label)}</text>')
     parts.append("</svg>")
-    return "".join(parts)
+    return Markup("".join(parts))
 
 
 def _spark_numbers(value: Any) -> list[float]:
@@ -165,7 +167,7 @@ def sparkline(
             left = pad + slot * i + (slot - bar_w) / 2
             parts.append(f'<rect x="{left:.1f}" y="{height - pad - bar_h:.1f}" width="{bar_w:.1f}" height="{bar_h:.1f}" fill="{color}"/>')
     parts.append("</svg>")
-    return "".join(parts)
+    return Markup("".join(parts))
 
 
 def pie_chart(
@@ -202,7 +204,7 @@ def pie_chart(
     if donut:
         parts.append(f'<circle cx="{cx}" cy="{cy}" r="{radius // 2}" fill="white"/>')
     parts.append("</svg>")
-    return "".join(parts)
+    return Markup("".join(parts))
 
 
 def build_chart(spec: dict[str, Any]) -> str:

@@ -6,6 +6,11 @@ All notable changes to this project are documented here. Format follows
 the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 
 ## [Unreleased]
+### Security
+- Stored XSS closed: Jinja autoescaping is now enabled (charts/sparklines emit pre-built `Markup` SVG); remote `<link>` stylesheets are stripped before CSS inlining (no server-side fetches); Chromium renders pages with JavaScript disabled
+- Spreadsheet formula injection neutralized: text cells starting with `= + - @` (or tab/CR) are `'`-prefixed in CSV/XLSX (numeric values, including negatives, untouched)
+- `verify_pdf` is total again: malformed envelopes/keys report `invalid` instead of raising
+- `pip-audit` dependency gate and SHA-pinned GitHub Actions in CI
 ### Added
 - Provenance: field `footnote` (`"text"` or `{"mark", "text"}`) with auto marks (`*†‡§‖¶`, then numbers) listed per report/section and exported to the XLSX `Notes` sheet and CSV `# [mark]` lines; `meta.source_note` / section `source` provenance lines
 - Expressiveness: `median`/`distinct` aggregates; `color_scale` gradient fills (explicit `cell_rules` win) and `data_bar` native Excel bars; `meta.summary_side` top/bottom grand-summary placement; keep-together print CSS for group headers/rows

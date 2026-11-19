@@ -16,6 +16,7 @@ def _isolated_pool(monkeypatch):
     monkeypatch.setattr(pool, "_browser", None)
     monkeypatch.setattr(pool, "_playwright", None)
     monkeypatch.setattr(pool, "_playwright_ctx", None)
+    monkeypatch.setattr(pool, "_context", None)
     monkeypatch.setattr(pool, "_owner_loop", None)
     yield
 

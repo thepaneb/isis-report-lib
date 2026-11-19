@@ -48,17 +48,20 @@ def prepare_report(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str, A
         return dataset, layout, meta
     data = payload.get("data", [])
     layout_raw = payload.get("layout")
-    if layout_raw:
-        dataset, layout = build_report(data, layout_raw)
-    elif is_template_format(data):
-        layout = template_header_layout(data)
-        dataset = {"groups": data, "summary": None}
-    else:
-        layout = infer_layout(data)
-        dataset = {
-            "groups": [{"fields": r} if isinstance(r, dict) else {"fields": {"value": r}} for r in data],
-            "summary": None,
-        }
+    try:
+        if layout_raw:
+            dataset, layout = build_report(data, layout_raw)
+        elif is_template_format(data):
+            layout = template_header_layout(data)
+            dataset = {"groups": data, "summary": None}
+        else:
+            layout = infer_layout(data)
+            dataset = {
+                "groups": [{"fields": r} if isinstance(r, dict) else {"fields": {"value": r}} for r in data],
+                "summary": None,
+            }
+    except RecursionError as e:
+        raise ValueError("Report layout is nested too deeply to build") from e
     assign_report_footnotes(layout)
     layout["footnotes"] = collect_footnotes(layout)
     return dataset, layout, meta

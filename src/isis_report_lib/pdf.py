@@ -9,13 +9,14 @@ import asyncio
 import logging
 from typing import Any
 
-from playwright.async_api import Browser, Playwright, async_playwright
+from playwright.async_api import Browser, BrowserContext, Playwright, async_playwright
 
 logger = logging.getLogger("isis_report_lib")
 
 _playwright_ctx = None
 _playwright: Playwright | None = None
 _browser: Browser | None = None
+_context: BrowserContext | None = None
 _owner_loop: asyncio.AbstractEventLoop | None = None
 _lock = asyncio.Lock()
 
@@ -81,13 +82,17 @@ async def _reset_unlocked() -> None:
         except Exception:
             logger.warning("Failed to close %s during pool reset; abandoning.", label)
 
-    global _playwright_ctx, _playwright, _browser, _owner_loop
+    global _playwright_ctx, _playwright, _browser, _context, _owner_loop
     try:
         running = asyncio.get_running_loop()
     except RuntimeError:  # pragma: no cover - always called with a running loop
         running = None
     same_loop = running is not None and _owner_loop is running
 
+    if _context is not None:
+        if same_loop:
+            await _close_quietly(_context.close(), "browser context")
+        _context = None
     if _browser is not None:
         if same_loop:
             await _close_quietly(_browser.close(), "browser")
@@ -107,8 +112,12 @@ async def ensure_browser(headless: bool = True) -> None:
 
     If the browser belongs to a different/closed event loop (e.g. test suites
     creating one loop per test), it is recreated on the current loop.
+
+    Pages render with JavaScript disabled: reports are static documents, and
+    executing page scripts would let report data run code in the server-side
+    browser (XSS/SSRF) or stall generation.
     """
-    global _playwright_ctx, _playwright, _browser, _owner_loop
+    global _playwright_ctx, _playwright, _browser, _context, _owner_loop
     async with _lock:
         if _browser_usable():
             return
@@ -116,14 +125,15 @@ async def ensure_browser(headless: bool = True) -> None:
         _playwright_ctx = async_playwright()
         _playwright = await _playwright_ctx.__aenter__()
         _browser = await _playwright.chromium.launch(headless=headless)
+        _context = await _browser.new_context(java_script_enabled=False)
         _owner_loop = asyncio.get_running_loop()
 
 
 async def new_page():
     """Return a new Page from the shared browser (close it with ``await page.close()``)."""
     await ensure_browser()
-    assert _browser is not None
-    return await _browser.new_page()
+    assert _context is not None
+    return await _context.new_page()
 
 
 async def get_pdf_from_html(html: str, **kwargs: Any) -> bytes:

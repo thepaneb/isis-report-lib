@@ -80,9 +80,15 @@ def from_json(
     """Build a payload from JSON: a list becomes ``data``; a full payload dict passes through."""
     if isinstance(source, (str, Path)):
         with open(source, encoding=encoding) as handle:
-            loaded = json.load(handle)
+            try:
+                loaded = json.load(handle)
+            except RecursionError as e:
+                raise ValueError("JSON input is nested too deeply to parse") from e
     elif hasattr(source, "read"):
-        loaded = json.load(source)
+        try:
+            loaded = json.load(source)
+        except RecursionError as e:
+            raise ValueError("JSON input is nested too deeply to parse") from e
     else:
         loaded = source
     if isinstance(loaded, dict):

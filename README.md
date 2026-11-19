@@ -311,6 +311,8 @@ MIT — see `LICENSE`.
 
 ## Security
 
-- **Dependencies**: audited with `pip-audit` (no known vulnerabilities); Dependabot keeps actions and packages updated; releases are built and published by CI via OIDC trusted publishing (no stored tokens).
-- **Trust boundary**: templates (`.jinja` files, `template_dir`) are code — only load them from sources you trust. Report *data* (dict/JSON/`.toon`) is never executed as template code, only interpolated. Jinja autoescaping is off by design (report HTML is rendered to PDF, not served to browsers).
-- **Robustness**: deeply nested `.toon` input is rejected with `ValueError` instead of crashing the interpreter; the Playwright browser runs headless in its own Chromium sandbox per call (sync API) or a shared pool (async API).
+- **Dependencies**: audited with `pip-audit` in CI on every PR; Dependabot keeps SHA-pinned actions and packages updated; releases are built and published by CI via OIDC trusted publishing (no stored tokens).
+- **Trust boundary**: templates (`.jinja` files, `template_dir`) are code — only load them from sources you trust. Report *data* is escaped in HTML output and never executed as template code (charts/sparklines emit pre-built SVG); if you serve the HTML/email output to browsers, treat it like any user-content page.
+- **Browser**: pages render with JavaScript disabled in an isolated Chromium context per sync call (shared pool in async mode); `inline_css` strips remote `<link>` stylesheets (no server-side fetches on render); the Playwright browser runs headless in its own Chromium sandbox.
+- **Exports**: text cells starting with `= + - @` (or tab/CR) are `'`-prefixed in CSV/XLSX so spreadsheets cannot evaluate data as formulas (numeric values, including negatives, are untouched).
+- **Robustness**: deeply nested `.toon`/JSON input and report layouts are rejected with `ValueError` instead of crashing the interpreter; `verify_pdf` never raises — malformed signatures report `invalid`.

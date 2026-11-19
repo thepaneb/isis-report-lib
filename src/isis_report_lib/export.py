@@ -295,6 +295,19 @@ def _require_openpyxl():
         raise ImportError("XLSX export requires the 'xlsx' extra: pip install isis-report-lib[xlsx]") from e
 
 
+def _guard_formula(value: Any, raw: Any) -> Any:
+    """Neutralize spreadsheet formula injection (OWASP CSV Injection).
+
+    A text cell starting with ``= + - @`` (or tab/CR) is evaluated as a
+    formula by Excel/Sheets. Prefixing with ``'`` forces text display
+    (hidden by Excel, visible in plain-text readers). Numeric raw values are
+    never touched, so negative numbers keep rendering as-is.
+    """
+    if isinstance(value, str) and not isinstance(raw, (int, float)) and value[:1] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + value
+    return value
+
+
 def _native_value(value: Any, mask: str) -> Any:
     """Convert to an Excel-native value (numbers/dates stay numeric)."""
     if value is None:
@@ -469,6 +482,7 @@ def build_workbook(
                 raw = record.get(column.key)
                 mapped = field_text(raw, column.field)
                 value = mapped if mapped is not None else (None if raw is None else _native_value(raw, column.mask))
+                value = _guard_formula(value, raw)
                 cell = ws.cell(row=row_idx, column=col, value=value)
                 if is_total:
                     cell.font = bold
@@ -571,7 +585,7 @@ def render_csv(
     import io
     from functools import partial
 
-    from isis_report_lib.formatting import format_value, sparkline_text
+    from isis_report_lib.formatting import format_value
 
     meta = meta or {}
     fmt = partial(format_value, locale=meta.get("locale", "pt-BR"), currency=meta.get("currency"))
@@ -587,17 +601,21 @@ def render_csv(
         if not table.rows and table.note:
             writer.writerow([f"# {table.note}"])
         for row in table.rows:
-            writer.writerow(
-                [
-                    sparkline_text(row.get(c.key)) if c.mask == "sparkline" else fmt(row.get(c.key), c.mask, field=c.field)
-                    for c in table.columns
-                ]
-            )
+            writer.writerow([_guard_formula(_cell_text(row, c, fmt), row.get(c.key)) for c in table.columns])
         for ref, text in table.notes:
             writer.writerow([f"# [{ref}] {text}"])
     if summaries:
         writer.writerow(["# summary"])
         writer.writerow(["Item", "Value"])
         for label, value, mask in summaries:
-            writer.writerow([label, fmt(value, mask)])
+            writer.writerow([label, _guard_formula(fmt(value, mask), value)])
     return out.getvalue()
+
+
+def _cell_text(row: dict[str, Any], column: Column, fmt: Any) -> str:
+    """Render one CSV cell (SVG sparklines become block art)."""
+    from isis_report_lib.formatting import sparkline_text
+
+    if column.mask == "sparkline":
+        return sparkline_text(row.get(column.key))
+    return fmt(row.get(column.key), column.mask, field=column.field)
