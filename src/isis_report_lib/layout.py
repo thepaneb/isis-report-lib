@@ -27,8 +27,16 @@ Report parameters (Phase 1 + running balances):
 - field ``"running_balance": "<source field>"`` — cumulative sum of the source
   field in row order (new ``balance``-style columns, e.g. bank statements).
 
-Conditions: ``{"field": name, "equals"|"not_equals"|"in"|"not_in"|"gt"|"gte"|"lt"|"lte": value}``
+Conditions: ``{"field": name, "equals"|"not_equals"|"in"|"not_in"|"gt"|"gte"|"lt"|"lte"|"between"|"contains"|"is_null"|"not_null": value}``
 or ``{"field": name, "is_null"|"not_null": true}``.
+
+Missing data (explicit is faithful):
+
+- field ``"missing_text"`` — display text for ``None`` values (default: blank).
+- field ``"substitutions"`` — ``{raw: display}`` map applied before formatting.
+- ``"empty_text"`` on a flat detail list — message shown instead of an empty
+  table; also accepted as ``meta.empty_text`` (whole report) and on ``table``
+  sections (``section["empty_text"]``).
 """
 
 from typing import Any
@@ -46,6 +54,10 @@ def format_field(name: str, field_def: dict[str, Any]) -> dict[str, Any]:
     }
     if field_def.get("cell_rules"):
         out["cell_rules"] = field_def["cell_rules"]
+    if "missing_text" in field_def:
+        out["missing_text"] = field_def["missing_text"]
+    if "substitutions" in field_def:
+        out["substitutions"] = field_def["substitutions"]
     return out
 
 
@@ -382,7 +394,10 @@ def _convert_item(record: dict[str, Any], node: dict[str, Any]) -> dict[str, Any
             )
             if table_footer is not None:
                 table["footer"] = table_footer
-            if children:
+            empty_text = sub_node.get("empty_text")
+            if isinstance(empty_text, str) and empty_text:
+                table["empty_text"] = empty_text
+            if children or "empty_text" in table:
                 details[key] = table
 
     item: dict[str, Any] = {"fields": fields}

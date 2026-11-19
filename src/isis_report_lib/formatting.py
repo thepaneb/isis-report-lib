@@ -39,13 +39,53 @@ def default_currency(normalized_locale: str) -> str:
         raise ValueError(f"Unknown locale: {normalized_locale}") from e
 
 
-def format_value(value: Any, format_mask: str, locale: str = DEFAULT_LOCALE, currency: str | None = None) -> str:
+def field_text(value: Any, field: dict[str, Any] | None) -> str | None:
+    """Mapped display text via ``substitutions``/``missing_text``, else None.
+
+    ``substitutions`` maps raw values (exact match, then ``str(value)`` match)
+    to display strings; a ``None`` value with no substitution falls back to
+    ``missing_text`` (default: unmapped, i.e. None). Non-dict ``substitutions``
+    is a schema error.
+    """
+    if not isinstance(field, dict):
+        return None
+    if "substitutions" in field:
+        subs = field["substitutions"]
+        if not isinstance(subs, dict):
+            raise ValueError(f"Invalid substitutions (must be an object): {subs!r}")
+        try:
+            if value in subs:
+                return str(subs[value])
+        except TypeError:
+            pass
+        if value is not None and str(value) in subs:
+            return str(subs[str(value)])
+    if value is None and "missing_text" in field:
+        missing = field["missing_text"]
+        return "" if missing is None else str(missing)
+    return None
+
+
+def format_value(
+    value: Any,
+    format_mask: str,
+    locale: str = DEFAULT_LOCALE,
+    currency: str | None = None,
+    field: dict[str, Any] | None = None,
+) -> str:
     """Format a value according to the mask and locale.
 
     Masks: ``str`` · ``int`` · ``float`` · ``percent`` (fraction, e.g. ``0.09`` → ``9%``) ·
     ``currency`` · ``bool`` (``Yes``/``No``) · ``date`` (``date``/``datetime`` objects are
     localized; strings pass through). ``None`` → ``""``.
+
+    ``field`` (the layout field definition) applies ``substitutions`` first,
+    then ``missing_text`` for ``None`` — see :func:`field_text`. Templates pass
+    the current field; direct callers may omit it (previous behavior).
     """
+    mapped = field_text(value, field)
+    if mapped is not None:
+        return mapped
     if value is None:
         return ""
     norm = normalize_locale(locale)

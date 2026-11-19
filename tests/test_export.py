@@ -68,6 +68,58 @@ def test_collect_tables_empty_dataset():
     assert summaries == []
 
 
+def test_export_missing_text_and_substitutions():
+    payload = {
+        "meta": {"title": "T"},
+        "layout": {
+            "status": {
+                "label": "Status",
+                "format_mask": "str",
+                "alignment": "left",
+                "missing_text": "unknown",
+                "substitutions": {"A": "Active"},
+            },
+        },
+        "data": [{"status": None}, {"status": "A"}, {"status": "B"}],
+    }
+    csv_text = generate_csv(payload)
+    assert "unknown" in csv_text
+    assert "Active" in csv_text
+
+    from openpyxl import load_workbook
+
+    wb = load_workbook(io.BytesIO(generate_xlsx(payload)))
+    ws = wb["data"]
+    values = [ws.cell(row=r, column=1).value for r in range(3, 6)]
+    assert values == ["unknown", "Active", "B"]
+
+
+def test_export_empty_table_note():
+    payload = {
+        "meta": {"title": "T"},
+        "layout": {
+            "company": {"label": "Company", "format_mask": "str", "alignment": "left"},
+            "orders": {
+                "order": {"label": "Code", "format_mask": "int", "alignment": "right"},
+                "empty_text": "No orders in the period",
+            },
+        },
+        "data": [{"company": "ACME", "orders": []}],
+    }
+    csv_text = generate_csv(payload)
+    assert "# table: orders" in csv_text
+    assert "# No orders in the period" in csv_text
+
+    from openpyxl import load_workbook
+
+    wb = load_workbook(io.BytesIO(generate_xlsx(payload)))
+    ws = wb["orders"]
+    assert ws["A1"].value == "T"
+    assert ws["A2"].value == "Company"
+    assert ws["A3"].value == "No orders in the period"
+    assert ws["A3"].font.italic is True
+
+
 def test_generate_xlsx_bytes_and_sheets():
     from openpyxl import load_workbook
 

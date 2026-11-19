@@ -249,6 +249,8 @@ payload = {
 | `$order_by` | any level | sort rows: `[{field, direction}]` or `"field"` / `"-field"` (nulls last) |
 | `visible` / `visible_when` | field def | hide a column; `visible_when` supports `{..., scope: any\|all}` |
 | `cell_rules` | field def | `[{operator(s), color\|background\|bold\|italic}]` → conditional cell style in HTML and XLSX; first matching rule wins, several operators combine with AND, operator-less rule is a catch-all default (e.g. `{"gte": 1000, "lt": 5000, "color": "#C00000"}`) |
+| `missing_text` / `substitutions` | field def | `missing_text` text shown for `None` (default: blank); `substitutions` `{raw: display}` map applied before formatting (`str(value)` fallback, `None` falls back to `missing_text`) — in HTML, XLSX and CSV |
+| `empty_text` | flat detail list / `table` section / `meta` | message rendered instead of an empty table (`meta.empty_text` covers the whole report); exported as a note row/line in XLSX/CSV |
 
 ## `.toon` syntax
 

@@ -21,6 +21,37 @@ def test_empty_layout():
     assert convert_layout({}) == {"groups": {"header": []}}
 
 
+def test_format_field_missing_data_passthrough():
+    from isis_report_lib.layout import format_field
+
+    out = format_field("s", {"label": "S", "missing_text": "n/a", "substitutions": {"A": "Active"}})
+    assert out["missing_text"] == "n/a"
+    assert out["substitutions"] == {"A": "Active"}
+    plain = format_field("s", {"label": "S"})
+    assert "missing_text" not in plain and "substitutions" not in plain
+
+
+def test_build_report_empty_detail_list_needs_empty_text():
+    layout = {
+        "company": {"label": "Company", "format_mask": "str", "alignment": "left"},
+        "orders": {
+            "order": {"label": "Code", "format_mask": "int", "alignment": "right"},
+        },
+    }
+    dataset, _ = build_report([{"company": "ACME", "orders": []}], layout)
+    assert "details" not in dataset["groups"][0]
+    layout_empty = {
+        "company": {"label": "Company", "format_mask": "str", "alignment": "left"},
+        "orders": {
+            "order": {"label": "Code", "format_mask": "int", "alignment": "right"},
+            "empty_text": "No orders in the period",
+        },
+    }
+    dataset, _ = build_report([{"company": "ACME", "orders": []}], layout_empty)
+    table = dataset["groups"][0]["details"]["orders"]
+    assert table["rows"] == [] and table["empty_text"] == "No orders in the period"
+
+
 def test_simple_fields():
     result = convert_layout(
         {

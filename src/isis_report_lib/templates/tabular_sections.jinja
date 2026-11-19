@@ -7,7 +7,7 @@
 {% macro render_section(section_class, rows, layout, zip, fmt, cellstyle) %}
     <section class="{{section_class}}">
         {% for data, field in zip(rows.items(), layout) %}
-            {{render_section_content(field.label, fmt(rows[field.name], field.format_mask), cellstyle(rows[field.name], field))}}
+            {{render_section_content(field.label, fmt(rows[field.name], field.format_mask, field=field), cellstyle(rows[field.name], field))}}
         {% endfor %}
     </section>
 {% endmacro %}
@@ -17,7 +17,10 @@
 {% macro render_group_footer(rows, layout, zip, fmt, level, cellstyle) %}
     {{render_section("group-footer-%i" % level, rows, layout, zip, fmt, cellstyle)}}
 {% endmacro %}
-{% macro render_detail(rows, footer, layout, zip, fmt, cellstyle) %}
+{% macro render_detail(rows, footer, layout, zip, fmt, cellstyle, empty_text="") %}
+    {% if not rows and not footer and empty_text %}
+    <p class="empty-table">{{empty_text}}</p>
+    {% else %}
     <table class="report">
         <thead>
             <tr>
@@ -30,7 +33,7 @@
             {% for row in rows %}
                 <tr>
                     {% for field in layout %}
-                        <td style="text-align: {{field.alignment}};{{cellstyle(row[field.name], field)}}"><p>{{fmt(row[field.name], field.format_mask)}}</p></td>
+                        <td style="text-align: {{field.alignment}};{{cellstyle(row[field.name], field)}}"><p>{{fmt(row[field.name], field.format_mask, field=field)}}</p></td>
                     {% endfor %}
                 </tr>
             {% endfor %}
@@ -39,17 +42,18 @@
         <tfoot>
             <tr>
                 {% for field in layout %}
-                    <td style="text-align: {{field.alignment}};{{cellstyle(footer.get(field.name), field)}}"><p>{{fmt(footer.get(field.name), field.format_mask)}}</p></td>
+                    <td style="text-align: {{field.alignment}};{{cellstyle(footer.get(field.name), field)}}"><p>{{fmt(footer.get(field.name), field.format_mask, field=field)}}</p></td>
                 {% endfor %}
             </tr>
         </tfoot>
         {% endif %}
     </table>
+    {% endif %}
 {% endmacro %}
 {% macro render_details(details, layouts, zip, fmt, cellstyle) %}
     {% for key, table in details.items() %}
         {% if key in layouts %}
-            {{render_detail(table.rows, table.footer, layouts[key], zip, fmt, cellstyle)}}
+            {{render_detail(table.rows, table.footer, layouts[key], zip, fmt, cellstyle, table.get('empty_text', ''))}}
         {% endif %}
     {% endfor %}
 {% endmacro %}
@@ -83,14 +87,14 @@
 {% macro render_kpi(items, fmt) %}
     <section class="summary">
         {% for item in items %}
-            {{render_section_content(item['label'], fmt(item.get('value'), item.get('format_mask', 'str')))}}
+            {{render_section_content(item['label'], fmt(item.get('value'), item.get('format_mask', 'str'), field=item))}}
         {% endfor %}
     </section>
 {% endmacro %}
 {% macro render_summary(rows, layout, zip, fmt, cellstyle) %}
     <section class="summary">
         {% for field in layout %}
-            {{render_section_content(field.label, fmt(rows[field.name], field.format_mask), cellstyle(rows[field.name], field))}}
+            {{render_section_content(field.label, fmt(rows[field.name], field.format_mask, field=field), cellstyle(rows[field.name], field))}}
         {% endfor %}
     </section>
 {% endmacro %}

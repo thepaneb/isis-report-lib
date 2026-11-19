@@ -7,6 +7,7 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 
 ## [Unreleased]
 ### Added
+- Explicit missing data: field `missing_text` (display text for `None`) and `substitutions` (`{raw: display}` map applied before formatting) in HTML, XLSX and CSV; `empty_text` on flat detail lists, `table` sections and `meta` (whole report) renders a message instead of an empty table (note row/line in XLSX/CSV)
 - Perf gate: `bench/bench_budgets.json` smoke budgets + `bench.py --check`, enforced as a CI step in the `e2e` job
 - Email-safe inline HTML: `inline_css=True` now resolves CSS variables to literal values (Outlook ignores `var()`), sets `<html lang>` from `meta.locale` and declares `color-scheme: light`
 - Compound rule conditions: several comparison operators in one rule combine with AND (`{"gte": 10, "lt": 20}`); new `between` (`[lo, hi]`, inclusive) and `contains` (substring) operators for `cell_rules`, `$print_when` and `visible_when`; `in`/`not_in` against a non-container is a no-match instead of `TypeError`

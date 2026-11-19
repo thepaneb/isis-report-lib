@@ -51,7 +51,10 @@ def _prepare_sections(sections: list[dict[str, Any]], meta: dict[str, Any]) -> t
         stype = section.get("type", "table")
         if stype == "table":
             dataset, layout = build_report(section.get("data", []), section.get("layout", {}))
-            built.append({"type": "table", "title": section.get("title"), "dataset": dataset, "layout": layout})
+            entry: dict[str, Any] = {"type": "table", "title": section.get("title"), "dataset": dataset, "layout": layout}
+            if isinstance(section.get("empty_text"), str) and section["empty_text"]:
+                entry["empty_text"] = section["empty_text"]
+            built.append(entry)
         elif stype == "text":
             paragraphs = section.get("paragraphs", [section["body"]] if "body" in section else [])
             if not isinstance(paragraphs, list) or not all(isinstance(p, str) for p in paragraphs):

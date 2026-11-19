@@ -23,7 +23,7 @@ from isis_report_lib.api import (
     render_html_from_toon,
 )
 from isis_report_lib.export import collect_tables
-from isis_report_lib.formatting import cell_style, cell_style_dict, format_value, formatter_for, match_rule
+from isis_report_lib.formatting import cell_style, cell_style_dict, field_text, format_value, formatter_for, match_rule
 from isis_report_lib.inputs import from_csv, from_dataframe, from_json, payload_schema
 from isis_report_lib.layout import (
     build_report,
@@ -50,6 +50,7 @@ __all__ = [
     "parse_toon",
     "format_value",
     "formatter_for",
+    "field_text",
     "match_rule",
     "cell_style",
     "cell_style_dict",

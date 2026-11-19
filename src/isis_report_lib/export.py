@@ -15,12 +15,17 @@ from typing import Any
 
 @dataclass
 class Column:
-    """A column: ``key`` reads values, ``label`` is the header, ``mask`` formats."""
+    """A column: ``key`` reads values, ``label`` is the header, ``mask`` formats.
+
+    ``field`` is the normalized layout field dict (carries ``cell_rules``,
+    ``missing_text`` and ``substitutions`` for faithful display).
+    """
 
     key: str
     label: str
     mask: str = "str"
     rules: list[dict[str, Any]] = field(default_factory=list)
+    field: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -28,13 +33,15 @@ class Table:
     """One flat table with shared ``columns`` and raw ``rows`` (dicts).
 
     Footer (total) rows are appended to ``rows``; their indices are tracked in
-    ``total_rows`` so renderers can style them (bold, top border).
+    ``total_rows`` so renderers can style them (bold, top border). ``note``
+    carries the ``empty_text`` message for tables with no rows.
     """
 
     key: str
     columns: list[Column] = field(default_factory=list)
     rows: list[dict[str, Any]] = field(default_factory=list)
     total_rows: set[int] = field(default_factory=set)
+    note: str = ""
 
 
 def collect_tables(dataset: dict[str, Any], layout: dict[str, Any]) -> tuple[list[Table], list[tuple[str, Any, str]]]:
@@ -68,6 +75,7 @@ def _collect(dataset: dict[str, Any], layout: dict[str, Any], default_name: str)
                         label=f["label"],
                         mask=f.get("format_mask", "str"),
                         rules=list(f.get("cell_rules", []) or []),
+                        field=f,
                     ),
                     fields.get(f["name"]),
                 )
@@ -78,10 +86,12 @@ def _collect(dataset: dict[str, Any], layout: dict[str, Any], default_name: str)
             for tkey, tlayout in layouts.items():
                 table = details.get(tkey, {})
                 rows = [r for r in table.get("rows", []) if isinstance(r, dict)]
-                if not rows and not table.get("footer"):
+                if not rows and not table.get("footer") and not table.get("empty_text"):
                     continue
                 columns = _merge_columns([c for c, _ in ctx], tlayout)
                 sheet = table_for(tkey, columns)
+                if table.get("empty_text"):
+                    sheet.note = table["empty_text"]
                 base = {c.key: v for c, v in ctx}
                 for row in rows:
                     values = dict.fromkeys([c.key for c in columns])
@@ -155,7 +165,13 @@ def _collect(dataset: dict[str, Any], layout: dict[str, Any], default_name: str)
     if not by_key and top:
         header = layout.get("groups", {}).get("header", [])
         columns = [
-            Column(key=f["name"], label=f["label"], mask=f.get("format_mask", "str"), rules=list(f.get("cell_rules", []) or []))
+            Column(
+                key=f["name"],
+                label=f["label"],
+                mask=f.get("format_mask", "str"),
+                rules=list(f.get("cell_rules", []) or []),
+                field=f,
+            )
             for f in header
         ]
         if columns:
@@ -179,6 +195,7 @@ def _merge_columns(ctx_cols: list[Column], table_fields: list[dict[str, Any]]) -
                     label=f["label"],
                     mask=f.get("format_mask", "str"),
                     rules=list(f.get("cell_rules", []) or []),
+                    field=f,
                 )
             )
             seen.add(f["name"])
@@ -269,11 +286,12 @@ def build_workbook(
         sheet.title = _sheet_name(name, used)
         return sheet
 
-    from isis_report_lib.formatting import cell_style_dict
+    from isis_report_lib.formatting import cell_style_dict, field_text
 
     header_font = Font(bold=True, color="FFFFFF")
     header_fill = PatternFill("solid", fgColor="0A2F46")
     bold = Font(bold=True)
+    note_font = Font(italic=True, color="6B7280")
     thin_top = Border(top=Side(style="thin"))
     wrap = Alignment(vertical="center", wrap_text=False)
 
@@ -320,12 +338,19 @@ def build_workbook(
             ws.print_title_rows = f"{header_row}:{header_row}"
             ws.freeze_panes = ws.cell(row=header_row + 1, column=1).coordinate
             ws.auto_filter.ref = f"{first_col}{header_row}:{last_col}{header_row}"
+        if not table.rows and table.note:
+            row_idx += 1
+            cell = ws.cell(row=row_idx, column=1, value=table.note)
+            cell.font = note_font
+            if widths:
+                widths[0] = max(widths[0], len(table.note))
         for pos, record in enumerate(table.rows):
             row_idx += 1
             is_total = pos in table.total_rows
             for col, column in enumerate(table.columns, start=1):
                 raw = record.get(column.key)
-                value = None if raw is None else _native_value(raw, column.mask)
+                mapped = field_text(raw, column.field)
+                value = mapped if mapped is not None else (None if raw is None else _native_value(raw, column.mask))
                 cell = ws.cell(row=row_idx, column=col, value=value)
                 if is_total:
                     cell.font = bold
@@ -412,8 +437,10 @@ def render_csv(
     for table in tables:
         writer.writerow([f"# table: {table.key}"])
         writer.writerow([c.label for c in table.columns])
+        if not table.rows and table.note:
+            writer.writerow([f"# {table.note}"])
         for row in table.rows:
-            writer.writerow([fmt(row.get(c.key), c.mask) for c in table.columns])
+            writer.writerow([fmt(row.get(c.key), c.mask, field=c.field) for c in table.columns])
     if summaries:
         writer.writerow(["# summary"])
         writer.writerow(["Item", "Value"])

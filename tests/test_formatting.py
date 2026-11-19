@@ -136,6 +136,31 @@ def test_unknown_mask():
     assert format_value("hello", "unknown") == "hello"
 
 
+def test_field_text_missing_and_substitutions():
+    from isis_report_lib.formatting import field_text, format_value
+
+    assert field_text(None, None) is None
+    assert field_text(1, None) is None
+    assert field_text(None, {}) is None
+    assert field_text(None, {"missing_text": "n/a"}) == "n/a"
+    assert field_text(None, {"missing_text": None}) == ""
+    assert field_text(None, {"substitutions": {None: "void"}, "missing_text": "n/a"}) == "void"
+    assert field_text("A", {"substitutions": {"A": "Active"}}) == "Active"
+    assert field_text(1, {"substitutions": {"1": "one"}}) == "one"  # str() fallback
+    assert field_text("B", {"substitutions": {"A": "Active"}}) is None
+    assert field_text("A", {"substitutions": {"A": "Active"}, "missing_text": "n/a"}) == "Active"
+    assert format_value(None, "int", field={"missing_text": "-"}) == "-"
+    assert format_value("A", "str", field={"substitutions": {"A": "Active"}}) == "Active"
+    assert format_value(5, "int", field={"substitutions": {"9": "nine"}}) == "5"
+    assert format_value(5, "int") == "5"
+    import pytest
+
+    with pytest.raises(ValueError, match="Invalid substitutions"):
+        field_text("A", {"substitutions": ["A"]})
+    with pytest.raises(ValueError, match="Invalid substitutions"):
+        format_value("A", "str", field={"substitutions": "A"})
+
+
 def test_match_rule_compound_and():
     from isis_report_lib.formatting import match_rule
 
