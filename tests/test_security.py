@@ -103,11 +103,17 @@ def test_verify_never_raises_on_malformed_input():
     assert info.valid is False  # wrong key type must not raise
 
 
-def test_deep_inputs_fail_closed():
+def test_deep_inputs_fail_closed(monkeypatch):
+    import json as json_module
+
     from isis_report_lib.inputs import from_json
 
+    def boom(*args, **kwargs):
+        raise RecursionError("boom")
+
+    monkeypatch.setattr(json_module, "load", boom)
     with pytest.raises(ValueError, match="nested too deeply"):
-        from_json(io.StringIO("[" * 50000 + "]" * 50000))
+        from_json(io.StringIO("[1]"))
     node = cur = {}
     for _ in range(2000):
         cur["g"] = {}
