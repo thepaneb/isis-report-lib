@@ -4,6 +4,10 @@ Python library (`src/isis_report_lib`) for tabular PDF reports with hierarchical
 layouts. Extracted from the `isis_report` PoC (Robyn microservice); there is **no
 server** here — only the library + tests + examples.
 
+Binding architecture/engineering/security/design standards live in
+[`docs/STANDARDS.md`](docs/STANDARDS.md) — read it before changing pipeline,
+rendering, export, signing, or trust boundaries.
+
 ## Golden Rules
 1. **Dual API:** every new public feature needs an `async def a...` version and
    a sync wrapper in `src/isis_report_lib/api.py` (via `_run`, which handles a
