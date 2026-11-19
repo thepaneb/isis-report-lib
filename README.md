@@ -165,9 +165,12 @@ payload = {
         {"type": "table", "title": "Sales", "layout": {...}, "data": [...]},
         {"type": "kpi", "title": "Totals", "items": [{"label": "Orders", "value": 42, "format_mask": "int"}]},
         {"type": "chart", "title": "Trend", "chart": {"kind": "bar", "labels": ["Jan", "Feb"], "values": [10, 20]}},
+        {"type": "crosstab", "title": "Sales by region × quarter",
+         "data": [...], "rows": "region", "columns": "quarter",
+         "measure": "total", "function": "sum"},   # buckets × measure, totals included
     ],
 }
-generate_pdf(payload)   # HTML sections.jinja; XLSX/CSV flatten each table/text/kpi/chart section
+generate_pdf(payload)   # HTML sections.jinja; XLSX/CSV flatten each table/text/kpi/chart/crosstab section
 ```
 
 A running balance column is just a field with `"running_balance": "<source field>"` — cumulative sums are computed in row order (e.g. bank statements).
