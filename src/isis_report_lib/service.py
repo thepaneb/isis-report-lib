@@ -14,16 +14,36 @@ def with_meta_defaults(meta: dict[str, Any]) -> dict[str, Any]:
     meta = dict(meta)
     if not meta.get("printed_at"):
         meta["printed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+    if "source_note" in meta and (not isinstance(meta["source_note"], str) or not meta["source_note"]):
+        raise ValueError(f"Invalid meta.source_note (must be a non-empty string): {meta['source_note']!r}")
     return meta
 
 
 def prepare_report(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     """Build (dataset, layout, meta) from a normalized payload dict (shared by all outputs)."""
-    from isis_report_lib.layout import build_report, infer_layout, is_template_format, template_header_layout
+    from isis_report_lib.layout import (
+        assign_report_footnotes,
+        build_report,
+        collect_footnotes,
+        infer_layout,
+        is_template_format,
+        template_header_layout,
+    )
 
     meta = with_meta_defaults(payload.get("meta", {}) or {})
     if "sections" in payload:
-        return _prepare_sections(payload.get("sections", []) or [], meta)
+        dataset, layout, _meta = _prepare_sections(payload.get("sections", []) or [], meta)
+        assign_report_footnotes(layout, dataset.get("sections", []))
+        for section in dataset.get("sections", []):
+            stype = section.get("type", "table")
+            if stype == "table":
+                section["footnotes"] = collect_footnotes(section.get("layout", {}))
+            elif stype == "crosstab":
+                ct = section.get("crosstab")
+                section["footnotes"] = _crosstab_footnotes(ct) if ct is not None else []
+            elif stype == "kpi":
+                section["footnotes"] = _item_footnotes(section.get("items", []))
+        return dataset, layout, meta
     data = payload.get("data", [])
     layout_raw = payload.get("layout")
     if layout_raw:
@@ -37,7 +57,43 @@ def prepare_report(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str, A
             "groups": [{"fields": r} if isinstance(r, dict) else {"fields": {"value": r}} for r in data],
             "summary": None,
         }
+    assign_report_footnotes(layout)
+    layout["footnotes"] = collect_footnotes(layout)
     return dataset, layout, meta
+
+
+def _crosstab_footnotes(ct: Any) -> list[tuple[str, str]]:
+    """Collect (mark, text) from crosstab row/column/measure defs in order."""
+    found: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for part in (getattr(ct, "row_field", {}), getattr(ct, "col_field", {}), getattr(ct, "measure_field", {})):
+        note = part.get("footnote") if isinstance(part, dict) else None
+        if isinstance(note, dict) and note.get("mark") and note.get("mark") not in seen:
+            seen.add(note["mark"])
+            found.append((note["mark"], note.get("text", "")))
+    return found
+
+
+def _item_footnotes(items: list[dict[str, Any]]) -> list[tuple[str, str]]:
+    """Collect (mark, text) from KPI items in order."""
+    found: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for item in items or []:
+        note = item.get("footnote") if isinstance(item, dict) else None
+        if isinstance(note, dict) and note.get("mark") and note.get("mark") not in seen:
+            seen.add(note["mark"])
+            found.append((note["mark"], note.get("text", "")))
+    return found
+
+
+def _section_source(section: dict[str, Any]) -> str:
+    """Validate and return a section's ``source`` note ("" when absent)."""
+    source = section.get("source", "")
+    if source is None or source == "":
+        return ""
+    if not isinstance(source, str):
+        raise ValueError(f"Invalid section source (must be a string): {source!r}")
+    return source
 
 
 def _prepare_sections(sections: list[dict[str, Any]], meta: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
@@ -61,12 +117,19 @@ def _prepare_sections(sections: list[dict[str, Any]], meta: dict[str, Any]) -> t
                 raise ValueError(f"Invalid text section (need paragraphs: [...]): {section!r}")
             built.append({"type": "text", "title": section.get("title"), "paragraphs": paragraphs})
         elif stype == "kpi":
-            items = section.get("items", [])
-            if not isinstance(items, list):
+            from isis_report_lib.formatting import normalize_footnote
+
+            raw_items = section.get("items", [])
+            if not isinstance(raw_items, list):
                 raise ValueError(f"Invalid kpi section (need items: [...]): {section!r}")
-            for item in items:
-                if not isinstance(item, dict) or "label" not in item:
-                    raise ValueError(f"Invalid kpi item (need at least a label): {item!r}")
+            items = []
+            for raw in raw_items:
+                if not isinstance(raw, dict) or "label" not in raw:
+                    raise ValueError(f"Invalid kpi item (need at least a label): {raw!r}")
+                item = dict(raw)
+                if "footnote" in item:
+                    item["footnote"] = normalize_footnote(item["footnote"], f"kpi item {raw.get('label')!r}")
+                items.append(item)
             built.append({"type": "kpi", "title": section.get("title"), "items": items})
         elif stype == "chart":
             from isis_report_lib.charts import build_chart
@@ -89,6 +152,12 @@ def _prepare_sections(sections: list[dict[str, Any]], meta: dict[str, Any]) -> t
             built.append({"type": "crosstab", "title": section.get("title"), "crosstab": ct})
         else:
             raise ValueError(f"Unknown section type: {stype!r} (expected table|text|kpi|chart|crosstab)")
+    for entry, section in zip(built, sections, strict=True):
+        if not isinstance(section, dict):
+            continue
+        source = _section_source(section)
+        if source:
+            entry["source"] = source
     return {"sections": built}, {"groups": {"header": []}}, meta
 
 

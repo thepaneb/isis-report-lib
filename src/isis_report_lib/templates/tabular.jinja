@@ -12,4 +12,14 @@
     {% if dataset.summary and layout.summary %}
         {{render_summary(dataset.summary, layout.summary, zip, fmt, cellstyle)}}
     {% endif %}
+    {% if layout.footnotes %}
+        <ol class="footnotes">
+            {% for mark, text in layout.footnotes %}
+                <li><sup>{{mark}}</sup> {{text}}</li>
+            {% endfor %}
+        </ol>
+    {% endif %}
+    {% if meta.source_note %}
+        <p class="source-note">{{meta.source_note}}</p>
+    {% endif %}
 {% endblock %}

@@ -136,6 +136,46 @@ def test_unknown_mask():
     assert format_value("hello", "unknown") == "hello"
 
 
+def test_normalize_footnote():
+    import pytest
+
+    from isis_report_lib.formatting import normalize_footnote
+
+    assert normalize_footnote("Audited.", "f") == {"mark": None, "text": "Audited."}
+    assert normalize_footnote({"text": "T", "mark": "†"}, "f") == {"mark": "†", "text": "T"}
+    assert normalize_footnote({"text": "T"}, "f") == {"mark": None, "text": "T"}
+    with pytest.raises(ValueError, match="Invalid empty footnote"):
+        normalize_footnote("", "f")
+    with pytest.raises(ValueError, match="Invalid footnote text"):
+        normalize_footnote({"mark": "*"}, "f")
+    with pytest.raises(ValueError, match="Invalid footnote mark"):
+        normalize_footnote({"text": "T", "mark": ""}, "f")
+    with pytest.raises(ValueError, match="Invalid footnote keys"):
+        normalize_footnote({"text": "T", "bogus": 1}, "f")
+    with pytest.raises(ValueError, match="Invalid footnote for"):
+        normalize_footnote(5, "f")
+
+
+def test_assign_footnote_marks_sequence_and_reuse():
+    import pytest
+
+    from isis_report_lib.formatting import assign_footnote_marks
+
+    fields = [
+        {"name": "a", "footnote": {"mark": None, "text": "First"}},
+        {"name": "b", "footnote": {"mark": None, "text": "Second"}},
+        {"name": "c", "footnote": {"mark": None, "text": "First"}},
+        {"name": "d", "footnote": {"mark": "‡", "text": "Pinned"}},
+    ]
+    assign_footnote_marks(fields)
+    marks = [f["footnote"]["mark"] for f in fields]
+    assert marks == ["*", "†", "*", "‡"]
+    with pytest.raises(ValueError, match="Duplicate footnote mark"):
+        assign_footnote_marks([{"footnote": {"mark": "†", "text": "Other"}}], {"used": {"†"}, "by_text": {}, "auto": 0})
+    with pytest.raises(ValueError, match="Conflicting footnote marks"):
+        assign_footnote_marks([{"footnote": {"mark": "‡", "text": "First"}}], {"used": set(), "by_text": {"First": "*"}, "auto": 2})
+
+
 def test_field_text_missing_and_substitutions():
     from isis_report_lib.formatting import field_text, format_value
 

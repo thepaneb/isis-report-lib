@@ -34,7 +34,8 @@ class Table:
 
     Footer (total) rows are appended to ``rows``; their indices are tracked in
     ``total_rows`` so renderers can style them (bold, top border). ``note``
-    carries the ``empty_text`` message for tables with no rows.
+    carries the ``empty_text`` message for tables with no rows; ``notes``
+    carries ``(ref, text)`` footnotes plus ``("source", text)`` section notes.
     """
 
     key: str
@@ -42,6 +43,7 @@ class Table:
     rows: list[dict[str, Any]] = field(default_factory=list)
     total_rows: set[int] = field(default_factory=set)
     note: str = ""
+    notes: list[tuple[str, str]] = field(default_factory=list)
 
 
 def collect_tables(
@@ -96,6 +98,7 @@ def _collect(
                 sheet = table_for(tkey, columns)
                 if table.get("empty_text"):
                     sheet.note = table["empty_text"]
+                _attach_notes(sheet, _notes_from_columns(columns))
                 base = {c.key: v for c, v in ctx}
                 for row in rows:
                     values = dict.fromkeys([c.key for c in columns])
@@ -138,36 +141,44 @@ def _collect(
                 while suffix in by_key:
                     suffix, n = f"{key}_{n}", n + 1
                 table.key = suffix
+                _attach_notes(table, _section_notes(section))
                 by_key[suffix] = table
             for label, value, mask in sub_summaries:
                 summaries.append((f"{title} / {label}" if title else label, value, mask))
         elif stype == "text":
             paragraphs = [p for p in section.get("paragraphs", []) if isinstance(p, str)]
             if paragraphs:
-                by_key[section.get("title") or f"notes_{len(by_key)}"] = Table(
+                table = Table(
                     key=section.get("title") or "notes",
                     columns=[Column(key="text", label="Text")],
                     rows=[{"text": p} for p in paragraphs],
                 )
+                _attach_notes(table, _section_notes(section))
+                by_key[section.get("title") or f"notes_{len(by_key)}"] = table
         elif stype == "kpi":
             rows = [{"label": i.get("label"), "value": i.get("value")} for i in section.get("items", []) if isinstance(i, dict)]
             if rows:
-                by_key[section.get("title") or "kpi"] = Table(
+                table = Table(
                     key=section.get("title") or "kpi",
                     columns=[Column(key="label", label="Label"), Column(key="value", label="Value")],
                     rows=rows,
                 )
+                _attach_notes(table, _notes_from_field_dicts(section.get("items", [])))
+                _attach_notes(table, _section_notes(section))
+                by_key[section.get("title") or "kpi"] = table
         elif stype == "chart":
             spec = section.get("chart", {}) if isinstance(section.get("chart"), dict) else {}
             labels = [str(label) for label in spec.get("labels", [])]
             rows = [{"label": lb, "value": v} for lb, v in zip(labels, spec.get("values", []), strict=True)]
             if rows:
                 key = section.get("title") or spec.get("title") or "chart"
-                by_key[key] = Table(
+                table = Table(
                     key=key,
                     columns=[Column(key="label", label="Label"), Column(key="value", label="Value")],
                     rows=rows,
                 )
+                _attach_notes(table, _section_notes(section))
+                by_key[key] = table
         elif stype == "crosstab":
             from isis_report_lib.crosstab import build_crosstab, crosstab_table
 
@@ -182,6 +193,8 @@ def _collect(
                 while suffix in by_key:
                     suffix, n = f"{key}_{n}", n + 1
                 table.key = suffix
+                _attach_notes(table, _notes_from_columns(table.columns))
+                _attach_notes(table, _section_notes(section))
                 by_key[suffix] = table
     if not by_key and top:
         header = layout.get("groups", {}).get("header", [])
@@ -197,6 +210,7 @@ def _collect(
         ]
         if columns:
             sheet = table_for(default_name, columns)
+            _attach_notes(sheet, _notes_from_columns(columns))
             for item in top:
                 if isinstance(item, dict):
                     fields = item.get("fields", {}) or {}
@@ -221,6 +235,54 @@ def _merge_columns(ctx_cols: list[Column], table_fields: list[dict[str, Any]]) -
             )
             seen.add(f["name"])
     return cols
+
+
+def _column_mark(column: Column) -> str:
+    """Footnote mark for a column ("" when the field has none)."""
+    note = column.field.get("footnote") if isinstance(column.field, dict) else None
+    if isinstance(note, dict) and note.get("mark"):
+        return str(note["mark"])
+    return ""
+
+
+def _notes_from_columns(columns: list[Column]) -> list[tuple[str, str]]:
+    """Ordered unique ``(mark, text)`` footnotes for a column list."""
+    return _notes_from_field_dicts([c.field for c in columns])
+
+
+def _notes_from_field_dicts(fields: list[Any]) -> list[tuple[str, str]]:
+    """Ordered unique ``(mark, text)`` footnotes for normalized field/item dicts."""
+    notes: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for f in fields or []:
+        note = f.get("footnote") if isinstance(f, dict) else None
+        if isinstance(note, dict) and note.get("mark") and note.get("mark") not in seen:
+            seen.add(str(note["mark"]))
+            notes.append((str(note["mark"]), str(note.get("text", ""))))
+    return notes
+
+
+def _section_notes(section: dict[str, Any]) -> list[tuple[str, str]]:
+    """A section's ``source`` note as a ``("source", text)`` entry (or nothing)."""
+    source = section.get("source", "")
+    if isinstance(source, str) and source:
+        return [("source", source)]
+    return []
+
+
+def _attach_notes(table: Table, notes: list[tuple[str, str]]) -> None:
+    """Append note entries a table does not already reference."""
+    known = {ref for ref, _text in table.notes}
+    for ref, text in notes:
+        if ref not in known:
+            known.add(ref)
+            table.notes.append((ref, text))
+
+
+def _column_label(column: Column) -> str:
+    """Header label with footnote mark suffix ("" when none)."""
+    mark = _column_mark(column)
+    return f"{column.label} [{mark}]" if mark else column.label
 
 
 def _require_openpyxl():
@@ -350,11 +412,12 @@ def build_workbook(
             row_idx += 1
         header_row = row_idx
         for col, column in enumerate(table.columns, start=1):
-            cell = ws.cell(row=row_idx, column=col, value=column.label)
+            header_label = _column_label(column)
+            cell = ws.cell(row=row_idx, column=col, value=header_label)
             cell.font = header_font
             cell.fill = header_fill
             cell.alignment = wrap
-            widths.append(len(column.label))
+            widths.append(len(header_label))
         # Print polish: repeat the header on every printed page, freeze below
         # it and offer column filters.
         if table.columns:
@@ -413,6 +476,32 @@ def build_workbook(
         ws.column_dimensions["A"].width = min(widths[0] + 2, 60)
         ws.column_dimensions["B"].width = min(widths[1] + 2, 30)
 
+    note_rows: list[tuple[str, str, str]] = []
+    if meta.get("source_note"):
+        note_rows.append(("", "source", meta["source_note"]))
+    for table in tables:
+        for ref, text in table.notes:
+            note_rows.append((table.key, ref, text))
+    if note_rows:
+        ws = new_sheet("Notes")
+        ws.cell(row=1, column=1, value="Table").font = header_font
+        ws.cell(row=1, column=1).fill = header_fill
+        ws.cell(row=1, column=2, value="Ref").font = header_font
+        ws.cell(row=1, column=2).fill = header_fill
+        ws.cell(row=1, column=3, value="Note").font = header_font
+        ws.cell(row=1, column=3).fill = header_fill
+        widths = [5, 3, 4]
+        for row_idx, (table_key, ref, text) in enumerate(note_rows, start=2):
+            ws.cell(row=row_idx, column=1, value=table_key)
+            ws.cell(row=row_idx, column=2, value=ref)
+            ws.cell(row=row_idx, column=3, value=text)
+            widths[0] = max(widths[0], len(table_key))
+            widths[1] = max(widths[1], len(ref))
+            widths[2] = max(widths[2], len(text))
+        ws.column_dimensions["A"].width = min(widths[0] + 2, 40)
+        ws.column_dimensions["B"].width = min(widths[1] + 2, 12)
+        ws.column_dimensions["C"].width = min(widths[2] + 2, 80)
+
     return _workbook_bytes(wb)
 
 
@@ -459,9 +548,11 @@ def render_csv(
     writer = csv_module.writer(out, delimiter=delimiter, lineterminator="\n")
     if meta.get("title"):
         writer.writerow([f"# {meta['title']}"])
+    if meta.get("source_note"):
+        writer.writerow([f"# [source] {meta['source_note']}"])
     for table in tables:
         writer.writerow([f"# table: {table.key}"])
-        writer.writerow([c.label for c in table.columns])
+        writer.writerow([_column_label(c) for c in table.columns])
         if not table.rows and table.note:
             writer.writerow([f"# {table.note}"])
         for row in table.rows:
@@ -471,6 +562,8 @@ def render_csv(
                     for c in table.columns
                 ]
             )
+        for ref, text in table.notes:
+            writer.writerow([f"# [{ref}] {text}"])
     if summaries:
         writer.writerow(["# summary"])
         writer.writerow(["Item", "Value"])

@@ -50,6 +50,10 @@ def _field_def(spec: Any, kind: str) -> dict[str, Any]:
         for key in ("format_mask", "alignment", "missing_text", "substitutions", "cell_rules"):
             if key in spec:
                 out[key] = spec[key]
+        if "footnote" in spec:
+            from isis_report_lib.formatting import normalize_footnote
+
+            out["footnote"] = normalize_footnote(spec["footnote"], f"crosstab {kind} {spec['field']!r}")
         return out
     raise ValueError(f"Invalid crosstab {kind} (need a field name or {{field, ...}}): {spec!r}")
 

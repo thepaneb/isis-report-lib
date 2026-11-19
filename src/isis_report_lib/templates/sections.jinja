@@ -25,6 +25,16 @@
         {% elif section.type == "chart" %}
             <div class="chart">{{section.svg}}</div>
         {% endif %}
+        {% if section.footnotes %}
+            <ol class="footnotes">
+                {% for mark, text in section.footnotes %}
+                    <li><sup>{{mark}}</sup> {{text}}</li>
+                {% endfor %}
+            </ol>
+        {% endif %}
+        {% if section.source %}
+            <p class="source-note">{{section.source}}</p>
+        {% endif %}
         {% if not loop.last %}{{render_divider()}}{% endif %}
     {% endfor %}
 {% endblock %}

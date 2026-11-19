@@ -1,13 +1,13 @@
-{% macro render_section_content(label, span, style="") %}
+{% macro render_section_content(label, span, style="", mark="") %}
     <section class="content">
-        <label>{{label}}</label>
+        <label>{{label}}{% if mark %}<sup>{{mark}}</sup>{% endif %}</label>
         <span{% if style %} style="{{style}}"{% endif %}>{{span}}</span>
     </section>
 {% endmacro %}
 {% macro render_section(section_class, rows, layout, zip, fmt, cellstyle) %}
     <section class="{{section_class}}">
         {% for data, field in zip(rows.items(), layout) %}
-            {{render_section_content(field.label, fmt(rows[field.name], field.format_mask, field=field), cellstyle(rows[field.name], field))}}
+            {{render_section_content(field.label, fmt(rows[field.name], field.format_mask, field=field), cellstyle(rows[field.name], field), mark=field.get('footnote_mark', ''))}}
         {% endfor %}
     </section>
 {% endmacro %}
@@ -25,7 +25,7 @@
         <thead>
             <tr>
                 {% for field in layout %}
-                    <th style="text-align: {{field.alignment}}">{{field.label}}</th>
+                    <th style="text-align: {{field.alignment}}">{{field.label}}{% if field.footnote_mark %}<sup>{{field.footnote_mark}}</sup>{% endif %}</th>
                 {% endfor %}
             </tr>
         </thead>
@@ -87,14 +87,14 @@
 {% macro render_kpi(items, fmt) %}
     <section class="summary">
         {% for item in items %}
-            {{render_section_content(item['label'], fmt(item.get('value'), item.get('format_mask', 'str'), field=item))}}
+            {{render_section_content(item['label'], fmt(item.get('value'), item.get('format_mask', 'str'), field=item), mark=item.get('footnote_mark', ''))}}
         {% endfor %}
     </section>
 {% endmacro %}
 {% macro render_summary(rows, layout, zip, fmt, cellstyle) %}
     <section class="summary">
         {% for field in layout %}
-            {{render_section_content(field.label, fmt(rows[field.name], field.format_mask, field=field), cellstyle(rows[field.name], field))}}
+            {{render_section_content(field.label, fmt(rows[field.name], field.format_mask, field=field), cellstyle(rows[field.name], field), mark=field.get('footnote_mark', ''))}}
         {% endfor %}
     </section>
 {% endmacro %}
@@ -103,12 +103,12 @@
     <table class="report">
         <thead>
             <tr>
-                <th style="text-align: left">{{ct.row_label}}</th>
+                <th style="text-align: left">{{ct.row_label}}{% if ct.row_field.footnote_mark %}<sup>{{ct.row_field.footnote_mark}}</sup>{% endif %}</th>
                 {% for header in ct.col_headers %}
-                    <th style="text-align: right">{{fmt(header, ct.col_field.get('format_mask', 'str'), field=ct.col_field)}}</th>
+                    <th style="text-align: right">{{fmt(header, ct.col_field.get('format_mask', 'str'), field=ct.col_field)}}{% if ct.col_field.footnote_mark %}<sup>{{ct.col_field.footnote_mark}}</sup>{% endif %}</th>
                 {% endfor %}
                 {% if ct.totals %}
-                    <th style="text-align: right">{{ct.total_label}}</th>
+                    <th style="text-align: right">{{ct.total_label}}{% if ct.measure_field.footnote_mark %}<sup>{{ct.measure_field.footnote_mark}}</sup>{% endif %}</th>
                 {% endif %}
             </tr>
         </thead>

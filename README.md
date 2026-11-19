@@ -254,6 +254,8 @@ payload = {
 | `cell_rules` | field def | `[{operator(s), color\|background\|bold\|italic}]` → conditional cell style in HTML and XLSX; first matching rule wins, several operators combine with AND, operator-less rule is a catch-all default (e.g. `{"gte": 1000, "lt": 5000, "color": "#C00000"}`) |
 | `missing_text` / `substitutions` | field def | `missing_text` text shown for `None` (default: blank); `substitutions` `{raw: display}` map applied before formatting (`str(value)` fallback, `None` falls back to `missing_text`) — in HTML, XLSX and CSV |
 | `empty_text` | flat detail list / `table` section / `meta` | message rendered instead of an empty table (`meta.empty_text` covers the whole report); exported as a note row/line in XLSX/CSV |
+| `footnote` | field def | `"text"` or `{"mark", "text"}` → superscript mark on the column label, notes listed per report/section (auto marks `*†‡§‖¶` then numbers); XLSX `Notes` sheet, CSV `# [mark]` lines |
+| `source_note` / `source` | `meta` / any section | provenance line under the report/section (`# [source]` in CSV, `Notes` sheet in XLSX) |
 
 ## `.toon` syntax
 

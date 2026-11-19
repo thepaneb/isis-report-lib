@@ -158,6 +158,69 @@ CONDITION_OPS = (
 
 STYLE_KEYS = ("color", "background", "bold", "italic")
 
+FOOTNOTE_MARKS = ("*", "†", "‡", "§", "‖", "¶")
+
+
+def normalize_footnote(spec: Any, where: str) -> dict[str, Any]:
+    """Normalize a footnote to ``{"mark": str | None, "text": str}``.
+
+    Shorthand: a plain string is the note text (mark auto-assigned later).
+    Explicit form: ``{"text": ..., "mark": ...}`` (mark optional). Marks are
+    validated and auto-assigned by :func:`assign_footnote_marks`.
+    """
+    if isinstance(spec, str):
+        if not spec:
+            raise ValueError(f"Invalid empty footnote for {where}")
+        return {"mark": None, "text": spec}
+    if isinstance(spec, dict):
+        unknown = [k for k in spec if k not in ("mark", "text")]
+        if unknown:
+            raise ValueError(f"Invalid footnote keys {unknown!r} for {where}")
+        text = spec.get("text")
+        if not isinstance(text, str) or not text:
+            raise ValueError(f"Invalid footnote text for {where}: {spec!r}")
+        mark = spec.get("mark")
+        if mark is not None and (not isinstance(mark, str) or not mark):
+            raise ValueError(f"Invalid footnote mark for {where}: {spec!r}")
+        return {"mark": mark, "text": text}
+    raise ValueError(f"Invalid footnote for {where} (need text or {{mark, text}}): {spec!r}")
+
+
+def assign_footnote_marks(fields: list[dict[str, Any]], state: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Fill auto marks (``*†‡§‖¶`` then numbers) in a normalized field list.
+
+    ``state`` carries ``{"used": set, "by_text": dict, "auto": int}`` across
+    calls so numbering is deterministic in render order. Same text reuses its
+    mark; an explicit mark colliding with another text raises ``ValueError``.
+    """
+    if state is None:
+        state = {"used": set(), "by_text": {}, "auto": 0}
+    for f in fields:
+        note = f.get("footnote") if isinstance(f, dict) else None
+        if not isinstance(note, dict):
+            continue
+        mark, text = note.get("mark"), note.get("text")
+        if text in state["by_text"]:
+            mark = state["by_text"][text]
+            if note.get("mark") is not None and note["mark"] != mark:
+                raise ValueError(f"Conflicting footnote marks for the same note: {text!r}")
+        else:
+            if mark is None:
+                while True:
+                    n = state["auto"]
+                    candidate = FOOTNOTE_MARKS[n] if n < len(FOOTNOTE_MARKS) else str(n - len(FOOTNOTE_MARKS) + 1)
+                    state["auto"] += 1
+                    if candidate not in state["used"]:
+                        mark = candidate
+                        break
+            elif mark in state["used"]:
+                raise ValueError(f"Duplicate footnote mark {mark!r} for different notes")
+            state["by_text"][text] = mark
+        note["mark"] = mark
+        state["used"].add(mark)
+    return state
+
+
 SPARK_BLOCKS = (" ", "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█")
 
 

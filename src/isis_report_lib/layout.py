@@ -19,6 +19,11 @@ Report parameters (Phase 1 + running balances):
 
 - field ``"aggregate"``: ``sum`` | ``count`` | ``avg`` | ``min`` | ``max`` — computed
   over sibling rows into group ``footer``\\ s, detail ``tfoot`` and the grand ``summary``.
+- field ``"footnote"``: ``"text"`` or ``{"mark", "text"}`` — numbered note
+  (auto marks ``*†‡§‖¶`` then ``1, 2, …`` in render order); collected per
+  report/section and exported to XLSX (``Notes`` sheet) and CSV (``# [mark]``).
+- ``"source_note"`` (``meta``) / ``"source"`` (section) — provenance line
+  under the report/section (``# [source]`` in CSV, ``Notes`` sheet in XLSX).
 - field ``"visible": false`` — drop the column; ``"visible_when": {condition}`` —
   drop it unless any/all rows match (``"scope": "any"``, default, or ``"all"``).
 - ``"$print_when": {condition}`` — keep only matching rows at that level.
@@ -58,7 +63,95 @@ def format_field(name: str, field_def: dict[str, Any]) -> dict[str, Any]:
         out["missing_text"] = field_def["missing_text"]
     if "substitutions" in field_def:
         out["substitutions"] = field_def["substitutions"]
+    if "footnote" in field_def:
+        from isis_report_lib.formatting import normalize_footnote
+
+        out["footnote"] = normalize_footnote(field_def["footnote"], f"field {name!r}")
+    if "footnote_mark" in field_def:
+        out["footnote_mark"] = field_def["footnote_mark"]
     return out
+
+
+def collect_footnotes(fragment: dict[str, Any]) -> list[tuple[str, str]]:
+    """Collect ``(mark, text)`` footnotes from a normalized layout fragment.
+
+    Walks header, detail tables, nested groups, footer and summary in render
+    order. Entries without an assigned mark are skipped so rendering never
+    shows a dangling reference (marks come from ``assign_report_footnotes``).
+    """
+    found: list[tuple[str, str]] = []
+    seen: set[str] = set()
+
+    def take(fields: Any) -> None:
+        if not isinstance(fields, list):
+            return
+        for f in fields:
+            note = f.get("footnote") if isinstance(f, dict) else None
+            if isinstance(note, dict) and note.get("mark") and note.get("mark") not in seen:
+                seen.add(note["mark"])
+                found.append((note["mark"], note.get("text", "")))
+
+    def visit(frag: Any) -> None:
+        if not isinstance(frag, dict):
+            return
+        take(frag.get("header"))
+        details = frag.get("details")
+        if isinstance(details, dict):
+            for key in details:
+                take(details[key])
+        groups = frag.get("groups")
+        if isinstance(groups, dict):
+            visit(groups)
+        take(frag.get("footer"))
+
+    if isinstance(fragment, dict):
+        visit(fragment.get("groups", fragment))
+        take(fragment.get("summary"))
+    return found
+
+
+def assign_report_footnotes(layout: dict[str, Any], sections: list[dict[str, Any]] | None = None) -> None:
+    """Fill footnote marks across a prepared report (shared numbering, render order).
+
+    Mutates only normalized structures owned by the pipeline (fresh copies).
+    """
+    from isis_report_lib.formatting import assign_footnote_marks
+
+    state: dict[str, Any] = {"used": set(), "by_text": {}, "auto": 0}
+
+    def visit(frag: Any) -> None:
+        if not isinstance(frag, dict):
+            return
+        if isinstance(frag.get("header"), list):
+            assign_footnote_marks(frag["header"], state)
+        details = frag.get("details")
+        if isinstance(details, dict):
+            for key in details:
+                if isinstance(details[key], list):
+                    assign_footnote_marks(details[key], state)
+        groups = frag.get("groups")
+        if isinstance(groups, dict):
+            visit(groups)
+        if isinstance(frag.get("footer"), list):
+            assign_footnote_marks(frag["footer"], state)
+
+    if isinstance(layout, dict):
+        visit(layout.get("groups", layout))
+        if isinstance(layout.get("summary"), list):
+            assign_footnote_marks(layout["summary"], state)
+    for section in sections or []:
+        if not isinstance(section, dict):
+            continue
+        stype = section.get("type", "table")
+        if stype == "table" and isinstance(section.get("layout"), dict):
+            visit(section["layout"].get("groups", section["layout"]))
+            if isinstance(section["layout"].get("summary"), list):
+                assign_footnote_marks(section["layout"]["summary"], state)
+        elif stype == "crosstab" and section.get("crosstab") is not None:
+            ct = section["crosstab"]
+            assign_footnote_marks([ct.row_field, ct.col_field, ct.measure_field], state)
+        elif stype == "kpi" and isinstance(section.get("items"), list):
+            assign_footnote_marks([i for i in section["items"] if isinstance(i, dict)], state)
 
 
 def convert_layout(layout_raw: dict[str, Any]) -> dict[str, Any]:
