@@ -172,6 +172,8 @@ strictly, escaped on output. Only `template_dir` is code.
 - `pip-audit` gates every PR (e2e job); Dependabot stays enabled.
 - GitHub Actions are pinned by **commit SHA** (with `# tag` comments);
   `GITHUB_TOKEN` permissions are minimal; publishing uses OIDC.
+- OpenSSF Scorecard runs weekly + on push (SARIF to code scanning);
+  Codecov reports coverage via OIDC (no stored token; the gate stays on pytest).
 - No secrets in the repo (`.env` is gitignored); release artifacts come only
   from CI (`twine check` + trusted publishing).
 

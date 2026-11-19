@@ -7,6 +7,8 @@
 [![ASVS](https://img.shields.io/badge/ASVS-4.0.3%20mapped-blue)](docs/ASVS.md)
 [![pip-audit](https://img.shields.io/badge/pip--audit-gated%20in%20CI-green)](.github/workflows/ci.yml)
 [![Security](https://img.shields.io/badge/security-policy-blue)](SECURITY.md)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/thepaneb/isis-report-lib/badge)](https://scorecard.dev/viewer/?uri=github.com/thepaneb/isis-report-lib)
+[![codecov](https://codecov.io/gh/thepaneb/isis-report-lib/graph/badge.svg)](https://codecov.io/gh/thepaneb/isis-report-lib)
 
 ---
 

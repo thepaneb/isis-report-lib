@@ -47,6 +47,9 @@ jobs:
   e2e:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write # codecov OIDC upload (no stored token)
     env:
       DEBIAN_FRONTEND: noninteractive
     steps:
@@ -97,6 +100,16 @@ jobs:
         with:
           name: coverage-xml
           path: coverage.xml
+
+      - name: Upload coverage to Codecov
+        # OIDC trusted upload (no stored CODECOV_TOKEN). Non-blocking: a
+        # Codecov outage must not fail the gate; the 85% bar is already enforced.
+        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+          use_oidc: true
+          verbose: true
 
   gate:
     # Single stable check for branch protection (matrix jobs have suffixed names).

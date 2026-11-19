@@ -12,6 +12,7 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 - Spreadsheet formula injection neutralized: text cells starting with `= + - @` (or tab/CR) are `'`-prefixed in CSV/XLSX (numeric values, including negatives, untouched)
 - `verify_pdf` is total again: malformed envelopes/keys report `invalid` instead of raising
 - `pip-audit` dependency gate and SHA-pinned GitHub Actions in CI
+- Supply-chain visibility: OpenSSF Scorecard workflow (weekly + on push, SARIF to code scanning) and Codecov coverage reporting via OIDC (no stored token; the 85% bar stays on the pytest gate)
 ### Added
 - Provenance: field `footnote` (`"text"` or `{"mark", "text"}`) with auto marks (`*†‡§‖¶`, then numbers) listed per report/section and exported to the XLSX `Notes` sheet and CSV `# [mark]` lines; `meta.source_note` / section `source` provenance lines
 - Expressiveness: `median`/`distinct` aggregates; `color_scale` gradient fills (explicit `cell_rules` win) and `data_bar` native Excel bars; `meta.summary_side` top/bottom grand-summary placement; keep-together print CSS for group headers/rows
