@@ -1,0 +1,168 @@
+# Custom Semgrep rules for isis-report-lib.
+#
+# They lock key guarantees from docs/STANDARDS.md §3.2–§3.3 (sandboxed
+# autoescaped templates, pre-built-SVG-only Markup, JS-disabled browser
+# contexts, safe deserialization, strong hashes, no dynamic code exec)
+# plus generic Python hygiene (HTTP timeouts).
+#
+# Run locally (same excludes as CI):
+#   semgrep --test --config .semgrep/rules/ .semgrep/targets/
+#   semgrep scan --config p/default --config .semgrep/rules/ --exclude=.semgrep/targets --metrics=off \
+#     --exclude-rule=python.lang.compatibility.python37.python37-compatibility-importlib2 \
+#     --exclude-rule=python.flask.security.xss.audit.direct-use-of-jinja2.direct-use-of-jinja2
+# CI:           .github/workflows/semgrep.yml (SARIF to code scanning)
+
+rules:
+  - id: isis-markup-outside-charts
+    languages: [python]
+    severity: HIGH
+    message: >-
+      markupsafe.Markup() bypasses Jinja autoescaping. Only pre-built SVG in
+      src/isis_report_lib/charts.py is exempt (STANDARDS §3.2) — never wrap
+      caller-controlled strings.
+    patterns:
+      - pattern-either:
+          - pattern: Markup(...)
+          - pattern: markupsafe.Markup(...)
+    paths:
+      exclude:
+        - "**/isis_report_lib/charts.py"
+    metadata:
+      category: security
+      confidence: HIGH
+      impact: HIGH
+      cwe: ["CWE-79"]
+
+  - id: isis-jinja-autoescape-off
+    languages: [python]
+    severity: HIGH
+    message: >-
+      Jinja environments must be sandboxed with autoescape ON (STANDARDS §3.2):
+      report data is untrusted. Pass autoescape=True (SandboxedEnvironment).
+    patterns:
+      - pattern-either:
+          - pattern: Environment(...)
+          - pattern: jinja2.Environment(...)
+          - pattern: SandboxedEnvironment(...)
+          - pattern: jinja2.sandbox.SandboxedEnvironment(...)
+      - pattern-not: Environment(..., autoescape=True, ...)
+      - pattern-not: jinja2.Environment(..., autoescape=True, ...)
+      - pattern-not: SandboxedEnvironment(..., autoescape=True, ...)
+      - pattern-not: jinja2.sandbox.SandboxedEnvironment(..., autoescape=True, ...)
+    metadata:
+      category: security
+      confidence: HIGH
+      impact: HIGH
+      cwe: ["CWE-79"]
+
+  - id: isis-playwright-js-enabled
+    languages: [python]
+    severity: HIGH
+    message: >-
+      Report browser contexts must render with JavaScript disabled
+      (STANDARDS §3.2): pass java_script_enabled=False, never True.
+    patterns:
+      - pattern: $X(..., java_script_enabled=True, ...)
+    metadata:
+      category: security
+      confidence: HIGH
+      impact: MEDIUM
+      cwe: ["CWE-749"]
+
+  - id: isis-requests-without-timeout
+    languages: [python]
+    severity: MEDIUM
+    message: >-
+      requests call without timeout can hang a worker forever (CWE-400).
+      Pass timeout=(connect, read).
+    patterns:
+      - pattern: requests.$METHOD(...)
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: ^(get|post|put|patch|delete|head)$
+      - pattern-not: requests.$METHOD(..., timeout=$T, ...)
+    metadata:
+      category: security
+      confidence: HIGH
+      impact: MEDIUM
+      cwe: ["CWE-400"]
+
+  - id: isis-dangerous-deserialization
+    languages: [python]
+    severity: HIGH
+    message: >-
+      Deserializing untrusted data with pickle/marshal or yaml.load without a
+      safe Loader can execute arbitrary code (CWE-502). Report data is
+      untrusted: use json, yaml.safe_load, or an explicit safe Loader.
+    patterns:
+      - pattern-either:
+          - pattern: pickle.loads(...)
+          - pattern: pickle.load(...)
+          - pattern: marshal.loads(...)
+          - pattern: marshal.load(...)
+          - pattern: yaml.load(...)
+          - pattern: yaml.unsafe_load(...)
+      - pattern-not: yaml.load(..., Loader=yaml.SafeLoader, ...)
+      - pattern-not: yaml.load(..., Loader=yaml.CSafeLoader, ...)
+    metadata:
+      category: security
+      confidence: HIGH
+      impact: HIGH
+      cwe: ["CWE-502"]
+
+  - id: isis-code-execution
+    languages: [python]
+    severity: HIGH
+    message: >-
+      Dynamic code execution (eval/exec/os.system/shell=True) on possibly
+      untrusted input (CWE-78/CWE-95). Refuse the input with ValueError or use
+      a safe alternative (ast.literal_eval, argument lists without shell).
+    patterns:
+      - pattern-either:
+          - pattern: eval(...)
+          - pattern: exec(...)
+          - pattern: os.system(...)
+          - patterns:
+              - pattern: subprocess.$CALL(..., shell=True, ...)
+              - metavariable-regex:
+                  metavariable: $CALL
+                  regex: ^(run|call|check_call|check_output|Popen)$
+    metadata:
+      category: security
+      confidence: HIGH
+      impact: HIGH
+      cwe: ["CWE-78", "CWE-95"]
+
+  - id: isis-weak-hash
+    languages: [python]
+    severity: HIGH
+    message: >-
+      MD5/SHA-1 are broken for integrity (CWE-327). The seal uses HMAC-SHA256 /
+      Ed25519 (STANDARDS §3.3): use hashlib.sha256 or stronger.
+    patterns:
+      - pattern-either:
+          - pattern: hashlib.md5(...)
+          - pattern: hashlib.sha1(...)
+    metadata:
+      category: security
+      confidence: HIGH
+      impact: MEDIUM
+      cwe: ["CWE-327"]
+
+  - id: isis-jinja-safe-filter
+    languages: [generic]
+    severity: MEDIUM
+    message: >-
+      The `| safe` filter bypasses Jinja autoescaping (STANDARDS §3.2). Only
+      pre-built SVG from charts.* (Markup) is exempt — never apply to data.
+    patterns:
+      - pattern-regex: \|\s*safe\b
+    paths:
+      include:
+        - "*.jinja"
+        - "*.html"
+    metadata:
+      category: security
+      confidence: MEDIUM
+      impact: HIGH
+      cwe: ["CWE-79"]

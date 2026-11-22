@@ -6,6 +6,7 @@
 [![Wiki](https://img.shields.io/badge/docs-wiki-blue)](https://github.com/thepaneb/isis-report-lib/wiki)
 [![ASVS](https://img.shields.io/badge/ASVS-4.0.3%20mapped-blue)](docs/ASVS.md)
 [![pip-audit](https://img.shields.io/badge/pip--audit-gated%20in%20CI-green)](.github/workflows/ci.yml)
+[![Semgrep](https://img.shields.io/badge/semgrep-gated%20in%20CI-green)](.github/workflows/semgrep.yml)
 [![Security](https://img.shields.io/badge/security-policy-blue)](SECURITY.md)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/thepaneb/isis-report-lib/badge)](https://scorecard.dev/viewer/?uri=github.com/thepaneb/isis-report-lib)
 [![codecov](https://codecov.io/gh/thepaneb/isis-report-lib/graph/badge.svg)](https://codecov.io/gh/thepaneb/isis-report-lib)
@@ -315,6 +316,8 @@ See `examples/sales_order.toon`.
 pytest -q
 pytest -q --cov=isis_report_lib   # coverage gate: 85% (enforced in the CI e2e job)
 ruff check src tests
+semgrep --test --config .semgrep/rules/ .semgrep/targets/   # custom SAST rules
+semgrep scan --config p/default --config .semgrep/rules/ --exclude=.semgrep/targets --metrics=off  # (+ the 2 --exclude-rule from semgrep.yml)
 ```
 
 Real-PDF tests require `playwright install chromium` and are skipped (`-m "not browser"`) when no browser is available.
@@ -326,6 +329,7 @@ MIT — see `LICENSE`.
 ## Security
 
 - **Dependencies**: audited with `pip-audit` in CI on every PR; Dependabot keeps SHA-pinned actions and packages updated; releases are built and published by CI via OIDC trusted publishing (no stored tokens).
+- **SAST**: Semgrep scans every PR, push and weekly — registry packs plus custom `.semgrep/` rules locking the guarantees below (sandboxed autoescaped templates, pre-built SVG only, JS-off, no fetch at render time); findings fail CI and upload as SARIF to code scanning.
 - **Trust boundary**: templates (`.jinja` files, `template_dir`) are code — only load them from sources you trust. Report *data* is escaped in HTML output and never executed as template code (charts/sparklines emit pre-built SVG); if you serve the HTML/email output to browsers, treat it like any user-content page.
 - **Browser**: pages render with JavaScript disabled in an isolated Chromium context per sync call (shared pool in async mode); `inline_css` strips remote `<link>` stylesheets (no server-side fetches on render); the Playwright browser runs headless in its own Chromium sandbox.
 - **Exports**: text cells starting with `= + - @` (or tab/CR) are `'`-prefixed in CSV/XLSX so spreadsheets cannot evaluate data as formulas (numeric values, including negatives, are untouched).

@@ -9,6 +9,7 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 ### Added
 - Signing key rotation: `verify_pdf` accepts `{key_id: key}` mappings (envelope `key_id` selects first) and ordered key lists; `verify` takes repeatable `--key-file`; rotation runbook in `docs/STANDARDS.md` §3.3
 - CycloneDX 1.6 `sbom.json` attached to every GitHub Release (stable + prereleases), built reproducibly from the release wheel in an isolated CI env
+- SAST: Semgrep workflow on PR/push/weekly (registry packs + custom `.semgrep/` rules locking `STANDARDS.md` §3.2), SARIF to code scanning; drive-by: `publish.yml` tag interpolation now via env (shell-injection), `charts.py` pre-built-SVG exemption documented inline
 ### Docs
 - `docs/ROADMAP.md`: prioritized next items, done log v0.1.0→v0.11.0, and non-goals (single source of truth for what comes next)
 

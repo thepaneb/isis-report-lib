@@ -16,7 +16,7 @@ def _svg_attr(value: Any) -> str:
 
 def _svg(parts: list[str]) -> Markup:
     """Assemble a pre-built SVG fragment (all interpolations escaped or numeric)."""
-    return Markup("".join(parts))  # noqa: S704 - see docstring
+    return Markup("".join(parts))  # noqa: S704 - pre-built SVG only (STANDARDS §3.2); nosemgrep: explicit-unescape-with-markup
 
 
 def _check_series(labels: list[str], values: list[float]) -> list[float]:

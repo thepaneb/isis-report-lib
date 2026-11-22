@@ -76,7 +76,7 @@ fetch only exists via operator-authored templates; data cannot trigger it).
 
 | Req | Lvl | Verdict | Evidence |
 |---|---|---|---|
-| 10.1.1 | L3 | Partial | `ruff` S-rules + `pip-audit` + `mypy` + 99% tests run in CI; no dedicated SAST scanner yet (follow-up: semgrep) |
+| 10.1.1 | L3 | Pass | Semgrep SAST gates every PR/push/weekly (registry pack + custom `.semgrep/` rules) with SARIF to code scanning; `ruff` S-rules + `pip-audit` + `mypy` + 99% tests run in CI |
 | 10.2.3 | L3 | Partial | Mandatory review on every PR to protected `main`; no hardcoded secrets/keys (verified); no automated secret scanning |
 | 10.3.2 | L1L2L3 | Pass | No auto-update; no remote code execution (JS off, no link fetch, no dynamic imports); releases via OIDC trusted publishing |
 
@@ -111,6 +111,5 @@ fetch only exists via operator-authored templates; data cannot trigger it).
 ## Gaps accepted (deliberate, tracked)
 
 1. No input-size quotas — recursion is bounded, volume is a deployer limit.
-2. No dedicated SAST scanner — `ruff` S-rules + review + tests; semgrep is the planned next gate.
-3. Secrets management (vault/HSM storage) lives with the deployer; rotation across keys is library-supported (`key_id` keyrings), and the library guarantees never-log/never-persist.
-4. Outbound network from Chromium (remote fonts/images in operator templates) has no allow-list; data-driven fetch is eliminated.
+2. Secrets management (vault/HSM storage) lives with the deployer; rotation across keys is library-supported (`key_id` keyrings), and the library guarantees never-log/never-persist.
+3. Outbound network from Chromium (remote fonts/images in operator templates) has no allow-list; data-driven fetch is eliminated.

@@ -176,7 +176,15 @@ strictly, escaped on output. Only `template_dir` is code.
 
 ### 3.4 Supply chain (MUST)
 
-- `pip-audit` gates every PR (e2e job); Dependabot stays enabled.
+- `pip-audit` gates every PR (e2e job); Dependabot stays enabled with a
+  7-day `cooldown` on version updates (security updates are exempt).
+- Semgrep SAST gates every PR (plus push and weekly full scans): registry
+  pack (`p/default`) and custom rules in `.semgrep/` locking §3.2
+  (sandboxed autoescaped templates, `Markup`-only-SVG, JS-disabled contexts,
+  no network at render time); findings fail the job (`--error`) and upload
+  as SARIF to code scanning under `semgrep`. The scan image
+  (`semgrep/semgrep`) is version-pinned; rule changes ship with fixture
+  updates (`semgrep --test`).
 - GitHub Actions are pinned by **commit SHA** (with `# tag` comments);
   `GITHUB_TOKEN` permissions are minimal; publishing uses OIDC.
 - OpenSSF Scorecard runs weekly + on push (SARIF to code scanning);

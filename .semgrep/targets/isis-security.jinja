@@ -1,0 +1,9 @@
+# Fixture for isis-jinja-safe-filter (generic rule on *.jinja).
+# Never rendered — only scanned by `semgrep --test`. Annotations use plain
+# `#` comments: the test harness parses the `ruleid:`/`ok:` text, not Jinja.
+<table>
+  # ruleid: isis-jinja-safe-filter
+  <td>{{ cell | safe }}</td>
+  # ok: isis-jinja-safe-filter
+  <td>{{ cell }}</td>
+</table>

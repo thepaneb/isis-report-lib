@@ -1,0 +1,65 @@
+name: Semgrep
+
+# SAST with Semgrep Community Edition (no account/token): registry packs plus
+# the custom project rules in .semgrep/ that lock docs/STANDARDS.md §3.2.
+# Native CLI in a pinned container — not the deprecated semgrep-action wrapper.
+# SARIF uploads to code scanning under the `semgrep` category.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "41 4 * * 1" # weekly full scan, Mondays 04:41 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write # SARIF upload to code scanning
+    container:
+      image: semgrep/semgrep:1.186.0 # pin; weekly releases change rule behaviour
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0 # baseline diff needs the base commit in history
+          persist-credentials: false
+
+      - name: Test custom rules
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          semgrep --test --config .semgrep/rules/ .semgrep/targets/
+
+      - name: Semgrep scan
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          # .semgrep/targets/ holds intentionally insecure rule-test fixtures.
+          ARGS="--config p/default --config .semgrep/rules/ --exclude=.semgrep/targets --metrics=off --error"
+          # N/A exclusions (reviewed, not code flaws):
+          ARGS="$ARGS --exclude-rule=python.lang.compatibility.python37.python37-compatibility-importlib2" # requires-python>=3.11
+          ARGS="$ARGS --exclude-rule=python.flask.security.xss.audit.direct-use-of-jinja2.direct-use-of-jinja2" # no Flask; direct Jinja is by design (§3.2, custom rule isis-jinja-autoescape-off)
+          if [ -n "$BASE_SHA" ]; then
+            # PR: report only findings introduced by this change
+            semgrep scan $ARGS --baseline-commit "$BASE_SHA" --sarif-output=semgrep.sarif
+          else
+            # push, schedule, or manual run: full scan
+            semgrep scan $ARGS --sarif-output=semgrep.sarif
+          fi
+
+      - name: Upload SARIF
+        # Fork and Dependabot PRs run with a read-only token: scan still gates
+        # via --error, but the upload would fail with "Resource not accessible".
+        if: always() && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
