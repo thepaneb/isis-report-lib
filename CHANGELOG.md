@@ -8,22 +8,35 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 ## [Unreleased]
 ### Added
 - Signing key rotation: `verify_pdf` accepts `{key_id: key}` mappings (envelope `key_id` selects first) and ordered key lists; `verify` takes repeatable `--key-file`; rotation runbook in `docs/STANDARDS.md` §3.3
+### Docs
+- `docs/ROADMAP.md`: prioritized next items, done log v0.1.0→v0.11.0, and non-goals (single source of truth for what comes next)
+
+## [0.11.0] - 2026-11-19
+### Added
+- Explicit missing data: field `missing_text` (display text for `None`) and `substitutions` (`{raw: display}` map applied before formatting) in HTML, XLSX and CSV; `empty_text` on flat detail lists, `table` sections and `meta` (whole report) renders a message instead of an empty table (note row/line in XLSX/CSV)
+- Dynamic pivot tables: `crosstab` sections (`rows`/`columns` buckets, `measure` + `sum|count|avg|min|max`, row/column/grand totals, `empty_text`) in HTML, XLSX and CSV
+- Sparklines: `sparkline` format mask (list of numbers → inline SVG `line`/`bar` nanoplot; `spark_kind`/`spark_color` field options) in HTML/PDF, block-art text (`▁▂▃▄▅▆▇█`) in CSV/XLSX
+- Provenance: field `footnote` (`"text"` or `{"mark", "text"}`) with auto marks (`*†‡§‖¶`, then numbers) listed per report/section and exported to the XLSX `Notes` sheet and CSV `# [mark]` lines; `meta.source_note` / section `source` provenance lines
+- Expressiveness: `median`/`distinct` aggregates; `color_scale` gradient fills (explicit `cell_rules` win) and `data_bar` native Excel bars; `meta.summary_side` top/bottom grand-summary placement; keep-together print CSS for group headers/rows
+- Supply-chain visibility: OpenSSF Scorecard workflow (weekly + on push, SARIF to code scanning) and Codecov coverage reporting via OIDC (no stored token; the 85% bar stays on the pytest gate)
+### Docs
+- `docs/STANDARDS.md`: architecture, engineering, security and design standards
+- `docs/ASVS.md`: OWASP ASVS 4.0.3 applicability mapping, plus `SECURITY.md` disclosure policy
+- README badges row with divider (CI, PyPI, docs, ASVS, pip-audit, security)
 ### Security
 - Formal alignment: OWASP ASVS 4.0.3 applicability mapping (`docs/ASVS.md`, L1 target with L2/L3 where met), `SECURITY.md` disclosure policy with private vulnerability reporting enabled, Jinja `SandboxedEnvironment` (SSTI defense in depth), `ruff` S-rules, single-char CSV delimiter validation, world-readable key-file warning
 - Stored XSS closed: Jinja autoescaping is now enabled (charts/sparklines emit pre-built `Markup` SVG); remote `<link>` stylesheets are stripped before CSS inlining (no server-side fetches); Chromium renders pages with JavaScript disabled
 - Spreadsheet formula injection neutralized: text cells starting with `= + - @` (or tab/CR) are `'`-prefixed in CSV/XLSX (numeric values, including negatives, untouched)
 - `verify_pdf` is total again: malformed envelopes/keys report `invalid` instead of raising
 - `pip-audit` dependency gate and SHA-pinned GitHub Actions in CI
-- Supply-chain visibility: OpenSSF Scorecard workflow (weekly + on push, SARIF to code scanning) and Codecov coverage reporting via OIDC (no stored token; the 85% bar stays on the pytest gate)
+
+## [0.10.0] - 2026-11-18
 ### Added
-- Provenance: field `footnote` (`"text"` or `{"mark", "text"}`) with auto marks (`*†‡§‖¶`, then numbers) listed per report/section and exported to the XLSX `Notes` sheet and CSV `# [mark]` lines; `meta.source_note` / section `source` provenance lines
-- Expressiveness: `median`/`distinct` aggregates; `color_scale` gradient fills (explicit `cell_rules` win) and `data_bar` native Excel bars; `meta.summary_side` top/bottom grand-summary placement; keep-together print CSS for group headers/rows
-- Dynamic pivot tables: `crosstab` sections (`rows`/`columns` buckets, `measure` + `sum|count|avg|min|max`, row/column/grand totals, `empty_text`) in HTML, XLSX and CSV
-- Sparklines: `sparkline` format mask (list of numbers → inline SVG `line`/`bar` nanoplot; `spark_kind`/`spark_color` field options) in HTML/PDF, block-art text (`▁▂▃▄▅▆▇█`) in CSV/XLSX
-- Explicit missing data: field `missing_text` (display text for `None`) and `substitutions` (`{raw: display}` map applied before formatting) in HTML, XLSX and CSV; `empty_text` on flat detail lists, `table` sections and `meta` (whole report) renders a message instead of an empty table (note row/line in XLSX/CSV)
-- Perf gate: `bench/bench_budgets.json` smoke budgets + `bench.py --check`, enforced as a CI step in the `e2e` job
-- Email-safe inline HTML: `inline_css=True` now resolves CSS variables to literal values (Outlook ignores `var()`), sets `<html lang>` from `meta.locale` and declares `color-scheme: light`
 - Compound rule conditions: several comparison operators in one rule combine with AND (`{"gte": 10, "lt": 20}`); new `between` (`[lo, hi]`, inclusive) and `contains` (substring) operators for `cell_rules`, `$print_when` and `visible_when`; `in`/`not_in` against a non-container is a no-match instead of `TypeError`
+- Email-safe inline HTML: `inline_css=True` now resolves CSS variables to literal values (Outlook ignores `var()`), sets `<html lang>` from `meta.locale` and declares `color-scheme: light`
+- Perf gate: `bench/bench_budgets.json` smoke budgets + `bench.py --check`, enforced as a CI step in the `e2e` job
+### Docs
+- CHANGELOG consolidated into per-version sections 0.3.0–0.9.0
 
 ## [0.9.0] - 2026-11-13
 ### Added
