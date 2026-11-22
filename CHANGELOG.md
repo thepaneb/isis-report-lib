@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format follows
 the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 
 ## [Unreleased]
+### Added
+- Signing key rotation: `verify_pdf` accepts `{key_id: key}` mappings (envelope `key_id` selects first) and ordered key lists; `verify` takes repeatable `--key-file`; rotation runbook in `docs/STANDARDS.md` §3.3
 ### Security
 - Formal alignment: OWASP ASVS 4.0.3 applicability mapping (`docs/ASVS.md`, L1 target with L2/L3 where met), `SECURITY.md` disclosure policy with private vulnerability reporting enabled, Jinja `SandboxedEnvironment` (SSTI defense in depth), `ruff` S-rules, single-char CSV delimiter validation, world-readable key-file warning
 - Stored XSS closed: Jinja autoescaping is now enabled (charts/sparklines emit pre-built `Markup` SVG); remote `<link>` stylesheets are stripped before CSS inlining (no server-side fetches); Chromium renders pages with JavaScript disabled

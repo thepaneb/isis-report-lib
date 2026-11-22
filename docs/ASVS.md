@@ -52,7 +52,7 @@ intent with documented limits), **N/A** (no such surface in this project).
 | 6.2.7 | L2 | Pass | Envelope (hash + metadata incl. `key_id`) is signed; tampering breaks verification |
 | 6.2.8 | L2 | Pass | `hmac.compare_digest` for HMAC; Ed25519 verify is constant-time in `cryptography` |
 | 6.3.1 | L1L2 | Pass | `secrets.token_bytes` for HMAC keys |
-| 6.4.1/6.4.2 | L2L3 | Partial | Library never persists keys and never logs them; vault/HSM storage and rotation procedures are the deployer's duty |
+| 6.4.1/6.4.2 | L2L3 | Partial | Library never persists keys and never logs them; rotation is supported in-library via `key_id`-selected keyrings (`verify_pdf` mapping/list, repeatable CLI `--key-file`); vault/HSM storage stays the deployer's duty |
 | V6.1.x/6.2.3–6.2.6 | — | N/A | no at-rest PII encryption, cipher modes, or nonces in scope (seal only, no confidentiality claim) |
 
 ## V7 — Error Handling and Logging
@@ -113,5 +113,5 @@ fetch only exists via operator-authored templates; data cannot trigger it).
 1. No input-size quotas — recursion is bounded, volume is a deployer limit.
 2. No SBOM artifact — full dependency declaration + Dependabot + pip-audit instead.
 3. No dedicated SAST scanner — `ruff` S-rules + review + tests; semgrep is the planned next gate.
-4. Secrets management (vault/HSM/rotation runbooks) lives with the deployer; the library only guarantees never-log/never-persist and `key_id`-tagged seals.
+4. Secrets management (vault/HSM storage) lives with the deployer; rotation across keys is library-supported (`key_id` keyrings), and the library guarantees never-log/never-persist.
 5. Outbound network from Chromium (remote fonts/images in operator templates) has no allow-list; data-driven fetch is eliminated.

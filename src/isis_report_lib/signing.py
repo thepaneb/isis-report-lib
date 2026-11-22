@@ -159,10 +159,41 @@ def sign_pdf(
     return pdf + b"\n" + MARKER + json.dumps(envelope, sort_keys=True, separators=(",", ":")).encode("utf-8") + b"\n"
 
 
-def verify_pdf(signed: bytes, key: bytes, *, alg: str = "hmac-sha256") -> SignatureInfo:
+def _key_candidates(key: bytes | dict[str, bytes] | list[bytes] | tuple[bytes, ...], key_id: str | None) -> list[bytes]:
+    """Order verification keys: the ``key_id`` match first, then the rest.
+
+    A mapping selects by envelope ``key_id`` (rotation without flag days);
+    a list/tuple is tried in order. Empty or mistyped keyrings report
+    ``invalid`` instead of raising (verification never raises).
+    """
+    if isinstance(key, bytes):
+        candidates = [key]
+    elif isinstance(key, dict):
+        if not key:
+            raise ValueError("No verification keys provided (empty keyring)")
+        candidates = list(key.values())
+        if key_id is not None and key_id in key:
+            candidates = [key[key_id]] + [k for k in candidates if k != key[key_id]]
+    elif isinstance(key, (list, tuple)):
+        if not key:
+            raise ValueError("No verification keys provided (empty keyring)")
+        candidates = list(key)
+    else:
+        raise ValueError(f"Invalid verification key (need bytes, a key_id->key mapping, or a key list): {type(key).__name__}")
+    for candidate in candidates:
+        if not isinstance(candidate, bytes):
+            raise ValueError(f"Invalid verification key (need bytes): {type(candidate).__name__}")
+    return candidates
+
+
+def verify_pdf(
+    signed: bytes, key: bytes | dict[str, bytes] | list[bytes] | tuple[bytes, ...], *, alg: str = "hmac-sha256"
+) -> SignatureInfo:
     """Verify the latest signature block of a (possibly) signed PDF.
 
-    ``key`` is the HMAC secret or the Ed25519 public key in PEM form.
+    ``key`` is the HMAC secret or the Ed25519 public key in PEM form — or a
+    keyring for rotation: a ``{key_id: key}`` mapping (the envelope's
+    ``key_id`` selects first) or a key list (tried in order).
     Never raises for malformed input — check ``.valid`` and ``.reason``.
     """
     try:
@@ -189,16 +220,27 @@ def verify_pdf(signed: bytes, key: bytes, *, alg: str = "hmac-sha256") -> Signat
         )
     body = {k: v for k, v in envelope.items() if k != "sig"}
     try:
-        ok = _verify_bytes(_canonical(body), envelope["sig"], key, alg)
-    except (ImportError, ValueError, TypeError) as e:
+        candidates = _key_candidates(key, envelope.get("key_id") if isinstance(envelope.get("key_id"), str) else None)
+    except ValueError as e:
         return SignatureInfo(valid=False, reason=str(e), alg=alg)
-    if not ok:
-        return SignatureInfo(valid=False, reason="signature mismatch: wrong key or tampered envelope", alg=alg)
-    return SignatureInfo(
-        valid=True,
-        reason="ok",
-        alg=alg,
-        sha256=envelope["sha256"],
-        key_id=envelope.get("key_id"),
-        issued_at=envelope.get("issued_at"),
-    )
+    failures = 0
+    for candidate in candidates:
+        try:
+            ok = _verify_bytes(_canonical(body), envelope["sig"], candidate, alg)
+        except (ImportError, ValueError, TypeError) as e:
+            return SignatureInfo(valid=False, reason=str(e), alg=alg)
+        if ok:
+            return SignatureInfo(
+                valid=True,
+                reason="ok",
+                alg=alg,
+                sha256=envelope["sha256"],
+                key_id=envelope.get("key_id"),
+                issued_at=envelope.get("issued_at"),
+            )
+        failures += 1
+    if failures > 1:
+        return SignatureInfo(
+            valid=False, reason=f"signature mismatch: no configured key verified the signature ({failures} tried)", alg=alg
+        )
+    return SignatureInfo(valid=False, reason="signature mismatch: wrong key or tampered envelope", alg=alg)

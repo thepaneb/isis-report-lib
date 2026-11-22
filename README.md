@@ -102,6 +102,8 @@ isis-report keygen -o secret.key                                  # shared secre
 isis-report keygen --kind ed25519 -o private.pem --public-out public.pem   # third-party validation
 isis-report sign report.pdf --key-file secret.key --key-id portal-1 -o report.signed.pdf
 isis-report verify report.signed.pdf --key-file secret.key       # exit 0 = VALID
+# rotation: repeat --key-file; the envelope key_id selects first, the rest are tried in order
+isis-report verify report.signed.pdf --key-file old.key --key-file new.key
 ```
 
 ```python
@@ -111,6 +113,9 @@ secret = generate_hmac_key()
 signed = sign_pdf(pdf_bytes, secret, key_id="portal-1")
 info = verify_pdf(signed, secret)
 assert info.valid  # + info.reason/alg/sha256/key_id/issued_at
+
+# keyring rotation: {"key_id": key} mapping or key list; retired keys stay configured until old seals expire
+assert verify_pdf(signed, {"2026-a": old_secret, "portal-1": secret}).valid
 ```
 
 A `%ISIS-SIGNATURE` block is appended after the PDF `%%EOF` (readers ignore it; any modification invalidates the seal). `verify_pdf` never raises — check `.valid`. This is an origin/integrity seal, not Adobe PAdES.

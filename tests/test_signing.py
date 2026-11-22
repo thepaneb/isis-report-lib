@@ -37,6 +37,42 @@ def test_hmac_wrong_key_fails():
     assert verify_pdf(signed, generate_hmac_key()).valid is False
 
 
+def test_verify_keyring_list_tries_in_order():
+    from isis_report_lib.signing import generate_hmac_key, sign_pdf, verify_pdf
+
+    old, new = generate_hmac_key(), generate_hmac_key()
+    signed_old = sign_pdf(PDF, old, key_id="2026-a")
+    signed_new = sign_pdf(PDF, new, key_id="2026-b")
+    assert verify_pdf(signed_old, [generate_hmac_key(), old]).valid is True
+    assert verify_pdf(signed_new, [old, new]).valid is True
+    info = verify_pdf(signed_new, [old, generate_hmac_key()])
+    assert info.valid is False and "2 tried" in info.reason
+    assert verify_pdf(signed_new, (old, new)).valid is True  # tuples accepted
+
+
+def test_verify_keyring_dict_selects_by_key_id():
+    from isis_report_lib.signing import generate_hmac_key, sign_pdf, verify_pdf
+
+    old, new = generate_hmac_key(), generate_hmac_key()
+    signed = sign_pdf(PDF, new, key_id="2026-b")
+    info = verify_pdf(signed, {"2026-a": old, "2026-b": new})
+    assert info.valid is True and info.key_id == "2026-b"
+    # unknown key_id falls back to trying every key
+    signed_noid = sign_pdf(PDF, new)
+    assert verify_pdf(signed_noid, {"2026-a": old, "2026-b": new}).valid is True
+    assert verify_pdf(signed_noid, {"2026-a": old}).valid is False
+
+
+def test_verify_keyring_rejects_empty_and_mistyped():
+    from isis_report_lib.signing import generate_hmac_key, sign_pdf, verify_pdf
+
+    signed = sign_pdf(PDF, generate_hmac_key())
+    assert verify_pdf(signed, []).valid is False
+    assert verify_pdf(signed, {}).valid is False
+    assert "bytes" in verify_pdf(signed, "not-bytes").reason
+    assert "bytes" in verify_pdf(signed, [generate_hmac_key(), "nope"]).reason
+
+
 def test_verify_unsigned_and_garbage():
     from isis_report_lib.signing import generate_hmac_key, verify_pdf
 
@@ -149,6 +185,27 @@ def test_cli_keygen_sign_verify(tmp_path, capsys):
     assert main(["verify", str(signed), "--key-file", str(secret), "--json"]) == 0
     out, _ = capsys.readouterr()
     assert '"valid": true' in out and '"key_id": "k1"' in out
+
+
+def test_cli_verify_keyring_rotation(tmp_path, capsys):
+    from isis_report_lib.cli import main
+    from isis_report_lib.signing import generate_hmac_key
+
+    old, new = tmp_path / "old.key", tmp_path / "new.key"
+    old.write_bytes(generate_hmac_key())
+    new.write_bytes(generate_hmac_key())
+    src = tmp_path / "in.pdf"
+    src.write_bytes(PDF)
+    assert main(["sign", str(src), "--key-file", str(new), "--key-id", "2026-b"]) == 0
+    signed = tmp_path / "in.signed.pdf"
+    # rotated verifier accepts reports sealed with either key
+    assert main(["verify", str(signed), "--key-file", str(old), "--key-file", str(new)]) == 0
+    out, _ = capsys.readouterr()
+    assert "VALID" in out
+    # retired key alone no longer verifies new reports
+    assert main(["verify", str(signed), "--key-file", str(old)]) == 1
+    # a missing key file fails closed instead of silently skipping
+    assert main(["verify", str(signed), "--key-file", str(old), "--key-file", str(tmp_path / "nope.key")]) == 2
 
 
 def test_cli_verify_detects_tampering(tmp_path, capsys):

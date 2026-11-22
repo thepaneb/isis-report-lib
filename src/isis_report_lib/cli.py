@@ -81,7 +81,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     verify = sub.add_parser("verify", help="Verify a signed PDF (exit 0 = valid).")
     verify.add_argument("input", type=Path, help="Signed PDF file.")
-    verify.add_argument("--key-file", type=Path, required=True, help="Secret (hmac) or public PEM (ed25519) file.")
+    verify.add_argument(
+        "--key-file",
+        type=Path,
+        required=True,
+        action="append",
+        help="Secret (hmac) or public PEM (ed25519) file; repeat for keyring rotation (tried in order).",
+    )
     verify.add_argument("--alg", choices=["hmac-sha256", "ed25519"], default="hmac-sha256")
     verify.add_argument("--json", action="store_true", help="Print the full verification report as JSON.")
     verify.set_defaults(func=_cmd_verify)
@@ -280,7 +286,7 @@ def _cmd_verify(args: argparse.Namespace) -> int:
             signed = args.input.read_bytes()
         except FileNotFoundError:
             raise FileNotFoundError(f"Input file not found: {args.input}") from None
-        info = verify_pdf(signed, _read_key_file(args.key_file), alg=args.alg)
+        info = verify_pdf(signed, [_read_key_file(path) for path in args.key_file], alg=args.alg)
     except (FileNotFoundError, ValueError, ImportError) as e:
         print(f"isis-report: error: {e}", file=sys.stderr)
         return 2

@@ -166,7 +166,11 @@ strictly, escaped on output. Only `template_dir` is code.
   includes `key_id`; Ed25519 keys are type-checked after PEM load;
   algorithms are allow-listed on both sign and verify paths.
 - Keys arrive as bytes (files); never log, print, or embed them in outputs.
-  Key files should be `0600` (documented; not enforced — local tooling).
+  Key files should be `0600` (the CLI warns otherwise on POSIX).
+- Rotation runbook (no flag days): sign new reports with the new key under a
+  new `key_id`; configure verifiers with the keyring (`{key_id: key}` mapping
+  or ordered key list — the envelope `key_id` selects first, the rest are
+  tried in order); retire the old key once its seals expire out of circulation.
 - This is a tamper-evident **seal**, not Adobe PAdES: no CAs, no timestamps
   as trust anchors (`issued_at` is informational).
 
