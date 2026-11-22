@@ -77,13 +77,15 @@ def is_host_allowed(url: str, allowed_hosts: list[str] | tuple[str, ...] | None)
     http(s) passes only for allow-listed hostnames (exact, case-insensitive).
     ``None``/empty allow-list denies all network traffic.
     """
-    if urlsplit(url).scheme.lower() not in ("http", "https"):
+    try:
+        parts = urlsplit(url)
+        scheme = parts.scheme.lower()
+        host = (parts.hostname or "").lower().rstrip(".")
+    except ValueError:  # malformed URL (e.g. bad IPv6): deny
+        return False
+    if scheme not in ("http", "https"):
         return True
     if not allowed_hosts:
-        return False
-    try:
-        host = (urlsplit(url).hostname or "").lower().rstrip(".")
-    except ValueError:  # malformed URL (e.g. bad IPv6): deny
         return False
     allowed = {entry.strip().lower().rstrip(".") for entry in allowed_hosts}
     return host in allowed and bool(host)
@@ -94,7 +96,10 @@ async def _guard_outbound(route: Route, allowed_hosts: list[str] | None) -> None
     if is_host_allowed(route.request.url, allowed_hosts):
         await route.continue_()
         return
-    host = urlsplit(route.request.url).hostname or "?"
+    try:
+        host = urlsplit(route.request.url).hostname or "?"
+    except ValueError:
+        host = "?"
     logger.warning("Blocked outbound request to %s (not in allowed_hosts).", host)
     await route.abort()
 
@@ -189,7 +194,14 @@ async def new_page(allowed_hosts: list[str] | tuple[str, ...] | None = None):
     allowed = validate_allowed_hosts(allowed_hosts)
 
     async def _guard(route: Route) -> None:
-        await _guard_outbound(route, allowed)
+        try:
+            await _guard_outbound(route, allowed)
+        except Exception:
+            logger.exception("Egress guard failed; aborting request (fail closed).")
+            try:
+                await route.abort()
+            except Exception:
+                logger.warning("Could not abort request after guard failure.")
 
     await page.route("**/*", _guard)
     return page

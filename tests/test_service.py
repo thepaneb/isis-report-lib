@@ -591,6 +591,15 @@ def test_quotas_reject_over_max_bytes():
         render_html(_limited([], max_bytes=1))
 
 
+def test_quotas_skip_non_section_entries():
+    payload = {
+        "meta": {"title": "T", "limits": {"max_rows": 10}},
+        "sections": [{"type": "table", "title": "A", "data": [{"x": 1}]}, "nope"],
+    }
+    with pytest.raises(ValueError, match="Invalid section"):
+        render_html(payload)
+
+
 def test_quotas_invalid_limits_fail_closed():
     for limits in (
         "10",

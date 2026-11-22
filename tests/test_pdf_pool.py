@@ -138,6 +138,11 @@ def test_is_host_allowed_listed_host_exact_match():
     assert pool.is_host_allowed("https://evil.com/?next=example.com", ["example.com"]) is False
 
 
+def test_is_host_allowed_rejects_malformed_url():
+    assert pool.is_host_allowed("http://[::1", None) is False
+    assert pool.is_host_allowed("http://[bad-ipv6]/x", ["example.com"]) is False
+
+
 def test_validate_allowed_hosts_rejects_garbage():
     for bad in (
         "example.com",
@@ -195,13 +200,16 @@ def test_guard_outbound_continues_listed_and_aborts_rest():
         await pool._guard_outbound(inline, allowed)
         denied = FakeRoute("https://example.com/x.png")
         await pool._guard_outbound(denied, None)
-        return listed, unlisted, inline, denied
+        malformed = FakeRoute("http://[::1")
+        await pool._guard_outbound(malformed, allowed)
+        return listed, unlisted, inline, denied, malformed
 
-    listed, unlisted, inline, denied = asyncio.run(run())
+    listed, unlisted, inline, denied, malformed = asyncio.run(run())
     assert listed.continued and not listed.aborted
     assert unlisted.aborted and not unlisted.continued
     assert inline.continued and not inline.aborted
     assert denied.aborted and not denied.continued
+    assert malformed.aborted and not malformed.continued
 
 
 class FakeGuardedPage:
@@ -267,3 +275,30 @@ def test_get_pdf_from_html_rejects_bad_policy(monkeypatch):
             await pool.get_pdf_from_html("<html></html>", allowed_hosts=["https://example.com"])
 
     asyncio.run(run())
+
+
+class ExplodingAbortRoute(FakeRoute):
+    async def abort(self):
+        raise RuntimeError("transport gone")
+
+
+def test_route_guard_fails_closed(monkeypatch):
+    async def run():
+        async def boom(route, allowed):
+            raise RuntimeError("guard exploded")
+
+        monkeypatch.setattr(pool, "_guard_outbound", boom)
+        monkeypatch.setattr(pool, "_browser", FakeBrowser())
+        monkeypatch.setattr(pool, "_owner_loop", asyncio.get_running_loop())
+        monkeypatch.setattr(pool, "_context", FakeGuardedContext(FakeGuardedPage()))
+        opened = await pool.new_page(["example.com"])
+        _, handler = opened.routes[0]
+        route = FakeRoute("https://example.com/x.png")
+        await handler(route)  # must not raise
+        broken = ExplodingAbortRoute("https://example.com/y.png")
+        await handler(broken)  # abort itself failing must not raise either
+        return route, broken
+
+    route, broken = asyncio.run(run())
+    assert route.aborted and not route.continued
+    assert not broken.continued
