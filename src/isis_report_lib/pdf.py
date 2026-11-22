@@ -8,8 +8,9 @@ never awaited (cross-loop close hangs on Linux).
 import asyncio
 import logging
 from typing import Any
+from urllib.parse import urlsplit
 
-from playwright.async_api import Browser, BrowserContext, Playwright, async_playwright
+from playwright.async_api import Browser, BrowserContext, Playwright, Route, async_playwright
 
 logger = logging.getLogger("isis_report_lib")
 
@@ -50,6 +51,52 @@ def default_footer(printed_at: str | None = None, locale: str = "pt-BR") -> str:
 
 DEFAULT_FOOTER = default_footer()
 DEFAULT_MARGIN = {"top": ".15in", "bottom": ".4in", "left": ".15in", "right": ".15in"}
+
+
+def validate_allowed_hosts(allowed_hosts: list[str] | tuple[str, ...] | None) -> list[str] | None:
+    """Fail closed on malformed network policy: bare hostnames (DNS/IPv4), no URLs or wildcards."""
+    if allowed_hosts is None:
+        return None
+    if isinstance(allowed_hosts, str) or not isinstance(allowed_hosts, (list, tuple)):
+        raise ValueError(f"Invalid allowed_hosts (must be a list of bare hostnames): {allowed_hosts!r}")
+    cleaned: list[str] = []
+    for entry in allowed_hosts:
+        if not isinstance(entry, str) or not entry.strip():
+            raise ValueError(f"Invalid allowed_hosts entry (must be a non-empty hostname): {entry!r}")
+        host = entry.strip().lower().rstrip(".")
+        if not host or host.startswith(".") or "*" in host or any(char in host for char in "/:@?#") or any(char.isspace() for char in host):
+            raise ValueError(f"Invalid allowed_hosts entry (bare hostname, no scheme/port/path/wildcard): {entry!r}")
+        cleaned.append(host)
+    return cleaned
+
+
+def is_host_allowed(url: str, allowed_hosts: list[str] | tuple[str, ...] | None) -> bool:
+    """Pure predicate for outbound requests: only http(s) is gated.
+
+    Non-network schemes (``data:``, ``blob:``, ``file:``...) always pass;
+    http(s) passes only for allow-listed hostnames (exact, case-insensitive).
+    ``None``/empty allow-list denies all network traffic.
+    """
+    if urlsplit(url).scheme.lower() not in ("http", "https"):
+        return True
+    if not allowed_hosts:
+        return False
+    try:
+        host = (urlsplit(url).hostname or "").lower().rstrip(".")
+    except ValueError:  # malformed URL (e.g. bad IPv6): deny
+        return False
+    allowed = {entry.strip().lower().rstrip(".") for entry in allowed_hosts}
+    return host in allowed and bool(host)
+
+
+async def _guard_outbound(route: Route, allowed_hosts: list[str] | None) -> None:
+    """Playwright route handler: continue listed hosts, abort everything else network-bound."""
+    if is_host_allowed(route.request.url, allowed_hosts):
+        await route.continue_()
+        return
+    host = urlsplit(route.request.url).hostname or "?"
+    logger.warning("Blocked outbound request to %s (not in allowed_hosts).", host)
+    await route.abort()
 
 
 def _browser_usable() -> bool:
@@ -129,23 +176,37 @@ async def ensure_browser(headless: bool = True) -> None:
         _owner_loop = asyncio.get_running_loop()
 
 
-async def new_page():
-    """Return a new Page from the shared browser (close it with ``await page.close()``)."""
+async def new_page(allowed_hosts: list[str] | tuple[str, ...] | None = None):
+    """Return a new Page from the shared browser (close it with ``await page.close()``).
+
+    Outbound http(s) is denied unless the host is allow-listed (page-scoped
+    routing, so concurrent reports keep independent policies).
+    """
     await ensure_browser()
     if _context is None:
         raise RuntimeError("Browser context is not initialized")
-    return await _context.new_page()
+    page = await _context.new_page()
+    allowed = validate_allowed_hosts(allowed_hosts)
+
+    async def _guard(route: Route) -> None:
+        await _guard_outbound(route, allowed)
+
+    await page.route("**/*", _guard)
+    return page
 
 
-async def get_pdf_from_html(html: str, **kwargs: Any) -> bytes:
+async def get_pdf_from_html(html: str, allowed_hosts: list[str] | tuple[str, ...] | None = None, **kwargs: Any) -> bytes:
     """Render HTML to PDF via the shared browser pool.
 
     Accepted kwargs: ``format``, ``landscape``, ``display_header_footer``,
     ``header_template``, ``footer_template``, ``margin``, ``outline``
     (clickable PDF outline), ``tagged`` (accessible tagged PDF),
     ``prefer_css_page_size`` (let CSS ``@page`` win over ``format``).
+
+    ``allowed_hosts`` allow-lists outbound http(s) hosts (bare hostnames);
+    ``None`` (default) denies all network traffic at render time.
     """
-    page = await new_page()
+    page = await new_page(allowed_hosts)
     try:
         await page.set_content(html)
         return await page.pdf(

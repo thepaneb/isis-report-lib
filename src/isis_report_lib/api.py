@@ -44,13 +44,17 @@ async def agenerate_pdf(
     pdf_options: dict[str, Any] | None = None,
     template_dir: str | Path | None = None,
     template_name: str = "tabular.jinja",
+    allowed_hosts: list[str] | None = None,
 ) -> bytes:
     """Generate a PDF (async) from a dict/ReportPayload payload.
 
     Custom layouts: point ``template_dir`` at a directory with your own
-    ``.jinja`` files and pick one via ``template_name``.
+    ``.jinja`` files and pick one via ``template_name``. Outbound http(s) is
+    denied by default; pass ``allowed_hosts`` (bare hostnames) to opt in.
     """
-    service = TabularReportService(pdf_options=pdf_options, template_dir=template_dir, template_name=template_name)
+    service = TabularReportService(
+        pdf_options=pdf_options, template_dir=template_dir, template_name=template_name, allowed_hosts=allowed_hosts
+    )
     return await service.execute(_normalize_payload(payload))
 
 
@@ -59,9 +63,10 @@ def generate_pdf(
     pdf_options: dict[str, Any] | None = None,
     template_dir: str | Path | None = None,
     template_name: str = "tabular.jinja",
+    allowed_hosts: list[str] | None = None,
 ) -> bytes:
     """Generate a PDF (sync) from a dict/ReportPayload payload."""
-    return _run(agenerate_pdf(payload, pdf_options, template_dir, template_name))
+    return _run(agenerate_pdf(payload, pdf_options, template_dir, template_name, allowed_hosts))
 
 
 async def agenerate_pdf_from_toon(
@@ -69,9 +74,10 @@ async def agenerate_pdf_from_toon(
     pdf_options: dict[str, Any] | None = None,
     template_dir: str | Path | None = None,
     template_name: str = "tabular.jinja",
+    allowed_hosts: list[str] | None = None,
 ) -> bytes:
     """Generate a PDF (async) from `.toon` text."""
-    return await agenerate_pdf(parse_toon(text), pdf_options, template_dir, template_name)
+    return await agenerate_pdf(parse_toon(text), pdf_options, template_dir, template_name, allowed_hosts)
 
 
 def generate_pdf_from_toon(
@@ -79,9 +85,10 @@ def generate_pdf_from_toon(
     pdf_options: dict[str, Any] | None = None,
     template_dir: str | Path | None = None,
     template_name: str = "tabular.jinja",
+    allowed_hosts: list[str] | None = None,
 ) -> bytes:
     """Generate a PDF (sync) from `.toon` text."""
-    return _run(agenerate_pdf_from_toon(text, pdf_options, template_dir, template_name))
+    return _run(agenerate_pdf_from_toon(text, pdf_options, template_dir, template_name, allowed_hosts))
 
 
 async def arender_html(
@@ -141,6 +148,7 @@ async def agenerate_many(
     max_concurrency: int = 4,
     template_dir: str | Path | None = None,
     template_name: str = "tabular.jinja",
+    allowed_hosts: list[str] | None = None,
 ) -> list[bytes]:
     """Generate several PDFs concurrently, rejoining results in input order.
 
@@ -153,7 +161,7 @@ async def agenerate_many(
 
     async def _one(payload: dict[str, Any] | ReportPayload) -> bytes:
         async with semaphore:
-            return await agenerate_pdf(payload, pdf_options, template_dir, template_name)
+            return await agenerate_pdf(payload, pdf_options, template_dir, template_name, allowed_hosts)
 
     return list(await asyncio.gather(*[_one(payload) for payload in payloads]))
 
@@ -164,9 +172,10 @@ def generate_many(
     max_concurrency: int = 4,
     template_dir: str | Path | None = None,
     template_name: str = "tabular.jinja",
+    allowed_hosts: list[str] | None = None,
 ) -> list[bytes]:
     """Generate several PDFs concurrently (sync); results come back in input order."""
-    return _run(agenerate_many(payloads, pdf_options, max_concurrency, template_dir, template_name))
+    return _run(agenerate_many(payloads, pdf_options, max_concurrency, template_dir, template_name, allowed_hosts))
 
 
 def generate_xlsx(payload: dict[str, Any] | ReportPayload) -> bytes:

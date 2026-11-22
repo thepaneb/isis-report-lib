@@ -72,3 +72,47 @@ async def test_agenerate_many_e2e():
     results = await agenerate_many([PAYLOAD, PAYLOAD, PAYLOAD], max_concurrency=2)
     assert len(results) == 3
     assert all(pdf.startswith(b"%PDF") for pdf in results)
+
+
+@needs_chromium
+async def test_outbound_blocked_by_default_and_allowed_per_host(tmp_path):
+    """Deny-by-default route guard, verified against a hermetic local server."""
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    hits: list[str] = []
+    pixel = (
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+        b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc\xf8\x0f\x00\x00\x01"
+        b"\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82"
+    )
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            hits.append(self.path)
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Content-Length", str(len(pixel)))
+            self.end_headers()
+            self.wfile.write(pixel)
+
+        def log_message(self, *args):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    port = server.server_address[1]
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        tpl = tmp_path / "img.jinja"
+        tpl.write_text(f'<html><body><img src="http://127.0.0.1:{port}/p.png"></body></html>', encoding="utf-8")
+        payload = {"meta": {"title": "T"}, "data": []}
+        denied = await agenerate_pdf(payload, template_dir=tmp_path, template_name="img.jinja")
+        assert denied.startswith(b"%PDF")
+        assert hits == []
+        allowed = await agenerate_pdf(payload, template_dir=tmp_path, template_name="img.jinja", allowed_hosts=["127.0.0.1"])
+        assert allowed.startswith(b"%PDF")
+        assert hits == ["/p.png"]
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)

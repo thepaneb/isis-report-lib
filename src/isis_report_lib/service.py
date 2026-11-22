@@ -1,5 +1,6 @@
 """Report generation pipeline: Fetch -> Process -> HTML -> PDF."""
 
+import json
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -7,6 +8,8 @@ from pathlib import Path
 from typing import Any, final
 
 logger = logging.getLogger("isis_report_lib")
+
+_LIMIT_KEYS = ("max_rows", "max_bytes")
 
 
 def with_meta_defaults(meta: dict[str, Any]) -> dict[str, Any]:
@@ -18,7 +21,78 @@ def with_meta_defaults(meta: dict[str, Any]) -> dict[str, Any]:
         raise ValueError(f"Invalid meta.source_note (must be a non-empty string): {meta['source_note']!r}")
     if "summary_side" in meta and meta["summary_side"] not in ("top", "bottom"):
         raise ValueError(f"Invalid meta.summary_side (expected top|bottom): {meta['summary_side']!r}")
+    if "limits" in meta and meta["limits"] is not None:
+        meta["limits"] = _normalize_limits(meta["limits"])
     return meta
+
+
+def _normalize_limits(limits: Any) -> dict[str, int]:
+    """Validate ``meta.limits`` (fail closed: unknown keys and non-positive ints raise)."""
+    if not isinstance(limits, dict):
+        raise ValueError(f"Invalid meta.limits (must be an object): {limits!r}")
+    for key in limits:
+        if key not in _LIMIT_KEYS:
+            raise ValueError(f"Unknown meta.limits key: {key!r} (expected max_rows|max_bytes)")
+    out: dict[str, int] = {}
+    for key in _LIMIT_KEYS:
+        value = limits.get(key)
+        if value is None:
+            continue
+        if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+            raise ValueError(f"Invalid meta.limits.{key} (must be a positive integer): {value!r}")
+        out[key] = value
+    return out
+
+
+def _count_data_records(data: Any) -> int:
+    """Count record objects in a data tree (every dict under lists counts, at any depth).
+
+    Iterative (no recursion limit): a hostile payload nests arbitrarily deep.
+    """
+    count = 0
+    stack = [data]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, list):
+            stack.extend(node)
+        elif isinstance(node, dict):
+            count += 1
+            stack.extend(node.values())
+    return count
+
+
+def _count_payload_records(payload: dict[str, Any]) -> int:
+    """Records driving row rendering: tabular ``data`` or table/crosstab ``data`` + kpi ``items``."""
+    if "sections" in payload:
+        sections = payload.get("sections", []) or []
+        total = 0
+        for section in sections:
+            if not isinstance(section, dict):
+                continue
+            stype = section.get("type", "table")
+            if stype in ("table", "crosstab"):
+                total += _count_data_records(section.get("data", []))
+            elif stype == "kpi":
+                total += _count_data_records(section.get("items", []))
+        return total
+    return _count_data_records(payload.get("data", []))
+
+
+def _check_payload_quotas(payload: dict[str, Any], meta: dict[str, Any]) -> None:
+    """Enforce opt-in ``meta.limits`` before any expensive shaping (fail fast on DoS-sized input)."""
+    limits = meta.get("limits") or {}
+    max_rows = limits.get("max_rows")
+    max_bytes = limits.get("max_bytes")
+    if max_rows is None and max_bytes is None:
+        return
+    if max_bytes is not None:
+        size = len(json.dumps(payload, sort_keys=True, default=str).encode("utf-8"))
+        if size > max_bytes:
+            raise ValueError(f"Payload is {size} bytes, exceeding meta.limits.max_bytes={max_bytes}")
+    if max_rows is not None:
+        total = _count_payload_records(payload)
+        if total > max_rows:
+            raise ValueError(f"Payload has {total} data records, exceeding meta.limits.max_rows={max_rows}")
 
 
 def prepare_report(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
@@ -33,6 +107,7 @@ def prepare_report(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str, A
     )
 
     meta = with_meta_defaults(payload.get("meta", {}) or {})
+    _check_payload_quotas(payload, meta)
     if "sections" in payload:
         dataset, layout, _meta = _prepare_sections(payload.get("sections", []) or [], meta)
         assign_report_footnotes(layout, dataset.get("sections", []))
@@ -209,12 +284,15 @@ class TabularReportService(BaseReportService):
         pdf_options: dict[str, Any] | None = None,
         template_dir: str | Path | None = None,
         template_name: str = "tabular.jinja",
+        allowed_hosts: list[str] | None = None,
     ) -> None:
         from isis_report_lib import pdf as _pdf
+        from isis_report_lib.pdf import validate_allowed_hosts
 
         self._pdf_options = pdf_options or {}
         self._template_dir = template_dir
         self._template_name = template_name
+        self._allowed_hosts = validate_allowed_hosts(allowed_hosts)
         self._printed_at: str | None = None
         self._meta_locale: str = "pt-BR"
         self._page: dict[str, Any] = {}
@@ -251,7 +329,7 @@ class TabularReportService(BaseReportService):
         # Print timestamp goes in the repeated page footer (right side);
         # an explicit footer_template always wins.
         options.setdefault("footer_template", default_footer(self._printed_at, locale=self._meta_locale))
-        return await self._pdf_module.get_pdf_from_html(html, **options)
+        return await self._pdf_module.get_pdf_from_html(html, allowed_hosts=self._allowed_hosts, **options)
 
     def _page_pdf_options(self) -> dict[str, Any]:
         """Translate ``meta.page`` to ``page.pdf`` kwargs; explicit ``pdf_options`` win."""

@@ -10,29 +10,24 @@ otherwise.
 
 ## Next (prioritized)
 
-### 1. Semgrep SAST gate (assurance)
-Add a Semgrep CI job over `src/` (Python ruleset, blocking on high severity).
-Today `ruff -S` + review + tests cover the intent; a real SAST closes ASVS
-10.1.1 (currently Partial).
-
-### 2. Configurable payload size quotas (DoS hardening)
-Opt-in limits (e.g. max rows / max payload bytes), fail-closed with
-`ValueError`, consistent with the existing recursion guards.
-Closes ASVS 12.1.1 (currently Partial: deployer duty).
-
-### 3. Outbound network allow-list for Chromium (defense in depth)
-Deny outbound requests by default via route aborting, with an opt-in
-allow-list (e.g. self-hosted fonts). JS is already off and data can't inject
-elements; this covers operator-authored templates that pull remote assets.
-Narrows ASVS 12.6.3 gap.
-
-### 4. Documentation site (polish)
+### 1. Documentation site (polish)
 `mkdocs` + GitHub Pages from `docs/` (`STANDARDS.md`, `ASVS.md`, this file).
 Landing page and wiki already exist, so this is discoverability, not new
 content.
 
 ## Done (unreleased, post-v0.11.0)
 
+- **Configurable payload size quotas (DoS hardening)**: opt-in `meta.limits`
+  (`max_rows`/`max_bytes`) enforced fail-closed in `prepare_report` for every
+  output (CLI `--max-rows`/`--max-bytes`); ASVS 12.1.1 now Pass.
+- **Outbound network allow-list for Chromium (defense in depth)**: outbound
+  http(s) denied by default via per-page route aborting, opt-in `allowed_hosts`
+  (API/CLI only, never payload); ASVS 12.6.1 now Pass.
+- **Semgrep SAST gate**: `semgrep.yml` CI job (PR/push/weekly, `p/default` + 8
+  custom rules locking `STANDARDS.md` §3.2–§3.3, SARIF to code scanning,
+  required in branch protection); ASVS 10.1.1 now Pass. Drive-by: `publish.yml`
+  tag interpolation via env, `charts.py` exemption documented, Dependabot
+  7-day cooldown.
 - **CycloneDX SBOM as a release artifact**: `sbom.json` (CycloneDX 1.6,
   reproducible) generated in an isolated env from the release wheel and
   attached to every GitHub Release (stable + prerelease); ASVS 14.2.5 now met.

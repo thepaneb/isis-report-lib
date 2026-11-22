@@ -12,6 +12,7 @@ class MetaInfo(BaseModel):
     sub_title: str | None = None
     company: str | None = None
     mode: str = "exact"
+    limits: dict[str, Any] | None = None
 
 
 class ReportPayload(BaseModel):

@@ -7,6 +7,8 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 
 ## [Unreleased]
 ### Added
+- DoS quotas: opt-in `meta.limits` (`max_rows` records, `max_bytes` payload bytes) enforced fail-closed in `prepare_report` for every output; CLI `--max-rows`/`--max-bytes`
+- Chromium egress deny-by-default: outbound http(s) blocked via per-page route guard, opt-in `allowed_hosts` (API/CLI only, never payload); closes ASVS 12.1.1 (opt-in quotas) and 12.6.1 (deny-by-default + allow-list)
 - Signing key rotation: `verify_pdf` accepts `{key_id: key}` mappings (envelope `key_id` selects first) and ordered key lists; `verify` takes repeatable `--key-file`; rotation runbook in `docs/STANDARDS.md` §3.3
 - CycloneDX 1.6 `sbom.json` attached to every GitHub Release (stable + prereleases), built reproducibly from the release wheel in an isolated CI env
 - SAST: Semgrep workflow on PR/push/weekly (registry packs + custom `.semgrep/` rules locking `STANDARDS.md` §3.2), SARIF to code scanning; drive-by: `publish.yml` tag interpolation now via env (shell-injection), `charts.py` pre-built-SVG exemption documented inline

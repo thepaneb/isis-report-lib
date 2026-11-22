@@ -2,6 +2,7 @@
 
 import asyncio
 import io
+from typing import Any
 
 import pytest
 
@@ -138,6 +139,15 @@ def test_deep_inputs_fail_closed(monkeypatch):
         render_html({"meta": {"title": "T"}, "layout": node, "data": []})
 
 
+class FakePage:
+    def __init__(self, name):
+        self.name = name
+        self.routes: list[tuple[str, Any]] = []
+
+    async def route(self, pattern, handler):
+        self.routes.append((pattern, handler))
+
+
 class FakeContext:
     def __init__(self):
         self.closed = False
@@ -145,7 +155,7 @@ class FakeContext:
 
     async def new_page(self):
         self.pages += 1
-        return f"page-{self.pages}"
+        return FakePage(f"page-{self.pages}")
 
     async def close(self):
         self.closed = True
@@ -176,11 +186,12 @@ def test_new_page_uses_js_disabled_context(monkeypatch):
         monkeypatch.setattr(pool, "_owner_loop", asyncio.get_running_loop())
         monkeypatch.setattr(pool, "_context", browser.context)
         page = await pool.new_page()
-        assert page == "page-1"
-        return browser
+        assert page.name == "page-1"
+        return browser, page
 
-    browser = asyncio.run(run())
+    browser, page = asyncio.run(run())
     assert browser.context.pages == 1
+    assert len(page.routes) == 1 and page.routes[0][0] == "**/*"
 
 
 def test_reset_closes_context(monkeypatch):

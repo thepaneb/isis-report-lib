@@ -553,3 +553,99 @@ async def test_execute_propagates_render_error():
     with patch("isis_report_lib.rendering.arender_report_html", side_effect=ValueError("fail")):
         with pytest.raises(ValueError, match="fail"):
             await service.execute(PAYLOAD)
+
+
+def _limited(rows, **limits):
+    return {"meta": {"title": "T", "limits": dict(limits)}, "data": rows}
+
+
+def test_quotas_reject_over_max_rows():
+    with pytest.raises(ValueError, match="exceeding meta.limits.max_rows=2"):
+        render_html(_limited([{"a": 1}, {"a": 2}, {"a": 3}], max_rows=2))
+
+
+def test_quotas_count_nested_records():
+    payload = _limited([{"g": "x", "items": [{"a": 1}, {"a": 2}]}], max_rows=2)  # 1 parent + 2 children
+    with pytest.raises(ValueError, match="3 data records"):
+        render_html(payload)
+    ok = _limited([{"g": "x", "items": [{"a": 1}, {"a": 2}]}], max_rows=3)
+    assert "T" in render_html(ok)
+
+
+def test_quotas_cover_sections():
+    payload = {
+        "meta": {"title": "T", "limits": {"max_rows": 2}},
+        "sections": [
+            {"type": "table", "title": "A", "data": [{"x": 1}, {"x": 2}]},
+            {"type": "kpi", "title": "B", "items": [{"label": "N", "value": 1}]},
+        ],
+    }
+    with pytest.raises(ValueError, match="3 data records"):
+        render_html(payload)
+    payload["meta"]["limits"] = {"max_rows": 3}
+    assert "T" in render_html(payload)
+
+
+def test_quotas_reject_over_max_bytes():
+    with pytest.raises(ValueError, match=r"exceeding meta.limits.max_bytes=1"):
+        render_html(_limited([], max_bytes=1))
+
+
+def test_quotas_invalid_limits_fail_closed():
+    for limits in (
+        "10",
+        [10],
+        {"max_rows": 0},
+        {"max_rows": -1},
+        {"max_rows": 1.5},
+        {"max_rows": True},
+        {"max_bytes": "big"},
+        {"max_row": 5},
+    ):
+        with pytest.raises(ValueError):
+            render_html({"meta": {"title": "T", "limits": limits}, "data": []})
+
+
+def test_quotas_empty_and_none_limits_are_unlimited():
+    assert "T" in render_html({"meta": {"title": "T", "limits": {}}, "data": []})
+    assert "T" in render_html({"meta": {"title": "T", "limits": {"max_rows": None}}, "data": []})
+    assert "T" in render_html({"meta": {"title": "T"}, "data": [{"a": 1}] * 100})
+
+
+def test_quotas_enforced_across_outputs():
+    from isis_report_lib import generate_csv
+
+    payload = _limited([{"a": 1}, {"a": 2}], max_rows=1)
+    with pytest.raises(ValueError, match="max_rows"):
+        generate_csv(payload)
+
+
+def test_report_payload_model_preserves_limits():
+    from isis_report_lib import ReportPayload, generate_csv
+
+    payload = ReportPayload(meta={"title": "T", "limits": {"max_rows": 1}}, data=[{"a": 1}, {"a": 2}])
+    with pytest.raises(ValueError, match="max_rows"):
+        generate_csv(payload)
+
+
+def test_service_rejects_bad_allowed_hosts():
+    with pytest.raises(ValueError, match="allowed_hosts"):
+        TabularReportService(allowed_hosts=["https://example.com"])
+
+
+def test_generate_pdf_passes_allowed_hosts():
+    from isis_report_lib import generate_pdf
+
+    with patch("isis_report_lib.pdf.get_pdf_from_html", new_callable=AsyncMock) as mock_pdf:
+        mock_pdf.return_value = b"%PDF-1.4"
+        generate_pdf(PAYLOAD, allowed_hosts=["example.com"])
+        assert mock_pdf.await_args.kwargs["allowed_hosts"] == ["example.com"]
+
+
+def test_generate_pdf_default_denies_network():
+    from isis_report_lib import generate_pdf
+
+    with patch("isis_report_lib.pdf.get_pdf_from_html", new_callable=AsyncMock) as mock_pdf:
+        mock_pdf.return_value = b"%PDF-1.4"
+        generate_pdf(PAYLOAD)
+        assert mock_pdf.await_args.kwargs["allowed_hosts"] is None

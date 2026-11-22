@@ -40,7 +40,7 @@ payload (dict | ReportPayload | .toon)
 | `layout.py` | pure data shaping (`build_report`, aggregates, footnotes, color domains) | `rendering`, `pdf`, `export` |
 | `formatting.py` | pure value functions (masks, rules, scales, footnotes) | anything except `babel`, stdlib (lazy `charts` for sparkline SVG) |
 | `rendering.py` | Jinja env, CSS vars/inlining | `pdf`, `export` |
-| `pdf.py` | browser pool singleton (loop-bound) | `rendering`, `export` |
+| `pdf.py` | browser pool singleton (loop-bound) + egress route guard | `rendering`, `export` |
 | `export.py` | `collect_tables` + XLSX/CSV builders | `rendering`, `pdf` |
 | `inputs.py` | adapters *in* (dataframe/csv/json) | output logic |
 | `signing.py` | seal (bytes in/out); `verify_*` never raise | network, filesystem |
@@ -146,7 +146,9 @@ follow [`SECURITY.md`](../SECURITY.md). This section states the rules.
 | Output (untrusted context) | HTML viewed in browsers/mail clients | must be safe to open: escaped, no scripts, no remote refs |
 
 Report *layout* from untrusted authors is treated as schema: validated
-strictly, escaped on output. Only `template_dir` is code.
+strictly, escaped on output. Only `template_dir` is code. Network egress
+policy (`allowed_hosts`) is operator configuration like `template_dir` and
+keys: accepted from API/CLI arguments only, never from the payload.
 
 ### 3.2 Rendering rules (MUST)
 
@@ -155,6 +157,9 @@ strictly, escaped on output. Only `template_dir` is code.
 - No JavaScript in the PDF browser context (`java_script_enabled=False`).
 - No remote resources at render time: `_inline_css` strips `<link>`
   stylesheets instead of fetching them (email clients ignore them anyway).
+- Outbound http(s) from Chromium is denied by default via a per-page route
+  guard; `allowed_hosts` (bare hostnames, API/CLI only) opts specific hosts
+  back in. Data URIs and other non-network schemes always pass.
 - Spreadsheet safety: text cells starting with `= + - @` (or tab/CR) are
   `'`-prefixed in CSV/XLSX; numeric values are never prefixed.
 - `verify_pdf` is total: malformed blocks/keys/algorithms yield `invalid`

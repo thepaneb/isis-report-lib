@@ -273,6 +273,7 @@ payload = {
 | `source_note` / `source` | `meta` / any section | provenance line under the report/section (`# [source]` in CSV, `Notes` sheet in XLSX) |
 | `color_scale` / `data_bar` | field def | `color_scale: {min, max}` gradient fill by value (explicit `cell_rules` win); `data_bar: true` native Excel bars (XLSX only) |
 | `meta.summary_side` | `meta` | `top\|bottom` (default) grand-summary placement |
+| `meta.limits` | `meta` | opt-in DoS quotas `{max_rows, max_bytes}` — enforced in `prepare_report` for every output, fail-closed `ValueError` (unknown keys and non-positive ints raise) |
 
 ## `.toon` syntax
 
@@ -296,10 +297,10 @@ See `examples/sales_order.toon`.
 
 | Function | Description |
 | --- | --- |
-| `generate_pdf(payload, pdf_options?) -> bytes` | sync PDF from dict/`ReportPayload` |
+| `generate_pdf(payload, pdf_options?, allowed_hosts?) -> bytes` | sync PDF from dict/`ReportPayload`; `allowed_hosts=[...]` allow-lists outbound http(s) hosts (default denies all network) |
 | `agenerate_pdf(...)` | same, async |
-| `generate_many(payloads, max_concurrency=4) -> list[bytes]` / `agenerate_many` | concurrent PDFs sharing the pool, results in input order |
-| `generate_pdf_from_toon(text, ...)` / `agenerate_pdf_from_toon` | PDF from `.toon` |
+| `generate_many(payloads, max_concurrency=4) -> list[bytes]` / `agenerate_many` | concurrent PDFs sharing the pool, results in input order (per-call `allowed_hosts` supported) |
+| `generate_pdf_from_toon(text, ...)` / `agenerate_pdf_from_toon` | PDF from `.toon` (same `allowed_hosts` keyword) |
 | `generate_xlsx(payload) -> bytes` / `agenerate_xlsx` / `..._from_toon` | .xlsx workbook, no browser (needs `.[xlsx]` extra) |
 | `generate_csv(payload, delimiter=",") -> str` / `agenerate_csv` / `..._from_toon` | CSV text, no browser (`bom=True` for Excel) |
 | `render_html(payload, inline_css=False)` / `arender_html` / `render_html_from_toon` | intermediate HTML (no browser); `inline_css=True` for email clients (needs `.[email]` extra; resolves CSS variables, sets `lang` from `meta.locale`) |
@@ -331,6 +332,7 @@ MIT — see `LICENSE`.
 - **Dependencies**: audited with `pip-audit` in CI on every PR; Dependabot keeps SHA-pinned actions and packages updated; releases are built and published by CI via OIDC trusted publishing (no stored tokens).
 - **SAST**: Semgrep scans every PR, push and weekly — registry packs plus custom `.semgrep/` rules locking the guarantees below (sandboxed autoescaped templates, pre-built SVG only, JS-off, no fetch at render time); findings fail CI and upload as SARIF to code scanning.
 - **Trust boundary**: templates (`.jinja` files, `template_dir`) are code — only load them from sources you trust. Report *data* is escaped in HTML output and never executed as template code (charts/sparklines emit pre-built SVG); if you serve the HTML/email output to browsers, treat it like any user-content page.
-- **Browser**: pages render with JavaScript disabled in an isolated Chromium context per sync call (shared pool in async mode); `inline_css` strips remote `<link>` stylesheets (no server-side fetches on render); the Playwright browser runs headless in its own Chromium sandbox.
+- **Browser**: pages render with JavaScript disabled in an isolated Chromium context per sync call (shared pool in async mode); `inline_css` strips remote `<link>` stylesheets (no server-side fetches on render); outbound http(s) is denied by default at render time — allow hosts with `allowed_hosts=[...]` (`generate_pdf(...)` / CLI `--allowed-hosts`, never from the payload); the Playwright browser runs headless in its own Chromium sandbox.
+- **Denial of service**: opt-in `meta.limits` (`max_rows` records, `max_bytes` payload bytes, CLI `--max-rows`/`--max-bytes`) are enforced before any shaping for every output format; deeply nested layouts/inputs are rejected with `ValueError`.
 - **Exports**: text cells starting with `= + - @` (or tab/CR) are `'`-prefixed in CSV/XLSX so spreadsheets cannot evaluate data as formulas (numeric values, including negatives, are untouched).
 - **Robustness**: deeply nested `.toon`/JSON input and report layouts are rejected with `ValueError` instead of crashing the interpreter; `verify_pdf` never raises — malformed signatures report `invalid`.

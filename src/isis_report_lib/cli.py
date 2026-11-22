@@ -41,6 +41,14 @@ def build_parser() -> argparse.ArgumentParser:
     gen.add_argument("--delimiter", default=",", help="CSV delimiter for input and output (default: ',').")
     gen.add_argument("--template-dir", type=Path, default=None, help="Directory with custom .jinja templates.")
     gen.add_argument("--template-name", default="tabular.jinja", help="Template file to render (default: tabular.jinja).")
+    gen.add_argument("--max-rows", type=int, default=None, help="Reject payloads with more data records (DoS guard).")
+    gen.add_argument("--max-bytes", type=int, default=None, help="Reject payloads larger than N bytes (DoS guard).")
+    gen.add_argument(
+        "--allowed-hosts",
+        action="append",
+        default=None,
+        help="Allow outbound http(s) to a host (repeatable; PDF only, default denies all network).",
+    )
     gen.add_argument("--header-template", type=Path, default=None, help="HTML file for the PDF header.")
     gen.add_argument("--footer-template", type=Path, default=None, help="HTML file for the PDF footer.")
     gen.set_defaults(func=_cmd_generate)
@@ -128,6 +136,20 @@ def _apply_locale(payload: dict[str, Any], locale: str | None) -> dict[str, Any]
     return {**payload, "meta": meta}
 
 
+def _apply_limits(payload: dict[str, Any], max_rows: int | None, max_bytes: int | None) -> dict[str, Any]:
+    """Inject ``meta.limits`` when ``--max-rows``/``--max-bytes`` are given."""
+    if max_rows is None and max_bytes is None:
+        return payload
+    meta = dict(payload.get("meta") or {})
+    limits = dict(meta.get("limits") or {})
+    if max_rows is not None:
+        limits["max_rows"] = max_rows
+    if max_bytes is not None:
+        limits["max_bytes"] = max_bytes
+    meta["limits"] = limits
+    return {**payload, "meta": meta}
+
+
 def _load_payload(path: Path, fmt: str, delimiter: str = ",") -> tuple[dict[str, Any], bool]:
     """Return (payload dict, True). Raises FileNotFoundError / ValueError with friendly messages."""
     if fmt == "csv":
@@ -152,6 +174,7 @@ def _cmd_generate(args: argparse.Namespace) -> int:
         fmt = _detect_format(args.input, args.input_format)
         payload, _is_json = _load_payload(args.input, fmt, args.delimiter)
         payload = _apply_locale(payload, args.locale)
+        payload = _apply_limits(payload, args.max_rows, args.max_bytes)
         output_format = _detect_output_format(args)
         pdf_options: dict[str, Any] = {"format": args.page_format}
         header = _read_text_file(args.header_template, "Header template")
@@ -162,7 +185,7 @@ def _cmd_generate(args: argparse.Namespace) -> int:
             pdf_options["footer_template"] = footer
         output = args.output or args.input.with_suffix(f".{output_format}")
         if output_format == "pdf":
-            result = generate_pdf(payload, pdf_options, args.template_dir, args.template_name)
+            result = generate_pdf(payload, pdf_options, args.template_dir, args.template_name, allowed_hosts=args.allowed_hosts)
             output.write_bytes(result)
         elif output_format == "xlsx":
             output.write_bytes(generate_xlsx(payload))

@@ -89,7 +89,7 @@ def test_generate_toon_mocked(tmp_path, monkeypatch, capsys):
     dst = tmp_path / "out.pdf"
     seen = {}
 
-    def fake_generate(payload, *args):
+    def fake_generate(payload, *args, **kwargs):
         seen["payload"] = payload
         return b"%PDF-mock"
 
@@ -107,7 +107,7 @@ def test_generate_json_default_output_mocked(tmp_path, monkeypatch):
     src = _write(tmp_path, "in.json", json.dumps(PAYLOAD))
     seen = {}
 
-    def fake_generate(payload, opts, *args):
+    def fake_generate(payload, opts, *args, **kwargs):
         seen["payload"] = payload
         seen["opts"] = opts
         return b"%PDF-mock"
@@ -145,7 +145,7 @@ def test_generate_propagates_failure_as_exit_1(tmp_path, monkeypatch, capsys):
 
     src = _write(tmp_path, "in.toon", TOON)
 
-    def boom(*args):
+    def boom(*args, **kwargs):
         raise RuntimeError("browser exploded")
 
     monkeypatch.setattr(cli, "generate_pdf", boom)
@@ -189,7 +189,7 @@ def test_generate_header_footer_flags_mocked(tmp_path, monkeypatch, capsys):
     src = _write(tmp_path, "in.toon", TOON)
     seen = {}
 
-    def fake_generate(payload, opts, *args):
+    def fake_generate(payload, opts, *args, **kwargs):
         seen["opts"] = opts
         return b"%PDF-mock"
 
@@ -255,6 +255,37 @@ def test_generate_csv_bom_flag(tmp_path, capsys):
     assert main(["generate", str(src), "-o", str(dst), "--format", "csv", "--bom"]) == 0
     assert dst.read_bytes().startswith(b"\xef\xbb\xbf# Order")
     capsys.readouterr()
+
+
+def test_generate_enforces_max_rows_flag(tmp_path, capsys):
+    src = _write(tmp_path, "in.json", json.dumps(PAYLOAD))
+    assert main(["generate", str(src), "--max-rows", "0"]) == 2
+    _, err = capsys.readouterr()
+    assert "max_rows" in err
+    assert main(["generate", str(src), "--max-rows", "1", "--format", "csv"]) == 0
+    capsys.readouterr()
+
+
+def test_generate_max_bytes_flag(tmp_path, capsys):
+    src = _write(tmp_path, "in.json", json.dumps(PAYLOAD))
+    assert main(["generate", str(src), "--max-bytes", "1", "--format", "csv"]) == 2
+    _, err = capsys.readouterr()
+    assert "max_bytes" in err
+
+
+def test_generate_allowed_hosts_flag_mocked(tmp_path, monkeypatch):
+    from isis_report_lib import cli
+
+    src = _write(tmp_path, "in.toon", TOON)
+    seen = {}
+
+    def fake_generate(payload, *args, **kwargs):
+        seen.update(kwargs)
+        return b"%PDF-mock"
+
+    monkeypatch.setattr(cli, "generate_pdf", fake_generate)
+    assert main(["generate", str(src), "--allowed-hosts", "a.example", "--allowed-hosts", "b.example"]) == 0
+    assert seen["allowed_hosts"] == ["a.example", "b.example"]
 
 
 @pytest.mark.browser

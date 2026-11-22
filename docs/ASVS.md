@@ -68,9 +68,8 @@ intent with documented limits), **N/A** (no such surface in this project).
 ## V8/V9/V11 — Data Protection, Communications, Business Logic
 
 Mostly **N/A**: no caches, sessions, browser storage, listeners, TLS endpoints,
-or multi-step business flows in the library. Deliberate Partial: no input-size
-quotas (12.1.1, deployer limit) and no outbound allow-list (12.6.1 — outbound
-fetch only exists via operator-authored templates; data cannot trigger it).
+or multi-step business flows in the library. Deliberate Partial: volume quotas
+are a deployer duty (12.1.1, `meta.limits` are opt-in, not on by default).
 
 ## V10 — Malicious Code
 
@@ -84,11 +83,11 @@ fetch only exists via operator-authored templates; data cannot trigger it).
 
 | Req | Lvl | Verdict | Evidence |
 |---|---|---|---|
-| 12.1.1 | L1L2 | Partial | No quotas by design; recursion guards bound nesting; giant-payload limits are the deployer's call |
+| 12.1.1 | L1L2 | Pass | Opt-in `meta.limits` (`max_rows` records, `max_bytes` payload bytes) enforced fail-closed in `prepare_report` for every output (CLI `--max-rows`/`--max-bytes`); recursion guards bound nesting below that |
 | 12.3.1/12.3.2/12.3.5 | L1L2 | Pass | Template names cannot escape the template dir (tested); user metadata never touches filesystem APIs |
 | 12.3.3 | L1L2 | Pass | No remote file inclusion: `<link>` stripped, no URL-driven includes |
 | 12.3.6 | L1L2 | Pass | No unverified CDN/remote libraries in output; JS disabled |
-| 12.6.1 | L1L2L3 | Partial | No generic allow-list framework; effective posture is deny-by-default (no fetch in render paths) |
+| 12.6.1 | L1L2L3 | Pass | Outbound http(s) from Chromium is deny-by-default via a per-page route guard; `allowed_hosts` (API/CLI only, never payload) allow-lists bare hostnames |
 
 ## V13 — API and Web Service
 
@@ -110,6 +109,5 @@ fetch only exists via operator-authored templates; data cannot trigger it).
 
 ## Gaps accepted (deliberate, tracked)
 
-1. No input-size quotas — recursion is bounded, volume is a deployer limit.
+1. Volume quotas are opt-in (`meta.limits`), not on by default; recursion is bounded regardless.
 2. Secrets management (vault/HSM storage) lives with the deployer; rotation across keys is library-supported (`key_id` keyrings), and the library guarantees never-log/never-persist.
-3. Outbound network from Chromium (remote fonts/images in operator templates) has no allow-list; data-driven fetch is eliminated.
