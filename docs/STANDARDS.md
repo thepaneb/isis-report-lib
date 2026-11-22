@@ -10,6 +10,9 @@ Every rule below serves it — the layout adapts to the data, missing data is
 explicit, and provenance is preserved. Nothing here may silently drop, invent,
 or misrepresent data.
 
+Planned work lives in [`ROADMAP.md`](ROADMAP.md) — consult it before starting
+a feature so effort goes to the prioritized items first.
+
 ---
 
 ## 1. Architecture
