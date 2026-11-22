@@ -104,14 +104,13 @@ fetch only exists via operator-authored templates; data cannot trigger it).
 | 14.1.3 | L2L3 | Partial | JS off, autoescape, sandbox, minimal browser flags per framework guidance; host/server hardening is the deployer's duty |
 | 14.2.1 | L1L2 | Pass | `pip-audit` runs on every CI build |
 | 14.2.4 | L2L3 | Pass | PyPI only + Dependabot; Actions SHA-pinned |
-| 14.2.5 | L2L3 | Partial | No checked-in SBOM artifact; dependency set fully declared in `pyproject.toml` (CycloneDX export is a follow-up) |
+| 14.2.5 | L2L3 | Pass | CycloneDX 1.6 `sbom.json` (reproducible, built from the release wheel in an isolated env) attached to every GitHub Release, stable and prerelease |
 | 14.3.2 | L1L2 | Pass | No debug mode, verbose errors, or tracebacks in outputs exist |
 | Rest of V14 | — | N/A | no HTTP headers/CORS/server surface in the library |
 
 ## Gaps accepted (deliberate, tracked)
 
 1. No input-size quotas — recursion is bounded, volume is a deployer limit.
-2. No SBOM artifact — full dependency declaration + Dependabot + pip-audit instead.
-3. No dedicated SAST scanner — `ruff` S-rules + review + tests; semgrep is the planned next gate.
-4. Secrets management (vault/HSM storage) lives with the deployer; rotation across keys is library-supported (`key_id` keyrings), and the library guarantees never-log/never-persist.
-5. Outbound network from Chromium (remote fonts/images in operator templates) has no allow-list; data-driven fetch is eliminated.
+2. No dedicated SAST scanner — `ruff` S-rules + review + tests; semgrep is the planned next gate.
+3. Secrets management (vault/HSM storage) lives with the deployer; rotation across keys is library-supported (`key_id` keyrings), and the library guarantees never-log/never-persist.
+4. Outbound network from Chromium (remote fonts/images in operator templates) has no allow-list; data-driven fetch is eliminated.

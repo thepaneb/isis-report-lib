@@ -8,6 +8,7 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 ## [Unreleased]
 ### Added
 - Signing key rotation: `verify_pdf` accepts `{key_id: key}` mappings (envelope `key_id` selects first) and ordered key lists; `verify` takes repeatable `--key-file`; rotation runbook in `docs/STANDARDS.md` §3.3
+- CycloneDX 1.6 `sbom.json` attached to every GitHub Release (stable + prereleases), built reproducibly from the release wheel in an isolated CI env
 ### Docs
 - `docs/ROADMAP.md`: prioritized next items, done log v0.1.0→v0.11.0, and non-goals (single source of truth for what comes next)
 

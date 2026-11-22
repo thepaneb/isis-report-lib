@@ -181,6 +181,8 @@ strictly, escaped on output. Only `template_dir` is code.
   `GITHUB_TOKEN` permissions are minimal; publishing uses OIDC.
 - OpenSSF Scorecard runs weekly + on push (SARIF to code scanning);
   Codecov reports coverage via OIDC (no stored token; the gate stays on pytest).
+- Every GitHub Release (stable + prerelease) carries a reproducible
+  CycloneDX 1.6 `sbom.json`, built in an isolated env from the release wheel.
 - No secrets in the repo (`.env` is gitignored); release artifacts come only
   from CI (`twine check` + trusted publishing).
 

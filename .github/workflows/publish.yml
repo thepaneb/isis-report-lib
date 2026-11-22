@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.release.prerelease == true
     permissions:
+      contents: write # attach sbom.json to the GitHub Release
       id-token: write # OIDC for Trusted Publishing (also register on test.pypi.org)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -33,6 +34,20 @@ jobs:
           pip install twine
           twine check dist/*
 
+      - name: Generate SBOM (CycloneDX)
+        # Isolated env with only the release wheel: the SBOM describes exactly
+        # what ships (package + runtime deps), reproducibly.
+        run: |
+          python -m venv /tmp/sbom-env
+          /tmp/sbom-env/bin/python -m pip install "cyclonedx-bom==9.0.0" dist/*.whl
+          /tmp/sbom-env/bin/cyclonedx-py environment --of JSON --output-reproducible --sv 1.6 --validate -o sbom.json
+          test -s sbom.json
+
+      - name: Attach SBOM to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.ref_name }}" sbom.json --clobber
+
       - name: Publish to TestPyPI
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
         with:
@@ -42,6 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.release.prerelease != true
     permissions:
+      contents: write # attach sbom.json to the GitHub Release
       id-token: write # OIDC for Trusted Publishing (no token in .env)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -62,6 +78,20 @@ jobs:
         run: |
           pip install twine
           twine check dist/*
+
+      - name: Generate SBOM (CycloneDX)
+        # Isolated env with only the release wheel: the SBOM describes exactly
+        # what ships (package + runtime deps), reproducibly.
+        run: |
+          python -m venv /tmp/sbom-env
+          /tmp/sbom-env/bin/python -m pip install "cyclonedx-bom==9.0.0" dist/*.whl
+          /tmp/sbom-env/bin/cyclonedx-py environment --of JSON --output-reproducible --sv 1.6 --validate -o sbom.json
+          test -s sbom.json
+
+      - name: Attach SBOM to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.ref_name }}" sbom.json --clobber
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1

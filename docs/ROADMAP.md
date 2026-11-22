@@ -10,33 +10,32 @@ otherwise.
 
 ## Next (prioritized)
 
-### 1. CycloneDX SBOM as a release artifact (supply chain)
-Generate and attach `sbom.json` to GitHub Releases (CI step on tag).
-Closes ASVS 14.2.5 gap (currently Partial).
-
-### 2. Semgrep SAST gate (assurance)
+### 1. Semgrep SAST gate (assurance)
 Add a Semgrep CI job over `src/` (Python ruleset, blocking on high severity).
 Today `ruff -S` + review + tests cover the intent; a real SAST closes ASVS
 10.1.1 (currently Partial).
 
-### 3. Configurable payload size quotas (DoS hardening)
+### 2. Configurable payload size quotas (DoS hardening)
 Opt-in limits (e.g. max rows / max payload bytes), fail-closed with
 `ValueError`, consistent with the existing recursion guards.
 Closes ASVS 12.1.1 (currently Partial: deployer duty).
 
-### 4. Outbound network allow-list for Chromium (defense in depth)
+### 3. Outbound network allow-list for Chromium (defense in depth)
 Deny outbound requests by default via route aborting, with an opt-in
 allow-list (e.g. self-hosted fonts). JS is already off and data can't inject
 elements; this covers operator-authored templates that pull remote assets.
 Narrows ASVS 12.6.3 gap.
 
-### 5. Documentation site (polish)
+### 4. Documentation site (polish)
 `mkdocs` + GitHub Pages from `docs/` (`STANDARDS.md`, `ASVS.md`, this file).
 Landing page and wiki already exist, so this is discoverability, not new
 content.
 
 ## Done (unreleased, post-v0.11.0)
 
+- **CycloneDX SBOM as a release artifact**: `sbom.json` (CycloneDX 1.6,
+  reproducible) generated in an isolated env from the release wheel and
+  attached to every GitHub Release (stable + prerelease); ASVS 14.2.5 now met.
 - **Signing key rotation**: `verify_pdf` accepts `{key_id: key}` mappings
   (envelope `key_id` selects first) and ordered key lists; CLI `verify`
   takes repeatable `--key-file`. Rotation runbook in `STANDARDS.md` §3.3.

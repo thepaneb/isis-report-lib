@@ -59,6 +59,7 @@ python -m ruff check src tests && python -m pytest tests -q
 git push -u origin feat/xyz   # then open a PR; merge after the gate passes
 ```
 Release flow: tag `vX.Y.Z` + GitHub Release → PyPI via Trusted Publishing.
+The publish workflow attaches a reproducible CycloneDX `sbom.json` to the release automatically — nothing to do by hand.
 
 ```bash
 pip install -e ".[dev]"
