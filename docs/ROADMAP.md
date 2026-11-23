@@ -12,24 +12,55 @@ otherwise.
 
 ### 1. OpenSSF Best Practices badge (assurance)
 Self-certify the project against the OpenSSF Best Practices (Passing level):
-answer the questionnaire, fix what it flags, embed the badge. Expected to be
-mostly declaration — CI, review, disclosure and supply-chain practices are
-already in place.
+answer the questionnaire, fix what it flags, embed the badge. Mostly
+declaration — CI, review, disclosure and supply-chain practices are already in
+place. Lifts Scorecard `CII-Best-Practices` (0 → 10).
 
-### 2. Socket Security monitoring (supply chain, defense in depth)
+### 2. Release immutability (supply chain, one toggle)
+Enable GitHub's immutable releases so published assets cannot be swapped in
+place after publication. With the existing Sigstore attestations this closes
+Scorecard `Signed-Releases` (0 → 10) on the next scan — v0.13.0 already carries
+provenance, so only the setting is missing.
+
+### 3. Scorecard: hash-pinned CI dependencies (supply chain)
+`Pinned-Dependencies` scores 4 (0 of 14 `pip install` commands pinned by hash).
+Replace ad-hoc tool installs (pip-audit, pip-licenses, guarddog, build, twine,
+cyclonedx-bom, docs builder) with a hash-pinned lock installed via
+`pip install --require-hashes -r`. Expected lift: 4 → 10.
+
+### 4. Scorecard: fuzzing for untrusted parsers (robustness)
+`Fuzzing` scores 0. Add fuzz targets (Atheris) for inputs that accept
+untrusted bytes — `.toon`/JSON parsing and layout coercion — so malformed input
+is explored rather than only example-tested. Real defects become regression
+tests. Expected lift: 0 → 10.
+
+### 5. Socket Security monitoring (supply chain, defense in depth)
 Second opinion on malicious packages beyond the GuardDog CI gate: install the
-Socket GitHub App (free for OSS, no repo changes needed) so new dependencies
-are scored on PRs. Keep GuardDog as the blocking gate; Socket as advisory.
+Socket GitHub App (free for OSS, no repo changes needed) so new dependencies are
+scored on PRs. GuardDog stays the blocking gate; Socket is advisory.
 
-### 3. ASVS 7.3.1 log encoding (robustness)
+### 6. ASVS 7.3.1 log encoding (robustness)
 No user-controlled content reaches log sinks today (static messages only); add
-an explicit log-encoding layer so future logging can't introduce injection by
+an explicit log-encoding layer so future logging cannot introduce injection by
 accident. Closes the last easy ASVS Partial.
 
-### 4. Evaluate stricter defaults (product decision)
-Revisit deliberate opt-ins: `meta.limits` off by default, permissive
-`verify_*` ergonomics, LGPL/MPL tolerance. Requires a maintainer call on
-compat vs. hardening — no code until decided.
+### 7. Evaluate stricter defaults (product decision)
+Revisit deliberate opt-ins: `meta.limits` off by default, permissive `verify_*`
+ergonomics, LGPL/MPL tolerance. Requires a maintainer call on compatibility vs.
+hardening — no code until decided.
+
+### 8. Scorecard: branch-protection hardening (process)
+Remaining `Branch-Protection` gaps: stale-review dismissal, CODEOWNERS review,
+last-push approval. Excluded deliberately: requiring approvers, which would
+deadlock a single maintainer (self-approval is not a review).
+
+### Structural Scorecard limits (accepted, not actionable)
+`Code-Review` and `Contributors` stay at 0 until a second reviewer or
+organization contributes; `Maintained` rises on its own 90 days after repo
+creation; `SAST` climbs as new commits pass through CodeQL. Current overall
+score: 6/10 with `Pinned-Dependencies`, `CII-Best-Practices`,
+`Signed-Releases`, `Fuzzing` and `Branch-Protection` as the movable checks
+(ceiling ≈ 8, ≈ 8.9 once the time-based ones resolve).
 
 ## Done (v0.12.0 → v0.13.0)
 
