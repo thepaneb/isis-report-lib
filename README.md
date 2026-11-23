@@ -329,6 +329,14 @@ bash scripts/fuzz-smoke.sh 30       # time-boxed fuzzing of the input parsers (L
 
 Real-PDF tests require `playwright install chromium` and are skipped (`-m "not browser"`) when no browser is available.
 
+## Contributing
+
+Contributions are welcome: open an issue for a bug or idea, or a pull request
+for code and documentation. The development setup, the full check list that CI
+runs, coding standards and the commit convention are in
+[`CONTRIBUTING.md`](CONTRIBUTING.md). Security reports must go through the
+private advisory flow in [`SECURITY.md`](SECURITY.md), never a public issue.
+
 ## License
 
 MIT — see `LICENSE`.

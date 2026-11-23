@@ -15,6 +15,7 @@ nav = [
   { "User guide" = "guide.md" },
   { "Standards" = "STANDARDS.md" },
   { "Security model (ASVS)" = "ASVS.md" },
+  { "Contributing" = "contributing.md" },
   { "Roadmap" = "ROADMAP.md" },
   { "Changelog" = "https://github.com/thepaneb/isis-report-lib/blob/main/CHANGELOG.md" },
   { "Security policy" = "https://github.com/thepaneb/isis-report-lib/blob/main/SECURITY.md" },
