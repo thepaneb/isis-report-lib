@@ -681,6 +681,22 @@ def test_prepare_sections_rejects_non_dict_directly():
         _prepare_sections(["nope"], {"title": "T"})
 
 
+def test_sections_reject_bad_data_and_layout_shapes():
+    """Regression (found by fuzzing): malformed section data/layout must fail
+    closed with ValueError, not AttributeError/TypeError during shaping."""
+    with pytest.raises(ValueError, match="Invalid table section data"):
+        render_html({"meta": {"title": "T"}, "sections": [{"type": "table", "data": 2}]})
+    with pytest.raises(ValueError, match="Invalid crosstab section data"):
+        render_html({"meta": {"title": "T"}, "sections": [{"type": "crosstab", "data": "x"}]})
+    with pytest.raises(ValueError, match="Invalid table section layout"):
+        render_html({"meta": {"title": "T"}, "sections": [{"type": "table", "data": [], "layout": 2}]})
+
+
+def test_sections_tolerate_null_data_and_layout():
+    html = render_html({"meta": {"title": "T"}, "sections": [{"type": "table", "data": None, "layout": None}]})
+    assert "T" in html
+
+
 def test_service_rejects_bad_allowed_hosts():
     with pytest.raises(ValueError, match="allowed_hosts"):
         TabularReportService(allowed_hosts=["https://example.com"])
