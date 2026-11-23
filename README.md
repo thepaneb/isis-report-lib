@@ -322,6 +322,7 @@ pytest -q --cov=isis_report_lib   # coverage gate: 85% (enforced in the CI e2e j
 ruff check src tests
 semgrep --test --config .semgrep/rules/ .semgrep/targets/   # custom SAST rules
 semgrep scan --config p/default --config .semgrep/rules/ --exclude=.semgrep/targets --metrics=off  # (+ the 2 --exclude-rule from semgrep.yml)
+pre-commit run --all-files   # gitleaks secret scan (optional local gate; CI runs it too)
 ```
 
 Real-PDF tests require `playwright install chromium` and are skipped (`-m "not browser"`) when no browser is available.
@@ -334,6 +335,7 @@ MIT — see `LICENSE`.
 
 - **Dependencies**: audited with `pip-audit` in CI on every PR; Dependabot keeps SHA-pinned actions and packages updated; releases are built and published by CI via OIDC trusted publishing (no stored tokens).
 - **SAST**: Semgrep scans every PR, push and weekly — registry packs plus custom `.semgrep/` rules locking the guarantees below (sandboxed autoescaped templates, pre-built SVG only, JS-off, no fetch at render time); findings fail CI and upload as SARIF to code scanning.
+- **Secrets**: Gitleaks scans the working tree and history on every PR, push and weekly; findings fail CI and upload as SARIF to code scanning. Optional local gate: `pip install pre-commit && pre-commit install`.
 - **Trust boundary**: templates (`.jinja` files, `template_dir`) are code — only load them from sources you trust. Report *data* is escaped in HTML output and never executed as template code (charts/sparklines emit pre-built SVG); if you serve the HTML/email output to browsers, treat it like any user-content page.
 - **Browser**: pages render with JavaScript disabled in an isolated Chromium context per sync call (shared pool in async mode); `inline_css` strips remote `<link>` stylesheets (no server-side fetches on render); outbound http(s) is denied by default at render time — allow hosts with `allowed_hosts=[...]` (`generate_pdf(...)` / CLI `--allowed-hosts`, never from the payload); the Playwright browser runs headless in its own Chromium sandbox.
 - **Denial of service**: opt-in `meta.limits` (`max_rows` records, `max_bytes` payload bytes, CLI `--max-rows`/`--max-bytes`) are enforced before any shaping for every output format; deeply nested layouts/inputs are rejected with `ValueError`.

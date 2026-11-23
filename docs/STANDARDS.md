@@ -193,6 +193,10 @@ keys: accepted from API/CLI arguments only, never from the payload.
   as SARIF to code scanning under `semgrep`. The scan image
   (`semgrep/semgrep`) is version-pinned; rule changes ship with fixture
   updates (`semgrep --test`).
+- Gitleaks secret scanning gates every PR (plus push and weekly scans of the
+  working tree and history); findings fail the job and upload as SARIF under
+  `gitleaks`. The scan image (`zricethezav/gitleaks`) is digest-pinned; a
+  `.pre-commit-config.yaml` hook offers the same scan as an optional local gate.
 - GitHub Actions are pinned by **commit SHA** (with `# tag` comments);
   `GITHUB_TOKEN` permissions are minimal; publishing uses OIDC.
 - OpenSSF Scorecard runs weekly + on push (SARIF to code scanning);
