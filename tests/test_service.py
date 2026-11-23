@@ -479,7 +479,7 @@ async def test_sections_generate_pdf_uses_sections_template():
 
 
 def test_sections_rejects_garbage():
-    with pytest.raises(ValueError, match="Invalid section"):
+    with pytest.raises(ValueError, match=r"Invalid payload \(1 problem\): sections\.0"):
         render_html({"meta": {"title": "T"}, "sections": ["nope"]})
     with pytest.raises(ValueError, match="Unknown section type"):
         render_html({"meta": {"title": "T"}, "sections": [{"type": "fancy"}]})
@@ -592,11 +592,12 @@ def test_quotas_reject_over_max_bytes():
 
 
 def test_quotas_skip_non_section_entries():
+    # Non-dict sections never reach counting: the envelope gate rejects first.
     payload = {
         "meta": {"title": "T", "limits": {"max_rows": 10}},
         "sections": [{"type": "table", "title": "A", "data": [{"x": 1}]}, "nope"],
     }
-    with pytest.raises(ValueError, match="Invalid section"):
+    with pytest.raises(ValueError, match=r"Invalid payload \(1 problem\): sections\.1"):
         render_html(payload)
 
 
@@ -635,6 +636,49 @@ def test_report_payload_model_preserves_limits():
     payload = ReportPayload(meta={"title": "T", "limits": {"max_rows": 1}}, data=[{"a": 1}, {"a": 2}])
     with pytest.raises(ValueError, match="max_rows"):
         generate_csv(payload)
+
+
+def test_envelope_rejects_unknown_keys():
+    with pytest.raises(ValueError, match="Invalid payload"):
+        render_html({"meta": {"title": "T"}, "data": [], "bogus": 1})
+    with pytest.raises(ValueError, match="Invalid payload"):
+        render_html({"meta": {"title": "T", "bogus": 1}, "data": []})
+    # several problems are summarized, not truncated silently
+    with pytest.raises(ValueError, match=r"Invalid payload \(5 problems\): .* \(\+2 more\)"):
+        render_html({"meta": {"title": 123}, "data": [], "a": 1, "b": 2, "c": 3, "d": 4})
+
+
+def test_envelope_rejects_mistyped_values():
+    with pytest.raises(ValueError, match="Invalid payload"):
+        render_html({"meta": {"title": 123}, "data": []})
+    with pytest.raises(ValueError, match="Invalid payload"):
+        render_html({"meta": {"title": "T"}, "layout": [1, 2], "data": []})
+    with pytest.raises(ValueError, match="Invalid payload"):
+        render_html({"meta": {"title": "T"}, "data": {"a": 1}})
+    with pytest.raises(ValueError, match="Invalid payload"):
+        render_html({"meta": {"title": "T"}, "sections": {}})
+
+
+def test_envelope_rejects_non_dict_payload():
+    from isis_report_lib.service import prepare_report
+
+    with pytest.raises(ValueError, match="Invalid payload"):
+        prepare_report([{"a": 1}])
+
+
+def test_envelope_accepts_report_payload_model():
+    from isis_report_lib import ReportPayload
+
+    schema = ReportPayload.model_json_schema()
+    assert "sections" in schema["properties"]
+    assert "limits" in schema["$defs"]["MetaInfo"]["properties"]
+
+
+def test_prepare_sections_rejects_non_dict_directly():
+    from isis_report_lib.service import _prepare_sections
+
+    with pytest.raises(ValueError, match="Invalid section"):
+        _prepare_sections(["nope"], {"title": "T"})
 
 
 def test_service_rejects_bad_allowed_hosts():

@@ -225,6 +225,8 @@ It overrides the `--brand-color` CSS variable. More masks: `str` · `int` · `fl
 
 Masks (locale-aware via Babel/CLDR): `str` · `int` · `float` · `date` (localized for `date`/`datetime` objects) · `percent` · `currency` · `bool` (`Yes`/`No`) · `sparkline` (list of numbers → inline SVG nanoplot in HTML/PDF, `▁▂▃▄▅▆▇█` block art in CSV/XLSX; field options `spark_kind: line|bar`, `spark_color`).
 
+Payloads are validated against the schema (`payload_schema()`) at every entry point: unknown top-level/`meta` keys and mistyped values fail closed with `ValueError`.
+
 ```python
 payload = {
     "meta": {"title": "Sales Order", "locale": "en-US"},  # numbers as 1,234.50, $1,234.50

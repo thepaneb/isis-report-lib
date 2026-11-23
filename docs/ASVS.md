@@ -93,7 +93,7 @@ are a deployer duty (12.1.1, `meta.limits` are opt-in, not on by default).
 
 | Req | Lvl | Verdict | Evidence |
 |---|---|---|---|
-| 13.2.2 | L1L2 | Partial | `payload_schema()` + `pydantic` models published; raw dict payloads validated incrementally rather than against the full schema |
+| 13.2.2 | L1L2 | Pass | `payload_schema()` + `ReportPayload` published; raw dicts validated against the envelope schema (known keys, correct types) in `prepare_report` fail-closed; deep field rules validated incrementally with `ValueError` |
 | Rest of V13 | — | N/A | no HTTP API, sessions, cookies, CORS, GraphQL, or XML in the library |
 
 ## V14 — Configuration

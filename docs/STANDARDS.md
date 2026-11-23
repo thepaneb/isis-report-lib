@@ -92,8 +92,9 @@ payload (dict | ReportPayload | .toon)
 ### 2.2 Types and validation
 
 - **MUST**: `mypy src` is clean. Payloads are `dict[str, Any]`; validate at
-  system boundaries (`prepare_report`, `with_meta_defaults`, field
-  normalizers), not in hot per-cell loops.
+  system boundaries (`prepare_report` enforces the `ReportPayload` envelope
+  fail-closed, plus `with_meta_defaults`/field normalizers), not in hot
+  per-cell loops.
 - **MUST**: fail closed with `ValueError` naming the offending value and the
   expected set (`f"...: {x!r} (expected ...)"`). Verdict-style APIs
   (`verify_pdf`) return result objects and never raise on input.

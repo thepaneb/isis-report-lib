@@ -11,7 +11,14 @@ from isis_report_lib.toon import parse_toon
 
 def _normalize_payload(payload: dict[str, Any] | ReportPayload) -> dict[str, Any]:
     if isinstance(payload, ReportPayload):
-        return payload.model_dump()
+        # Full dump keeps declared defaults (e.g. mode="exact"); None only
+        # ever means "unset" at the structural level, so drop those keys to
+        # match raw-dict behavior exactly (no "sections" key, no None metas).
+        dumped = payload.model_dump()
+        meta = {key: value for key, value in dumped.get("meta", {}).items() if value is not None}
+        normalized = {key: value for key, value in dumped.items() if value is not None}
+        normalized["meta"] = meta
+        return normalized
     return dict(payload)
 
 

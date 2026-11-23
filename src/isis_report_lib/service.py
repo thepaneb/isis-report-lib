@@ -17,9 +17,9 @@ def with_meta_defaults(meta: dict[str, Any]) -> dict[str, Any]:
     meta = dict(meta)
     if not meta.get("printed_at"):
         meta["printed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-    if "source_note" in meta and (not isinstance(meta["source_note"], str) or not meta["source_note"]):
+    if meta.get("source_note") is not None and (not isinstance(meta["source_note"], str) or not meta["source_note"]):
         raise ValueError(f"Invalid meta.source_note (must be a non-empty string): {meta['source_note']!r}")
-    if "summary_side" in meta and meta["summary_side"] not in ("top", "bottom"):
+    if meta.get("summary_side") is not None and meta["summary_side"] not in ("top", "bottom"):
         raise ValueError(f"Invalid meta.summary_side (expected top|bottom): {meta['summary_side']!r}")
     if "limits" in meta and meta["limits"] is not None:
         meta["limits"] = _normalize_limits(meta["limits"])
@@ -62,13 +62,14 @@ def _count_data_records(data: Any) -> int:
 
 
 def _count_payload_records(payload: dict[str, Any]) -> int:
-    """Records driving row rendering: tabular ``data`` or table/crosstab ``data`` + kpi ``items``."""
+    """Records driving row rendering: tabular ``data`` or table/crosstab ``data`` + kpi ``items``.
+
+    Sections are dicts here (the ReportPayload gate rejects anything else).
+    """
     if "sections" in payload:
         sections = payload.get("sections", []) or []
         total = 0
         for section in sections:
-            if not isinstance(section, dict):
-                continue
             stype = section.get("type", "table")
             if stype in ("table", "crosstab"):
                 total += _count_data_records(section.get("data", []))
@@ -95,6 +96,29 @@ def _check_payload_quotas(payload: dict[str, Any], meta: dict[str, Any]) -> None
             raise ValueError(f"Payload has {total} data records, exceeding meta.limits.max_rows={max_rows}")
 
 
+def _validate_payload_shape(payload: Any) -> None:
+    """Validate the payload envelope against ReportPayload (fail closed).
+
+    Deep layout/field rules stay incremental (layout.py, formatting.py); this
+    gate ensures the top-level shape and meta keys are known before any work.
+    """
+    from pydantic import ValidationError
+
+    from isis_report_lib.models import ReportPayload
+
+    if not isinstance(payload, dict):
+        raise ValueError(f"Invalid payload (must be an object): {type(payload).__name__}")
+    try:
+        ReportPayload.model_validate(payload)
+    except ValidationError as e:
+        details = "; ".join(
+            f"{'.'.join(str(part) for part in err['loc']) or 'payload'}: {err['msg']}" for err in e.errors(include_url=False)[:3]
+        )
+        more = f" (+{e.error_count() - 3} more)" if e.error_count() > 3 else ""
+        problems = "problem" if e.error_count() == 1 else "problems"
+        raise ValueError(f"Invalid payload ({e.error_count()} {problems}): {details}{more}") from e
+
+
 def prepare_report(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     """Build (dataset, layout, meta) from a normalized payload dict (shared by all outputs)."""
     from isis_report_lib.layout import (
@@ -106,6 +130,7 @@ def prepare_report(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str, A
         template_header_layout,
     )
 
+    _validate_payload_shape(payload)
     meta = with_meta_defaults(payload.get("meta", {}) or {})
     _check_payload_quotas(payload, meta)
     if "sections" in payload:
