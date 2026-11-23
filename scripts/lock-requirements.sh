@@ -23,7 +23,7 @@ compile() {
     --output-file "$out"
 }
 
-for name in ci audit publish guarddog sbom; do
+for name in ci audit publish guarddog sbom fuzz; do
   compile ".github/requirements/requirements-$name.in" ".github/requirements/requirements-$name.txt"
 done
 

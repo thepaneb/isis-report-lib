@@ -1,0 +1,1 @@
+{"company": {"label": "Company", "format_mask": "str"}, "total": {"label": "Total", "aggregate": "sum", "cell_rules": [{"lt": 0, "color": "#C00000"}]}, "$order_by": "-total"}

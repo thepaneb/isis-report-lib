@@ -1,0 +1,4 @@
+# Fuzz targets' toolchain, hash-pinned for `pip install --require-hashes`.
+# Atheris supports Linux/macOS on CPython 3.11-3.14 (no Windows wheels).
+# Regenerate: bash scripts/lock-requirements.sh
+atheris==3.1.0

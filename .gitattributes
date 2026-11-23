@@ -1,0 +1,2 @@
+# Shell scripts run on Linux CI: force LF so a Windows checkout cannot break them.
+*.sh text eol=lf

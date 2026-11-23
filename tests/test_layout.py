@@ -115,6 +115,49 @@ def test_convert_data_with_group_and_detail():
     assert subgroup["detail"] == [{"sub": 1}, {"sub": 2}]
 
 
+def test_top_level_record_must_be_object():
+    """Regression (found by fuzzing): a scalar row with a declared layout must
+    raise ValueError naming the index, not AttributeError mid-traversal."""
+    layout = {"a": {"label": "A", "format_mask": "int"}}
+    for bad in (5, "x", None, True):
+        with pytest.raises(ValueError, match="Invalid data record at index 0"):
+            build_report([bad], layout)
+
+
+def test_nested_group_field_with_scalar_value_fails_closed():
+    """Regression (found by fuzzing): a scalar where the layout expects rows must
+    raise ValueError, not TypeError from deep inside traversal."""
+    layout = {
+        "company": {"label": "Company", "format_mask": "str"},
+        "orders": {"order": {"label": "Order", "format_mask": "int"}},
+    }
+    for bad in (5, "x", {"order": 1}, True):
+        with pytest.raises(ValueError, match="Group field 'orders' must be a list of records"):
+            build_report([{"company": "ACME", "orders": bad}], layout)
+
+
+def test_nested_group_field_absent_or_none_renders_empty():
+    layout = {
+        "company": {"label": "Company", "format_mask": "str"},
+        "orders": {"order": {"label": "Order", "format_mask": "int"}},
+    }
+    for missing in ({}, {"orders": None}, {"orders": []}):
+        dataset, _ = build_report([{"company": "ACME", **missing}], layout)
+        # No rows means no detail table (existing behaviour); the point is that
+        # absent/None/empty are accepted, not rejected as a bad shape.
+        assert dataset["groups"][0]["fields"] == {"company": "ACME"}
+        assert "details" not in dataset["groups"][0]
+
+
+def test_nested_group_field_skips_non_dict_rows():
+    layout = {
+        "company": {"label": "Company", "format_mask": "str"},
+        "orders": {"order": {"label": "Order", "format_mask": "int"}},
+    }
+    dataset, _ = build_report([{"company": "ACME", "orders": [{"order": 1}, "junk", 2, None]}], layout)
+    assert dataset["groups"][0]["details"]["orders"]["rows"] == [{"order": 1}]
+
+
 def test_infer_layout_types():
     result = infer_layout([{"name": "John", "age": 30, "price": 9.9, "active": True, "items": [1]}])
     by_name = {f["name"]: f for f in result["groups"]["header"]}

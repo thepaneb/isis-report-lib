@@ -14,3 +14,12 @@ htmlcov/
 coverage.xml
 *.pdf
 playwright/
+
+# Fuzzing artifacts (libFuzzer writes crash/leak/timeout reproducers here)
+crash-*
+leak-*
+timeout-*
+fuzz/corpus/*/*
+!fuzz/corpus/toon/*.toon
+!fuzz/corpus/payload/*.json
+!fuzz/corpus/layout/*.json

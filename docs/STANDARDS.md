@@ -218,6 +218,11 @@ keys: accepted from API/CLI arguments only, never from the payload.
 - CodeQL advanced setup (Python + GitHub Actions, `none` build mode,
   default query suite, weekly + per-PR) complements Semgrep's fast patterns
   with cross-file dataflow; SARIF under `/language:*`.
+- Atheris fuzz targets (`.github/workflows/fuzz.yml`) time-box every PR and
+  run deeper weekly, covering the untrusted-input parsers (`.toon`, JSON
+  payload envelope, layout specs). Each target asserts the fail-closed
+  contract: data out or `ValueError`, never an internal exception; a crash
+  fails the job and uploads the minimized reproducer as an artifact.
 - Every GitHub Release (stable + prerelease) carries a reproducible
   CycloneDX 1.6 `sbom.json`, built in an isolated env from the release wheel,
   plus Sigstore attestations (SLSA provenance for `dist/*` and the SBOM file)

@@ -1,0 +1,9 @@
+meta:
+  title: Nested
+layout:
+  company{Company,str,left}
+  orders{Order,int,right,sum}
+data[1]:
+  - company: ACME
+    orders[1]:
+      - 1

@@ -1,0 +1,1 @@
+{"meta": {"title": "T"}, "layout": {"a": {"label": "A", "format_mask": "float", "aggregate": "sum"}}, "data": [{"a": 1}, {"a": 2}]}

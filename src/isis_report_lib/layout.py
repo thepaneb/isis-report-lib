@@ -301,6 +301,22 @@ def _is_group_node(value: Any) -> bool:
     return isinstance(value, dict) and "label" not in value
 
 
+def _child_records(record: dict[str, Any], key: str) -> list[dict[str, Any]]:
+    """Return a record's rows for a nested group key (fail closed on bad shape).
+
+    A group key declared in the layout must hold a list of records (or be
+    absent/None). Anything else — a scalar, a string, a bare dict — is a data
+    shape error: raise ``ValueError`` naming the key rather than crashing with
+    ``TypeError`` deep inside traversal.
+    """
+    value = record.get(key)
+    if value is None:
+        return []
+    if isinstance(value, dict) or not isinstance(value, (list, tuple)):
+        raise ValueError(f"Group field {key!r} must be a list of records, got {type(value).__name__}: {value!r}")
+    return [child for child in value if isinstance(child, dict)]
+
+
 def split_layout_node(node: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     """Split a layout level into (field defs, child group nodes, $options)."""
     fields: dict[str, Any] = {}
@@ -442,7 +458,14 @@ def build_report(data_raw: list[dict[str, Any]], layout_raw: dict[str, Any]) -> 
 
     Layout shape mirrors ``convert_layout`` with ``footer`` lists added wherever
     aggregates are declared, plus top-level ``summary`` when declared there.
+
+    Every top-level record must be an object: a declared layout maps fields by
+    name, so a scalar row cannot be rendered faithfully — fail closed instead of
+    guessing (STANDARDS §2.3).
     """
+    for index, record in enumerate(data_raw):
+        if not isinstance(record, dict):
+            raise ValueError(f"Invalid data record at index {index} (must be an object): {record!r}")
     rows = sort_rows(filter_rows(data_raw, layout_raw.get("$print_when")), layout_raw.get("$order_by"))
     items = [_convert_item(record, layout_raw) for record in rows]
     inner = _build_layout(layout_raw, rows)
@@ -468,7 +491,7 @@ def _collect_summary(rows: list[dict[str, Any]], node: dict[str, Any]) -> tuple[
     for gkey, sub in group_nodes.items():
         kids: list[dict[str, Any]] = []
         for r in rows:
-            kids.extend([c for c in (r.get(gkey, []) or []) if isinstance(c, dict)])
+            kids.extend(_child_records(r, gkey))
         sub_summary, sub_defs = _collect_summary(kids, sub)
         for f, v in sub_summary.items():
             if f not in summary:
@@ -516,8 +539,7 @@ def _convert_item(record: dict[str, Any], node: dict[str, Any]) -> dict[str, Any
     footer_funcs: dict[str, str] = {}
     footer_rows: dict[str, list[dict[str, Any]]] = {}
     for key, sub_node in group_nodes.items():
-        children = record.get(key, []) or []
-        children = [c for c in children if isinstance(c, dict)]
+        children = _child_records(record, key)
         children = sort_rows(filter_rows(children, sub_node.get("$print_when")), sub_node.get("$order_by"))
         sub_fields, _sub_groups, _sub_options = split_layout_node(sub_node)
         children = _apply_running_balance(children, sub_fields)
@@ -610,7 +632,7 @@ def _build_layout(node: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str,
     for gkey in group_nodes:
         kids: list[dict[str, Any]] = []
         for r in rows:
-            kids.extend([c for c in (r.get(gkey, []) or []) if isinstance(c, dict)])
+            kids.extend(_child_records(r, gkey))
         child_rows[gkey] = kids
 
     footer: list[dict[str, Any]] = []

@@ -1,0 +1,11 @@
+meta:
+  title: Sales Order
+  mode: exact
+layout:
+  product{Product,str,left}
+  total{Total,float,right,sum}
+data[2]:
+  - product: Pen
+    total: 5.50
+  - product: Ink
+    total: 12.00

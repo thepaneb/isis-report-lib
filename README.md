@@ -324,6 +324,7 @@ semgrep --test --config .semgrep/rules/ .semgrep/targets/   # custom SAST rules
 semgrep scan --config p/default --config .semgrep/rules/ --exclude=.semgrep/targets --metrics=off  # (+ the 2 --exclude-rule from semgrep.yml)
 pre-commit run --all-files   # gitleaks secret scan (optional local gate; CI runs it too)
 bash scripts/lock-requirements.sh   # regenerate the hash-pinned CI locks after bumping a tool
+bash scripts/fuzz-smoke.sh 30       # time-boxed fuzzing of the input parsers (Linux/macOS; needs atheris)
 ```
 
 Real-PDF tests require `playwright install chromium` and are skipped (`-m "not browser"`) when no browser is available.

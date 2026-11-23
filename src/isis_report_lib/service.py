@@ -210,8 +210,19 @@ def _prepare_sections(sections: list[dict[str, Any]], meta: dict[str, Any]) -> t
         if not isinstance(section, dict):
             raise ValueError(f"Invalid section (must be an object): {section!r}")
         stype = section.get("type", "table")
+        if stype in ("table", "crosstab"):
+            data = section.get("data", [])
+            if data is None:
+                data = []
+            if isinstance(data, dict) or not isinstance(data, (list, tuple)):
+                raise ValueError(f"Invalid {stype} section data (must be a list of records): {section.get('data')!r}")
         if stype == "table":
-            dataset, layout = build_report(section.get("data", []), section.get("layout", {}))
+            layout_raw = section.get("layout", {})
+            if layout_raw is None:
+                layout_raw = {}
+            if not isinstance(layout_raw, dict):
+                raise ValueError(f"Invalid table section layout (must be an object): {layout_raw!r}")
+            dataset, layout = build_report(list(data), layout_raw)
             entry: dict[str, Any] = {"type": "table", "title": section.get("title"), "dataset": dataset, "layout": layout}
             if isinstance(section.get("empty_text"), str) and section["empty_text"]:
                 entry["empty_text"] = section["empty_text"]

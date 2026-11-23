@@ -1,0 +1,59 @@
+name: Fuzz
+
+# Time-boxed fuzzing of the untrusted-input parsers (.toon, JSON payload
+# envelope, layout specs). Each target asserts the fail-closed contract: data
+# out or ValueError, never an internal exception. A crash fails the job and the
+# minimized reproducer is attached as an artifact for a regression test.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "41 4 * * 4" # weekly deeper run, Thursdays 04:41 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: |
+            .github/requirements/requirements-ci.txt
+            .github/requirements/requirements-fuzz.txt
+
+      - name: Install
+        # Runtime + dev deps from the hash-pinned lock, then the fuzzing engine.
+        run: |
+          pip install --require-hashes -r .github/requirements/requirements-ci.txt
+          pip install --require-hashes -r .github/requirements/requirements-fuzz.txt
+          pip install --no-deps -e .
+
+      - name: Fuzz (time-boxed)
+        # Weekly runs get a longer budget; PRs stay short so the gate is cheap.
+        env:
+          FUZZ_SECONDS: ${{ github.event_name == 'schedule' && '120' || '25' }}
+        run: bash scripts/fuzz-smoke.sh "$FUZZ_SECONDS"
+
+      - name: Upload crash reproducers
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: fuzz-crashes
+          path: |
+            crash-*
+            leak-*
+            timeout-*
+          retention-days: 30
+          if-no-files-found: ignore
