@@ -76,7 +76,7 @@ jobs:
         # isolated so its pins never leak into (or clash with) the test env.
         run: |
           python -m venv /tmp/docs-env
-          /tmp/docs-env/bin/python -m pip install "docs/requirements-docs.txt" pip-audit
+          /tmp/docs-env/bin/python -m pip install -r docs/requirements-docs.txt pip-audit
           /tmp/docs-env/bin/pip-audit --desc
 
       - name: Check dependency licenses

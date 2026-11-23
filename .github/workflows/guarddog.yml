@@ -38,14 +38,17 @@ jobs:
           cache-dependency-path: pyproject.toml
 
       - name: Scan dependencies with GuardDog
-        # GuardDog exits 0 once the scan completes, even with findings (verified):
-        # anything it reports uploads as SARIF below for triage in code
-        # scanning, where false positives are dismissed once and new alerts
-        # surface on the PR that introduced them. A non-zero exit here means
-        # the scanner itself failed, which fails the job (fail closed).
+        # pygit2 (a GuardDog dep) has no cp314 wheel: install the system
+        # libgit2 first so it builds from source. GuardDog exits 0 once the
+        # scan completes (verified locally, even with findings): anything it
+        # reports uploads as SARIF below for triage in code scanning, where
+        # false positives are dismissed once and new alerts surface on the PR
+        # that introduced them. A non-zero exit means the scanner itself
+        # failed, which fails the job (fail closed).
         # `repository_integrity_mismatch` is excluded per the official sample:
         # it flags legitimate packages whose GitHub repo has extra files.
         run: |
+          sudo apt-get update && sudo apt-get install -y libgit2-dev pkg-config
           pip install "guarddog==3.2.0"
           pip freeze --exclude-editable > /tmp/frozen.txt
           guarddog pypi verify /tmp/frozen.txt --output-format sarif --exclude-rules repository_integrity_mismatch > guarddog.sarif
