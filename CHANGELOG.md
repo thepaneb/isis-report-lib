@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format follows
 the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 
 ## [Unreleased]
+
+## [0.13.0] - 2026-11-23
 ### Added
 - Supply-chain layer: CodeQL advanced setup (Python + Actions, weekly + per-PR), dependency-review PR gate (high+ vulns, GPL/AGPL denied), GuardDog malicious-package scan with SARIF, `pip-licenses` copyleft gate, docs-deps `pip-audit`, Sigstore attestations (SLSA provenance + SBOM) on every release
 - Strict payload envelope: raw dicts validated against the canonical `ReportPayload` schema (known top-level/meta keys, correct types) fail-closed in `prepare_report`; closes ASVS 13.2.2

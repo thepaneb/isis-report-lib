@@ -10,9 +10,35 @@ otherwise.
 
 ## Next (prioritized)
 
-_No open items — roadmap empty. Propose the next one via PR against this file._
+### 1. OpenSSF Best Practices badge (assurance)
+Self-certify the project against the OpenSSF Best Practices (Passing level):
+answer the questionnaire, fix what it flags, embed the badge. Expected to be
+mostly declaration — CI, review, disclosure and supply-chain practices are
+already in place.
 
-## Done (unreleased, post-v0.11.0)
+### 2. Socket Security monitoring (supply chain, defense in depth)
+Second opinion on malicious packages beyond the GuardDog CI gate: install the
+Socket GitHub App (free for OSS, no repo changes needed) so new dependencies
+are scored on PRs. Keep GuardDog as the blocking gate; Socket as advisory.
+
+### 3. ASVS 7.3.1 log encoding (robustness)
+No user-controlled content reaches log sinks today (static messages only); add
+an explicit log-encoding layer so future logging can't introduce injection by
+accident. Closes the last easy ASVS Partial.
+
+### 4. Evaluate stricter defaults (product decision)
+Revisit deliberate opt-ins: `meta.limits` off by default, permissive
+`verify_*` ergonomics, LGPL/MPL tolerance. Requires a maintainer call on
+compat vs. hardening — no code until decided.
+
+## Done (v0.12.0 → v0.13.0)
+
+- **Secret scanning**: Gitleaks workflow on PR/push/weekly (working tree + history, digest-pinned image, SARIF) plus an optional pre-commit hook; ASVS 10.2.3 now Pass.
+- **User guide**: task-oriented walkthroughs on the docs site (`docs/guide.md`), README kept as exhaustive reference.
+- **Strict payload envelope**: raw dicts validated against the canonical `ReportPayload` schema (known top-level/meta keys, correct types) fail-closed in `prepare_report`; ASVS 13.2.2 now Pass.
+- **Supply-chain layer 2**: CodeQL advanced setup, dependency-review PR gate, GuardDog malicious-package scan with SARIF, `pip-licenses` copyleft gate, docs-deps `pip-audit`, Sigstore attestations (SLSA provenance + SBOM) on every release.
+
+## Done (v0.11.0 → v0.12.0)
 
 - **Documentation site (polish)**: Zensical + GitHub Pages (`docs.yml` build/deploy, unified landing as `docs/index.md`, Standards/ASVS/Roadmap/Changelog/Security discoverable with search, strict link-checked build).
 
