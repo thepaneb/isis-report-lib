@@ -184,8 +184,10 @@ keys: accepted from API/CLI arguments only, never from the payload.
 
 ### 3.4 Supply chain (MUST)
 
-- `pip-audit` gates every PR (e2e job); Dependabot stays enabled with a
-  7-day `cooldown` on version updates (security updates are exempt).
+- `pip-audit` gates every PR (e2e job), including the docs env in isolation
+  (`docs/requirements-docs.txt` in a throwaway venv, so its pins never leak
+  into the test env); Dependabot stays enabled with a 7-day `cooldown` on
+  version updates (security updates are exempt).
 - Semgrep SAST gates every PR (plus push and weekly full scans): registry
   pack (`p/default`) and custom rules in `.semgrep/` locking §3.2
   (sandboxed autoescaped templates, `Markup`-only-SVG, JS-disabled contexts,
@@ -201,8 +203,19 @@ keys: accepted from API/CLI arguments only, never from the payload.
   `GITHUB_TOKEN` permissions are minimal; publishing uses OIDC.
 - OpenSSF Scorecard runs weekly + on push (SARIF to code scanning);
   Codecov reports coverage via OIDC (no stored token; the gate stays on pytest).
+- GuardDog screens dependencies for malicious packages (capability +
+  threat correlation, SARIF under `guarddog` for triage in code scanning —
+  bare capabilities are expected in legitimate packages, so the job gates on
+  scanner health and humans triage new alerts); dependency-review blocks
+  vulnerable or copyleft-licensed deps on PRs (GPL/AGPL denied, LGPL/MPL
+  allowed); a `pip-licenses` gate fails closed on GPL/AGPL/unknown licenses.
+- CodeQL advanced setup (Python + GitHub Actions, `none` build mode,
+  default query suite, weekly + per-PR) complements Semgrep's fast patterns
+  with cross-file dataflow; SARIF under `/language:*`.
 - Every GitHub Release (stable + prerelease) carries a reproducible
-  CycloneDX 1.6 `sbom.json`, built in an isolated env from the release wheel.
+  CycloneDX 1.6 `sbom.json`, built in an isolated env from the release wheel,
+  plus Sigstore attestations (SLSA provenance for `dist/*`, SBOM
+  attestation for `sbom.json`) verifiable with `gh attestation verify`.
 - No secrets in the repo (`.env` is gitignored); release artifacts come only
   from CI (`twine check` + trusted publishing).
 

@@ -102,8 +102,8 @@ are a deployer duty (12.1.1, `meta.limits` are opt-in, not on by default).
 |---|---|---|---|
 | 14.1.3 | L2L3 | Partial | JS off, autoescape, sandbox, minimal browser flags per framework guidance; host/server hardening is the deployer's duty |
 | 14.2.1 | L1L2 | Pass | `pip-audit` runs on every CI build |
-| 14.2.4 | L2L3 | Pass | PyPI only + Dependabot; Actions SHA-pinned |
-| 14.2.5 | L2L3 | Pass | CycloneDX 1.6 `sbom.json` (reproducible, built from the release wheel in an isolated env) attached to every GitHub Release, stable and prerelease |
+| 14.2.4 | L2L3 | Pass | PyPI only + Dependabot; Actions SHA-pinned; dependency-review blocks vulnerable/copyleft deps on PRs |
+| 14.2.5 | L2L3 | Pass | CycloneDX 1.6 `sbom.json` (reproducible, built from the release wheel in an isolated env) attached to every GitHub Release, stable and prerelease; Sigstore attestations (SLSA provenance + SBOM) verifiable with `gh attestation verify` |
 | 14.3.2 | L1L2 | Pass | No debug mode, verbose errors, or tracebacks in outputs exist |
 | Rest of V14 | — | N/A | no HTTP headers/CORS/server surface in the library |
 

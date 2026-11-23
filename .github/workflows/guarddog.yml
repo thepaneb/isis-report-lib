@@ -1,0 +1,58 @@
+name: GuardDog
+
+# Malicious-package screening (complements pip-audit, which tracks known
+# CVEs): GuardDog correlates capabilities with threat indicators per package
+# and reports SARIF to code scanning under the `guarddog` category. Findings
+# are gated on *threat* indicators: bare capabilities (subprocess use,
+# file reads...) are normal in legitimate packages and stay visible but
+# non-blocking. `repository_integrity_mismatch` is excluded per the official
+# sample (flags legitimate packages whose GitHub repo has extra files).
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 3 * * 3" # weekly full scan, Wednesdays 03:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  guarddog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write # SARIF upload to code scanning
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Scan dependencies with GuardDog
+        # GuardDog exits 0 once the scan completes, even with findings (verified):
+        # anything it reports uploads as SARIF below for triage in code
+        # scanning, where false positives are dismissed once and new alerts
+        # surface on the PR that introduced them. A non-zero exit here means
+        # the scanner itself failed, which fails the job (fail closed).
+        # `repository_integrity_mismatch` is excluded per the official sample:
+        # it flags legitimate packages whose GitHub repo has extra files.
+        run: |
+          pip install "guarddog==3.2.0"
+          pip freeze --exclude-editable > /tmp/frozen.txt
+          guarddog pypi verify /tmp/frozen.txt --output-format sarif --exclude-rules repository_integrity_mismatch > guarddog.sarif
+
+      - name: Upload SARIF
+        if: always() && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: guarddog.sarif
+          category: guarddog

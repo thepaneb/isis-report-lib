@@ -333,7 +333,8 @@ MIT — see `LICENSE`.
 
 ## Security
 
-- **Dependencies**: audited with `pip-audit` in CI on every PR; Dependabot keeps SHA-pinned actions and packages updated; releases are built and published by CI via OIDC trusted publishing (no stored tokens).
+- **Dependencies**: audited with `pip-audit` in CI on every PR (app + docs envs); Dependabot keeps SHA-pinned actions and packages updated; releases are built and published by CI via OIDC trusted publishing (no stored tokens).
+- **Supply chain**: CodeQL (deep SAST) plus Semgrep (fast patterns) scan every PR/push/weekly; GuardDog screens for malicious packages and dependency-review blocks vulnerable/copyleft deps on PRs; every release ships a reproducible SBOM plus Sigstore attestations (`gh attestation verify`).
 - **SAST**: Semgrep scans every PR, push and weekly — registry packs plus custom `.semgrep/` rules locking the guarantees below (sandboxed autoescaped templates, pre-built SVG only, JS-off, no fetch at render time); findings fail CI and upload as SARIF to code scanning.
 - **Secrets**: Gitleaks scans the working tree and history on every PR, push and weekly; findings fail CI and upload as SARIF to code scanning. Optional local gate: `pip install pre-commit && pre-commit install`.
 - **Trust boundary**: templates (`.jinja` files, `template_dir`) are code — only load them from sources you trust. Report *data* is escaped in HTML output and never executed as template code (charts/sparklines emit pre-built SVG); if you serve the HTML/email output to browsers, treat it like any user-content page.

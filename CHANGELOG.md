@@ -7,6 +7,7 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 
 ## [Unreleased]
 ### Added
+- Supply-chain layer: CodeQL advanced setup (Python + Actions, weekly + per-PR), dependency-review PR gate (high+ vulns, GPL/AGPL denied), GuardDog malicious-package scan with SARIF, `pip-licenses` copyleft gate, docs-deps `pip-audit`, Sigstore attestations (SLSA provenance + SBOM) on every release
 - Strict payload envelope: raw dicts validated against the canonical `ReportPayload` schema (known top-level/meta keys, correct types) fail-closed in `prepare_report`; closes ASVS 13.2.2
 - User guide on the docs site (`docs/guide.md`): task-oriented walkthroughs (first report, inputs, sections, signing, hardening, CLI, troubleshooting) with the README kept as exhaustive reference
 - Secret scanning: Gitleaks workflow on PR/push/weekly (working tree + history, digest-pinned image, SARIF to code scanning) plus an optional pre-commit hook; closes ASVS 10.2.3
