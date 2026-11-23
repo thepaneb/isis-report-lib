@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format follows
 the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 
 ## [Unreleased]
+### Added
+- Secret scanning: Gitleaks workflow on PR/push/weekly (working tree + history, digest-pinned image, SARIF to code scanning) plus an optional pre-commit hook; closes ASVS 10.2.3
 
 ## [0.12.0] - 2026-11-23
 ### Added

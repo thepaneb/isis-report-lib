@@ -76,7 +76,7 @@ are a deployer duty (12.1.1, `meta.limits` are opt-in, not on by default).
 | Req | Lvl | Verdict | Evidence |
 |---|---|---|---|
 | 10.1.1 | L3 | Pass | Semgrep SAST gates every PR/push/weekly (registry pack + custom `.semgrep/` rules) with SARIF to code scanning; `ruff` S-rules + `pip-audit` + `mypy` + 99% tests run in CI |
-| 10.2.3 | L3 | Partial | Mandatory review on every PR to protected `main`; no hardcoded secrets/keys (verified); no automated secret scanning |
+| 10.2.3 | L3 | Pass | Mandatory review on every PR to protected `main`; no hardcoded secrets/keys (verified); Gitleaks scans every PR/push/weekly with SARIF to code scanning, plus an optional pre-commit hook |
 | 10.3.2 | L1L2L3 | Pass | No auto-update; no remote code execution (JS off, no link fetch, no dynamic imports); releases via OIDC trusted publishing |
 
 ## V12 — Files and Resources
