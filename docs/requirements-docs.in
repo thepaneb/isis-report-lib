@@ -1,0 +1,3 @@
+# Docs builder, hash-pinned for `pip install --require-hashes`.
+# Regenerate: bash scripts/lock-requirements.sh
+zensical==0.1.3

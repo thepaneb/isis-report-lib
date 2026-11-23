@@ -188,6 +188,12 @@ keys: accepted from API/CLI arguments only, never from the payload.
   (`docs/requirements-docs.txt` in a throwaway venv, so its pins never leak
   into the test env); Dependabot stays enabled with a 7-day `cooldown` on
   version updates (security updates are exempt).
+- Every CI toolchain installs from a hash-pinned lock
+  (`.github/requirements/requirements-*.txt`, `docs/requirements-docs.txt`)
+  via `pip install --require-hashes`; the project itself installs editable
+  with `--no-deps` on top. Bump tools in the matching `.in` file and run
+  `scripts/lock-requirements.sh` (uv, universal, py3.11) — never edit a
+  `.txt` by hand.
 - Semgrep SAST gates every PR (plus push and weekly full scans): registry
   pack (`p/default`) and custom rules in `.semgrep/` locking §3.2
   (sandboxed autoescaped templates, `Markup`-only-SVG, JS-disabled contexts,

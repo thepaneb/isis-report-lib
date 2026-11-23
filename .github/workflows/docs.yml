@@ -42,7 +42,7 @@ jobs:
           cache-dependency-path: docs/requirements-docs.txt
 
       - name: Install docs builder
-        run: pip install -r docs/requirements-docs.txt
+        run: pip install --require-hashes -r docs/requirements-docs.txt
 
       - name: Build site (strict)
         run: python -m zensical build --strict
@@ -74,7 +74,7 @@ jobs:
           cache-dependency-path: docs/requirements-docs.txt
 
       - name: Install docs builder
-        run: pip install -r docs/requirements-docs.txt
+        run: pip install --require-hashes -r docs/requirements-docs.txt
 
       - name: Build site (strict)
         run: python -m zensical build --strict --clean

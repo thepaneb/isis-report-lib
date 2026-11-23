@@ -1,0 +1,17 @@
+# CI/test toolchain (runtime + dev deps), hash-pinned for `pip install --require-hashes`.
+# Regenerate: bash scripts/lock-requirements.sh
+jinja2>=3.1.6
+playwright>=1.65.0
+pydantic>=2.0
+babel>=2.14
+pytest>=9.2.0
+pytest-asyncio>=1.4.1.post1
+pytest-cov>=7.1.0
+pytest-timeout>=2
+ruff>=0.17.4
+mypy>=1.18
+types-openpyxl>=3.1
+openpyxl>=3.1
+pandas>=2.0
+css-inline>=0.20
+cryptography>=42

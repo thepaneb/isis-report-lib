@@ -1,0 +1,5 @@
+# Publishing toolchain, hash-pinned for `pip install --require-hashes`.
+# Regenerate: bash scripts/lock-requirements.sh
+build
+twine
+cyclonedx-bom==9.0.0

@@ -27,20 +27,19 @@ jobs:
 
       - name: Build
         run: |
-          pip install build
+          pip install --require-hashes -r .github/requirements/requirements-publish.txt
           python -m build
 
       - name: Check artifacts
-        run: |
-          pip install twine
-          twine check dist/*
+        run: twine check dist/*
 
       - name: Generate SBOM (CycloneDX)
-        # Isolated env with only the release wheel: the SBOM describes exactly
-        # what ships (package + runtime deps), reproducibly.
+        # Isolated env with the release wheel's runtime deps from the hash-pinned
+        # lock: the SBOM describes exactly what ships, reproducibly.
         run: |
           python -m venv /tmp/sbom-env
-          /tmp/sbom-env/bin/python -m pip install "cyclonedx-bom==9.0.0" dist/*.whl
+          /tmp/sbom-env/bin/python -m pip install --require-hashes -r .github/requirements/requirements-sbom.txt
+          /tmp/sbom-env/bin/python -m pip install --no-deps dist/*.whl
           /tmp/sbom-env/bin/cyclonedx-py environment --of JSON --output-reproducible --sv 1.6 --validate -o sbom.json
           test -s sbom.json
 
@@ -89,20 +88,19 @@ jobs:
 
       - name: Build
         run: |
-          pip install build
+          pip install --require-hashes -r .github/requirements/requirements-publish.txt
           python -m build
 
       - name: Check artifacts
-        run: |
-          pip install twine
-          twine check dist/*
+        run: twine check dist/*
 
       - name: Generate SBOM (CycloneDX)
-        # Isolated env with only the release wheel: the SBOM describes exactly
-        # what ships (package + runtime deps), reproducibly.
+        # Isolated env with the release wheel's runtime deps from the hash-pinned
+        # lock: the SBOM describes exactly what ships, reproducibly.
         run: |
           python -m venv /tmp/sbom-env
-          /tmp/sbom-env/bin/python -m pip install "cyclonedx-bom==9.0.0" dist/*.whl
+          /tmp/sbom-env/bin/python -m pip install --require-hashes -r .github/requirements/requirements-sbom.txt
+          /tmp/sbom-env/bin/python -m pip install --no-deps dist/*.whl
           /tmp/sbom-env/bin/cyclonedx-py environment --of JSON --output-reproducible --sv 1.6 --validate -o sbom.json
           test -s sbom.json
 

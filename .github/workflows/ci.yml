@@ -27,10 +27,14 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-          cache-dependency-path: pyproject.toml
+          cache-dependency-path: .github/requirements/requirements-ci.txt
 
       - name: Install
-        run: pip install -e ".[dev]"
+        # Runtime + dev deps come from the hash-pinned lock; the project itself
+        # installs editable with --no-deps (deps already satisfied).
+        run: |
+          pip install --require-hashes -r .github/requirements/requirements-ci.txt
+          pip install --no-deps -e .
 
       - name: Lint
         run: python -m ruff check src tests
@@ -61,14 +65,16 @@ jobs:
         with:
           python-version: "3.14"
           cache: pip
-          cache-dependency-path: pyproject.toml
+          cache-dependency-path: .github/requirements/requirements-ci.txt
 
       - name: Install
-        run: pip install -e ".[dev]"
+        run: |
+          pip install --require-hashes -r .github/requirements/requirements-ci.txt
+          pip install --no-deps -e .
 
       - name: Audit dependencies
         run: |
-          pip install pip-audit
+          pip install --require-hashes -r .github/requirements/requirements-audit.txt
           pip-audit --desc
 
       - name: Audit docs dependencies
@@ -76,15 +82,15 @@ jobs:
         # isolated so its pins never leak into (or clash with) the test env.
         run: |
           python -m venv /tmp/docs-env
-          /tmp/docs-env/bin/python -m pip install -r docs/requirements-docs.txt pip-audit
-          /tmp/docs-env/bin/pip-audit --desc
+          /tmp/docs-env/bin/python -m pip install --require-hashes -r docs/requirements-docs.txt
+          /tmp/docs-env/bin/python -m pip install --require-hashes -r .github/requirements/requirements-audit.txt
+          /tmp/docs-env/bin/pip-audit --desc --skip-editable
 
       - name: Check dependency licenses
         # Fail closed on copyleft (GPL/AGPL families) and unknown licenses.
         # LGPL/MPL stay allowed: dynamic linking / file-level copyleft are
         # fine for a library.
         run: |
-          pip install pip-licenses
           pip-licenses --format=json --from=mixed --output-file /tmp/licenses.json
           python - <<'EOF'
           import json

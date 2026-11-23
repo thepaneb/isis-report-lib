@@ -49,7 +49,7 @@ jobs:
         # it flags legitimate packages whose GitHub repo has extra files.
         run: |
           sudo apt-get update && sudo apt-get install -y libgit2-dev pkg-config
-          pip install "guarddog==3.2.0"
+          pip install --require-hashes -r .github/requirements/requirements-guarddog.txt
           pip freeze --exclude-editable > /tmp/frozen.txt
           guarddog pypi verify /tmp/frozen.txt --output-format sarif --exclude-rules repository_integrity_mismatch > guarddog.sarif
 

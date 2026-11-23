@@ -1,0 +1,4 @@
+# Vulnerability/license auditors, hash-pinned for `pip install --require-hashes`.
+# Regenerate: bash scripts/lock-requirements.sh
+pip-audit
+pip-licenses
