@@ -84,6 +84,12 @@ jobs:
         with:
           path: site
 
+      - name: Wait for the Pages artifact
+        # deploy-pages lists artifacts through the run-scoped API right after
+        # the upload; the list can lag by a second and intermittently returns
+        # zero artifacts (actions/deploy-pages#451). Give it time to propagate.
+        run: sleep 10
+
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
         id: deployment
