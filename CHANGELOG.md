@@ -7,6 +7,7 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 
 ## [Unreleased]
 ### Added
+- Documentation site: Zensical + GitHub Pages (`docs.yml`, unified landing + Standards/ASVS/Roadmap/Changelog/Security), strict link-checked build
 - DoS quotas: opt-in `meta.limits` (`max_rows` records, `max_bytes` payload bytes) enforced fail-closed in `prepare_report` for every output; CLI `--max-rows`/`--max-bytes`
 - Chromium egress deny-by-default: outbound http(s) blocked via per-page route guard, opt-in `allowed_hosts` (API/CLI only, never payload); closes ASVS 12.1.1 (opt-in quotas) and 12.6.1 (deny-by-default + allow-list)
 - Signing key rotation: `verify_pdf` accepts `{key_id: key}` mappings (envelope `key_id` selects first) and ordered key lists; `verify` takes repeatable `--key-file`; rotation runbook in `docs/STANDARDS.md` §3.3

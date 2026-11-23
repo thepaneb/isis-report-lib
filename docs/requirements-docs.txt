@@ -1,0 +1,2 @@
+# Pinned docs builder (Zensical). Dependabot keeps this updated.
+zensical==0.1.3

@@ -124,6 +124,8 @@ payload (dict | ReportPayload | .toon)
 
 - User-facing knobs (`README.md` parameters table) and `CHANGELOG.md`
   (`Unreleased` → versioned sections on release) update in the same PR.
+- `docs/` publishes as a Zensical site (`docs.yml` build on PRs, deploy on
+  push to `main`); nav updates ship with the feature they document.
 - Conventional Commits; `main` via squash-merge after the `gate` check.
 - Release: tag `vX.Y.Z` + GitHub Release → PyPI/TestPyPI via Trusted
   Publishing. Never publish from a laptop.
@@ -134,7 +136,7 @@ payload (dict | ReportPayload | .toon)
 
 The binding control mapping lives in [`ASVS.md`](ASVS.md)
 (OWASP ASVS 4.0.3, L1 target with L2/L3 where met); vulnerability reports
-follow [`SECURITY.md`](../SECURITY.md). This section states the rules.
+follow [`SECURITY.md`](https://github.com/thepaneb/isis-report-lib/blob/main/SECURITY.md). This section states the rules.
 
 ### 3.1 Trust boundaries
 

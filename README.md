@@ -4,6 +4,7 @@
 [![PyPI](https://img.shields.io/pypi/v/isis-report-lib.svg)](https://pypi.org/project/isis-report-lib/)
 [![Python](https://img.shields.io/pypi/pyversions/isis-report-lib.svg)](https://pypi.org/project/isis-report-lib/)
 [![Wiki](https://img.shields.io/badge/docs-wiki-blue)](https://github.com/thepaneb/isis-report-lib/wiki)
+[![Docs](https://img.shields.io/badge/docs-zensical-blue)](https://thepaneb.github.io/isis-report-lib/)
 [![ASVS](https://img.shields.io/badge/ASVS-4.0.3%20mapped-blue)](docs/ASVS.md)
 [![pip-audit](https://img.shields.io/badge/pip--audit-gated%20in%20CI-green)](.github/workflows/ci.yml)
 [![Semgrep](https://img.shields.io/badge/semgrep-gated%20in%20CI-green)](.github/workflows/semgrep.yml)

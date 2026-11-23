@@ -2,7 +2,7 @@
 
 Single source of truth for *what comes next*, so plans don't live only in
 chat memory. Status is updated when a PR merges (move the item to
-[Done](#done-v010--v0110), never delete it).
+[Done](#done-v010-v0110), never delete it).
 
 Guiding maxim: **faithful presentation of data beats rigid layout.**
 Non-goals are listed at the bottom and stay out unless the maxim demands
@@ -10,12 +10,11 @@ otherwise.
 
 ## Next (prioritized)
 
-### 1. Documentation site (polish)
-`mkdocs` + GitHub Pages from `docs/` (`STANDARDS.md`, `ASVS.md`, this file).
-Landing page and wiki already exist, so this is discoverability, not new
-content.
+_No open items — roadmap empty. Propose the next one via PR against this file._
 
 ## Done (unreleased, post-v0.11.0)
+
+- **Documentation site (polish)**: Zensical + GitHub Pages (`docs.yml` build/deploy, unified landing as `docs/index.md`, Standards/ASVS/Roadmap/Changelog/Security discoverable with search, strict link-checked build).
 
 - **Configurable payload size quotas (DoS hardening)**: opt-in `meta.limits`
   (`max_rows`/`max_bytes`) enforced fail-closed in `prepare_report` for every
