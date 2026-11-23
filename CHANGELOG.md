@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format follows
 the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 
 ## [Unreleased]
+### Added
+- User guide on the docs site (`docs/guide.md`): task-oriented walkthroughs (first report, inputs, sections, signing, hardening, CLI, troubleshooting) with the README kept as exhaustive reference
 
 ## [0.12.0] - 2026-11-23
 ### Added

@@ -73,6 +73,7 @@ Declarative behavior, not rigid templates. See the full parameter table in the p
 
 ## Going further
 
+- **User guide** — task-oriented walkthroughs: first report, data inputs, sections, signing, hardening, CLI recipes, troubleshooting.
 - **Standards** — architecture, engineering, security and design rules for contributors.
 - **Security model (ASVS)** — OWASP ASVS 4.0.3 applicability mapping.
 - **Roadmap** — what comes next, done log and non-goals.
