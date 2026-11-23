@@ -8,6 +8,7 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 ## [Unreleased]
 ### Added
 - User guide on the docs site (`docs/guide.md`): task-oriented walkthroughs (first report, inputs, sections, signing, hardening, CLI, troubleshooting) with the README kept as exhaustive reference
+- Secret scanning: Gitleaks workflow on PR/push/weekly (working tree + history, digest-pinned image, SARIF to code scanning) plus an optional pre-commit hook; closes ASVS 10.2.3
 
 ## [0.12.0] - 2026-11-23
 ### Added
