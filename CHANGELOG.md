@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format follows
 the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 
 ## [Unreleased]
+
+## [0.12.0] - 2026-11-23
 ### Added
 - Documentation site: Zensical + GitHub Pages (`docs.yml`, unified landing + Standards/ASVS/Roadmap/Changelog/Security), strict link-checked build
 - DoS quotas: opt-in `meta.limits` (`max_rows` records, `max_bytes` payload bytes) enforced fail-closed in `prepare_report` for every output; CLI `--max-rows`/`--max-bytes`
