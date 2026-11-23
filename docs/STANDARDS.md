@@ -214,8 +214,10 @@ keys: accepted from API/CLI arguments only, never from the payload.
   with cross-file dataflow; SARIF under `/language:*`.
 - Every GitHub Release (stable + prerelease) carries a reproducible
   CycloneDX 1.6 `sbom.json`, built in an isolated env from the release wheel,
-  plus Sigstore attestations (SLSA provenance for `dist/*`, SBOM
-  attestation for `sbom.json`) verifiable with `gh attestation verify`.
+  plus Sigstore attestations (SLSA provenance for `dist/*` and the SBOM file)
+  verifiable with `gh attestation verify`. Note: the generator omits
+  `metadata.component`, so the SBOM is attested as a subject file — not via
+  `sbom-path` mode, which requires that field.
 - No secrets in the repo (`.env` is gitignored); release artifacts come only
   from CI (`twine check` + trusted publishing).
 
