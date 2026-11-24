@@ -10,6 +10,7 @@
 [![Semgrep](https://img.shields.io/badge/semgrep-gated%20in%20CI-green)](.github/workflows/semgrep.yml)
 [![Security](https://img.shields.io/badge/security-policy-blue)](SECURITY.md)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/thepaneb/isis-report-lib/badge)](https://scorecard.dev/viewer/?uri=github.com/thepaneb/isis-report-lib)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/17047/badge)](https://www.bestpractices.dev/projects/17047)
 [![codecov](https://codecov.io/gh/thepaneb/isis-report-lib/graph/badge.svg)](https://codecov.io/gh/thepaneb/isis-report-lib)
 
 ---

@@ -10,34 +10,31 @@ otherwise.
 
 ## Next (prioritized)
 
-### 1. OpenSSF Best Practices badge (assurance)
-Self-certify the project against the OpenSSF Best Practices (Passing level):
-answer the questionnaire, fix what it flags, embed the badge. Mostly
-declaration — CI, review, disclosure and supply-chain practices are already in
-place. Lifts Scorecard `CII-Best-Practices` (0 → 10).
+### 1. Release immutability (supply chain)
+Enable GitHub's immutable releases so published assets and tags cannot be
+swapped in place after publication. This requires changing `publish.yml` to
+attach every asset to a **draft** release and publish it last, because assets
+cannot be added after publication. Only new releases become immutable, so
+Scorecard `Signed-Releases` rises as they replace the older releases in the
+last-5 window; attaching the real `.intoto.jsonl` provenance to the existing
+releases can close it sooner.
 
-### 2. Release immutability (supply chain, one toggle)
-Enable GitHub's immutable releases so published assets cannot be swapped in
-place after publication. With the existing Sigstore attestations this closes
-Scorecard `Signed-Releases` (0 → 10) on the next scan — v0.13.0 already carries
-provenance, so only the setting is missing.
-
-### 3. Socket Security monitoring (supply chain, defense in depth)
+### 2. Socket Security monitoring (supply chain, defense in depth)
 Second opinion on malicious packages beyond the GuardDog CI gate: install the
 Socket GitHub App (free for OSS, no repo changes needed) so new dependencies are
 scored on PRs. GuardDog stays the blocking gate; Socket is advisory.
 
-### 4. ASVS 7.3.1 log encoding (robustness)
+### 3. ASVS 7.3.1 log encoding (robustness)
 No user-controlled content reaches log sinks today (static messages only); add
 an explicit log-encoding layer so future logging cannot introduce injection by
 accident. Closes the last easy ASVS Partial.
 
-### 5. Evaluate stricter defaults (product decision)
+### 4. Evaluate stricter defaults (product decision)
 Revisit deliberate opt-ins: `meta.limits` off by default, permissive `verify_*`
 ergonomics, LGPL/MPL tolerance. Requires a maintainer call on compatibility vs.
 hardening — no code until decided.
 
-### 6. Scorecard: branch-protection hardening (process)
+### 5. Scorecard: branch-protection hardening (process)
 Remaining `Branch-Protection` gaps: stale-review dismissal, CODEOWNERS review,
 last-push approval. Excluded deliberately: requiring approvers, which would
 deadlock a single maintainer (self-approval is not a review).
@@ -45,11 +42,16 @@ deadlock a single maintainer (self-approval is not a review).
 ### Structural Scorecard limits (accepted, not actionable)
 `Code-Review` and `Contributors` stay at 0 until a second reviewer or
 organization contributes; `Maintained` rises on its own 90 days after repo
-creation; `SAST` climbs as new commits pass through CodeQL. Movable checks:
-`CII-Best-Practices`, `Signed-Releases`, `Branch-Protection`.
+creation; `SAST` climbs as new commits pass through CodeQL. `CII-Best-Practices`
+is 5 (Passing); Silver (7) and Gold (10) are optional and Gold needs a second
+maintainer. Movable checks: `Signed-Releases`, `Branch-Protection`.
 
 ## Done (post-v0.13.0)
 
+- **OpenSSF Best Practices badge (Passing)**: self-certified at
+  [bestpractices.dev/projects/17047](https://www.bestpractices.dev/projects/17047);
+  all Passing MUST/SHOULD criteria met (63 Met, 5 N/A). Scorecard
+  `CII-Best-Practices` lifts 0 → 5 on the next scan.
 - **Fuzzing**: Atheris targets for the untrusted-input parsers (`.toon`, JSON
   payload envelope, layout specs), run time-boxed on every PR and deeper
   weekly; the first runs found and fixed three real crash paths (scalar nested

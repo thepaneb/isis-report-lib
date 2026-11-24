@@ -4,6 +4,8 @@ Tabular PDF reports from Python — hierarchical layouts, Jinja2 rendering, Play
 
 [PyPI](https://pypi.org/project/isis-report-lib/) · [Source](https://github.com/thepaneb/isis-report-lib) · [Releases](https://github.com/thepaneb/isis-report-lib/releases) · [Wiki](https://github.com/thepaneb/isis-report-lib/wiki)
 
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/17047/badge)](https://www.bestpractices.dev/projects/17047)
+
 ## What it does
 
 From nested records to a polished PDF. The document adapts to the data instead of rigid bands.
