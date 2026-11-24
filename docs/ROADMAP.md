@@ -35,17 +35,19 @@ deadlock a single maintainer (self-approval is not a review).
 organization contributes; `Maintained` rises on its own 90 days after repo
 creation; `SAST` climbs as new commits pass through CodeQL. `CII-Best-Practices`
 is 5 (Passing); Silver (7) and Gold (10) are optional and Gold needs a second
-maintainer. Movable checks: `Signed-Releases` (rises with new immutable
-releases), `Branch-Protection`.
+maintainer. `Signed-Releases` is 5 and reaches 10 as new immutable releases
+replace v0.12.0 in the last-5 window. Movable checks: `Signed-Releases`,
+`Branch-Protection`.
 
 ## Done (post-v0.13.0)
 
 - **Release immutability**: enabled on the repository; `publish.yml` now runs
   on the tag push, attaches wheel/sdist/SBOM/SLSA `provenance.intoto.jsonl` to
   a **draft** release, uploads to PyPI and publishes the release **last**
-  (immutable releases lock assets at publication). v0.12.0/v0.13.0 predate the
-  setting; `Signed-Releases` rises as new releases replace them in the last-5
-  window.
+  (immutable releases lock assets at publication). v0.13.0's wheel, sdist and
+  real SLSA provenance were backfilled and the release is now immutable;
+  Scorecard `Signed-Releases` confirmed 5. v0.12.0 predates the attestations;
+  it drops out of the last-5 window as new releases ship.
 - **OpenSSF Best Practices badge (Passing)**: self-certified at
   [bestpractices.dev/projects/17047](https://www.bestpractices.dev/projects/17047);
   all Passing MUST/SHOULD criteria met (63 Met, 5 N/A). Scorecard
