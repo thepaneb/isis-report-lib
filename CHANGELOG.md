@@ -2,10 +2,14 @@
 
 All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
-[Semantic Versioning](https://semver.org/). Releases are published to PyPI via
-the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
+[Semantic Versioning](https://semver.org/). Releases are published by the
+`Publish` workflow on a `vX.Y.Z` tag push: it builds, attaches the assets to a
+draft GitHub Release, uploads to PyPI via trusted publishing and publishes the
+release last.
 
 ## [Unreleased]
+
+## [0.13.1] - 2026-11-24
 ### Added
 - Project: OpenSSF Best Practices **Passing** badge (self-certified at `bestpractices.dev/projects/17047`); Scorecard `CII-Best-Practices` now 5
 - Fuzzing: Atheris targets for the untrusted-input parsers (`.toon`, JSON payload envelope, layout specs) in `fuzz/`, run time-boxed on every PR and deeper weekly (`fuzz.yml`); closes Scorecard `Fuzzing`
