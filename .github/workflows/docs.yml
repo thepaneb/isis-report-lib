@@ -1,7 +1,8 @@
 name: Docs
 
-# MkDocs/Zensical site from docs/ (+ landing index). Build validates every
-# PR touching docs; deploy runs only on push to main via OIDC (no token).
+# MkDocs/Zensical site from docs/ (+ landing index). The build runs on every PR
+# (the `docs-build` check is required by the main ruleset) and deploy runs only
+# on push to main via OIDC (no token).
 on:
   push:
     branches: [main]
@@ -12,11 +13,6 @@ on:
       - ".github/workflows/docs.yml"
   pull_request:
     branches: [main]
-    paths:
-      - "docs/**"
-      - "zensical.toml"
-      - "docs/requirements-docs.txt"
-      - ".github/workflows/docs.yml"
   workflow_dispatch:
 
 permissions:
