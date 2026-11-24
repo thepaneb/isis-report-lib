@@ -1,19 +1,23 @@
 name: Publish
 
+# A tag push is the release trigger: build, attest, attach every asset to a
+# DRAFT release, upload to PyPI, then publish the release. The draft step
+# matters because immutable releases lock their assets when published: nothing
+# can be added afterwards. The `release: published` event is intentionally not
+# used, because it fires after the assets are already locked.
 on:
-  release:
-    types: [published]
+  push:
+    tags: ["v*"]
 
 permissions:
   contents: read
 
 jobs:
-  publish-testpypi:
+  publish:
     runs-on: ubuntu-latest
-    if: github.event.release.prerelease == true
     permissions:
-      contents: write # attach sbom.json to the GitHub Release
-      id-token: write # OIDC for Trusted Publishing (also register on test.pypi.org)
+      contents: write # create/update the draft release and upload assets
+      id-token: write # OIDC for Trusted Publishing and Sigstore
       attestations: write # Sigstore attestations for the release artifacts
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -43,15 +47,10 @@ jobs:
           /tmp/sbom-env/bin/cyclonedx-py environment --of JSON --output-reproducible --sv 1.6 --validate -o sbom.json
           test -s sbom.json
 
-      - name: Attach SBOM to release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REF_NAME: ${{ github.ref_name }}
-        run: gh release upload "$REF_NAME" sbom.json --clobber
-
       - name: Attest build provenance
         # SLSA provenance for the release artifacts (verifiable with
         # `gh attestation verify dist/* --repo github.com/thepaneb/isis-report-lib`).
+        id: attest
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: "dist/*"
@@ -64,66 +63,71 @@ jobs:
         with:
           subject-path: "sbom.json"
 
+      - name: Prepare provenance asset
+        # Ship the signed in-toto bundle as a release asset so consumers (and
+        # Scorecard's Signed-Releases check) can find provenance next to the
+        # wheel and sdist.
+        run: cp "${{ steps.attest.outputs.bundle-path }}" provenance.intoto.jsonl
+
+      - name: Classify release
+        id: classify
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          case "$TAG" in
+            *rc*|*a*|*b*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Create or reuse the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            is_draft=$(gh release view "$TAG" --json isDraft --jq .isDraft)
+            if [[ "$is_draft" != "true" ]]; then
+              echo "::error::Release $TAG is already published; refusing to modify it."
+              exit 1
+            fi
+            echo "Reusing draft release $TAG."
+          else
+            # --draft: nothing is published until all assets are attached.
+            gh release create "$TAG" --draft --title "$TAG" --generate-notes
+          fi
+
+      - name: Attach release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release upload "$TAG" dist/* sbom.json provenance.intoto.jsonl --clobber
+
       - name: Publish to TestPyPI
+        # PyPI runs before the release is published: if the upload fails, the
+        # draft stays editable and the job can be re-run. skip-existing makes
+        # a re-run idempotent after a partial PyPI success.
+        if: steps.classify.outputs.prerelease == 'true'
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
-
-  publish:
-    runs-on: ubuntu-latest
-    if: github.event.release.prerelease != true
-    permissions:
-      contents: write # attach sbom.json to the GitHub Release
-      id-token: write # OIDC for Trusted Publishing (no token in .env)
-      attestations: write # Sigstore attestations for the release artifacts
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0 # hatch-vcs precisa das tags
-          persist-credentials: false
-
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
-        with:
-          python-version: "3.14"
-
-      - name: Build
-        run: |
-          pip install --require-hashes -r .github/requirements/requirements-publish.txt
-          python -m build
-
-      - name: Check artifacts
-        run: twine check dist/*
-
-      - name: Generate SBOM (CycloneDX)
-        # Isolated env with the release wheel's runtime deps from the hash-pinned
-        # lock: the SBOM describes exactly what ships, reproducibly.
-        run: |
-          python -m venv /tmp/sbom-env
-          /tmp/sbom-env/bin/python -m pip install --require-hashes -r .github/requirements/requirements-sbom.txt
-          /tmp/sbom-env/bin/python -m pip install --no-deps dist/*.whl
-          /tmp/sbom-env/bin/cyclonedx-py environment --of JSON --output-reproducible --sv 1.6 --validate -o sbom.json
-          test -s sbom.json
-
-      - name: Attach SBOM to release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REF_NAME: ${{ github.ref_name }}
-        run: gh release upload "$REF_NAME" sbom.json --clobber
-
-      - name: Attest build provenance
-        # SLSA provenance for the release artifacts (verifiable with
-        # `gh attestation verify dist/* --repo github.com/thepaneb/isis-report-lib`).
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
-        with:
-          subject-path: "dist/*"
-
-      - name: Attest SBOM
-        # The generated CycloneDX document has no metadata.component, which
-        # `sbom-path` mode requires to name the subject. Attest the SBOM file
-        # itself instead (digest-bound provenance covers it too).
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
-        with:
-          subject-path: "sbom.json"
+          skip-existing: true
 
       - name: Publish to PyPI
+        if: steps.classify.outputs.prerelease != 'true'
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
+        with:
+          skip-existing: true
+
+      - name: Publish the release
+        # Last step: with immutable releases enabled, publishing locks the tag
+        # and every asset. All assets and the PyPI upload are already done.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ steps.classify.outputs.prerelease }}
+        run: |
+          args=(--draft=false)
+          if [[ "$PRERELEASE" == "true" ]]; then
+            args+=(--prerelease)
+          fi
+          gh release edit "$TAG" "${args[@]}"

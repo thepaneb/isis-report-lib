@@ -48,6 +48,18 @@ commands: `python linkedin/publish.py --lang en --list` (queue),
 `python linkedin/assets/gen_cards.py` (cards), `python linkedin/export.py`
 (plain text), `python linkedin/check_drift.py` (version/tests/mirror).
 
+## Browser automation (available)
+The session can drive a browser when the user asks:
+- `browse.*` drives the user's real Chrome through the extension; existing
+  logins (GitHub, PyPI, bestpractices.dev) are already there. Prefer it for
+  authenticated sites and repository settings.
+- `browser.*` drives the in-app OpenCode Chromium; use it for local/workspace
+  files and pages that do not need a login.
+Never type passwords or 2FA codes, and never solve a captcha: hand off to the
+user and wait. Actions that accept terms/licenses, publish something, or change
+security settings need an explicit user request; state what will be
+saved/changed first. Close agent tabs when done.
+
 ## Pitfalls (do not reintroduce)
 - **Raw data without `layout`:** the template iterates `row.fields`, so raw records must
   be wrapped in `{"fields": ...}` (see `_process_data` and `arender_html`).
@@ -67,8 +79,14 @@ git checkout -b feat/xyz
 python -m ruff check src tests && python -m pytest tests -q
 git push -u origin feat/xyz   # then open a PR; merge after the gate passes
 ```
-Release flow: tag `vX.Y.Z` + GitHub Release → PyPI via Trusted Publishing.
-The publish workflow attaches a reproducible CycloneDX `sbom.json` to the release automatically — nothing to do by hand.
+Release flow: push tag `vX.Y.Z` → `publish.yml` builds, attests, attaches the
+wheel/sdist, reproducible CycloneDX `sbom.json` and `provenance.intoto.jsonl`
+to a **draft** GitHub Release, uploads to PyPI (TestPyPI for `rc` tags) via
+Trusted Publishing and publishes the release last. Create the draft release
+first if you want curated notes; the workflow reuses it. Do not publish the
+draft manually while the workflow runs. Release immutability is enabled on the
+repository, so every asset must be attached **before** the release is
+published — the workflow does that. Never add assets afterwards.
 
 ```bash
 pip install -e ".[dev]"
