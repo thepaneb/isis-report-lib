@@ -55,17 +55,26 @@ jobs:
         id: resolve
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          IN_RUN_ID: ${{ inputs.run_id }}
+          IN_PR: ${{ inputs.pr }}
+          IN_TOOL: ${{ inputs.tool }}
+          WR_ID: ${{ github.event.workflow_run.id }}
+          WR_PR: ${{ github.event.workflow_run.pull_requests[0].number }}
+          WR_NAME: ${{ github.event.workflow_run.name }}
+          WR_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            run_id="${{ inputs.run_id }}"
-            pr="${{ inputs.pr }}"
-            tool="${{ inputs.tool }}"
-            sha=$(gh api "repos/${{ github.repository }}/pulls/${pr}" --jq .head.sha)
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            run_id="$IN_RUN_ID"
+            pr="$IN_PR"
+            tool="$IN_TOOL"
+            sha=$(gh api "repos/${REPO}/pulls/${pr}" --jq .head.sha)
           else
-            run_id="${{ github.event.workflow_run.id }}"
-            pr="${{ github.event.workflow_run.pull_requests[0].number }}"
-            tool=$([ "${{ github.event.workflow_run.name }}" = "GuardDog" ] && echo guarddog || echo gitleaks)
-            sha="${{ github.event.workflow_run.head_sha }}"
+            run_id="$WR_ID"
+            pr="$WR_PR"
+            tool=$([ "$WR_NAME" = "GuardDog" ] && echo guarddog || echo gitleaks)
+            sha="$WR_SHA"
           fi
           {
             echo "run_id=${run_id}"
