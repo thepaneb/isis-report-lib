@@ -37,6 +37,16 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           gitleaks detect --source . --report-format sarif --report-path=gitleaks.sarif --exit-code 1 --redact
 
+      - name: Upload SARIF artifact
+        # Dependabot PRs get a read-only token; dependabot-sarif.yml uploads
+        # this artifact with a write token instead.
+        if: always() && hashFiles('gitleaks.sarif') != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: gitleaks-sarif
+          path: gitleaks.sarif
+          retention-days: 1
+
       - name: Upload SARIF
         if: always() && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3

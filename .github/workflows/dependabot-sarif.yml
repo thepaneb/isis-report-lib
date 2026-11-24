@@ -1,0 +1,50 @@
+name: Dependabot SARIF
+
+# Public repositories: workflows triggered by Dependabot run with a read-only
+# GITHUB_TOKEN, so GuardDog and Gitleaks cannot upload their SARIF from those
+# PRs. The `main` ruleset requires code scanning results for `GuardDog-pypi`
+# (and has no bypass), so the missing analysis blocks the merge forever; the
+# `Send write tokens to workflows from pull requests` setting only exists for
+# private repositories.
+#
+# Those workflows now export the SARIF as an artifact. This workflow runs in
+# the base repository with a write token (workflow_run context) and uploads
+# that artifact. It only accepts same-repository Dependabot PRs, so a fork can
+# never inject code scanning results, and it never checks out or runs PR code.
+on:
+  workflow_run:
+    workflows: ["GuardDog", "Gitleaks"]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write # SARIF upload to code scanning
+
+jobs:
+  upload:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.actor.login == 'dependabot[bot]' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download SARIF artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: ${{ github.event.workflow_run.name == 'GuardDog' && 'guarddog-sarif' || 'gitleaks-sarif' }}
+          path: sarif
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Upload to code scanning
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: sarif
+          category: ${{ github.event.workflow_run.name == 'GuardDog' && 'guarddog' || 'gitleaks' }}
+          # The workflow_run runs on the base branch tip; point the analysis at
+          # the PR head commit so it satisfies the merge protection.
+          ref: refs/pull/${{ github.event.workflow_run.pull_requests[0].number }}/head
+          sha: ${{ github.event.workflow_run.head_sha }}
