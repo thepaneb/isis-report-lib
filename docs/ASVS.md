@@ -59,8 +59,8 @@ intent with documented limits), **N/A** (no such surface in this project).
 
 | Req | Lvl | Verdict | Evidence |
 |---|---|---|---|
-| 7.1.1/7.1.2 | L1L2 | Pass | Secrets/keys/PII never logged; tracebacks carry code, not payload values |
-| 7.3.1 | L1L2 | Partial | No user-controlled content reaches log sinks (static messages only); no dedicated log-encoding layer |
+| 7.1.1/7.1.2 | L1L2 | Pass | Secrets/keys are never logged and no payload bodies are logged; validation errors repr-escape the offending value; every log record is single-line encoded (7.3.1) |
+| 7.3.1 | L1L2 | Pass | `logging_utils.log_value` escapes CR/LF/tabs, ANSI/control characters and Unicode separators; the package logger installs `LogEncodingFilter` as a safety net; tests cover CRLF/ANSI/U+2028 and the no-double-escape path |
 | 7.4.1 | L1L2 | Pass | `verify_*` returns generic `invalid` verdicts; CLI exits `0/1/2` without internals |
 | 7.4.2 | L1L2 | Pass | Fail-closed `ValueError` + `ImportError` hints across inputs, layout, export, signing |
 | V7.2/V7.3.3/V7.3.4 | — | N/A | no authentication/access decisions or centralized log pipeline in the library |

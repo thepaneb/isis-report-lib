@@ -35,7 +35,7 @@ def get_jinja_env(template_dir: str | Path | None = None) -> SandboxedEnvironmen
     key = str(template_dir) if template_dir is not None else None
     if key not in _envs:
         if template_dir is not None and not Path(template_dir).is_dir():
-            raise ValueError(f"Template directory not found: {template_dir}")
+            raise ValueError(f"Template directory not found: {template_dir!r}")
         searchpath = [str(template_dir), _templates_dir()] if template_dir is not None else [_templates_dir()]
         # Autoescape is ON and the environment is sandboxed: report data is untrusted
         # and templates must not reach Python internals (defense in depth for SSTI).

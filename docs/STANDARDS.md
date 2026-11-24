@@ -175,6 +175,11 @@ keys: accepted from API/CLI arguments only, never from the payload.
   algorithms are allow-listed on both sign and verify paths.
 - Keys arrive as bytes (files); never log, print, or embed them in outputs.
   Key files should be `0600` (the CLI warns otherwise on POSIX).
+- Logs are single-line: caller-controlled fields go through
+  `logging_utils.log_value`, and the package logger installs
+  `LogEncodingFilter` so CR/LF, ANSI/control characters and Unicode line
+  separators cannot forge log entries. Never log keys, payload bodies or
+  secrets.
 - Rotation runbook (no flag days): sign new reports with the new key under a
   new `key_id`; configure verifiers with the keyring (`{key_id: key}` mapping
   or ordered key list — the envelope `key_id` selects first, the rest are
@@ -240,6 +245,7 @@ keys: accepted from API/CLI arguments only, never from the payload.
 4. Does any new export path write attacker-controlled strings unevaluated?
 5. Does any new `verify_*`/parser raise where callers expect a verdict/`ValueError`?
 6. Does any new dependency widen the install or need a system package?
+7. Does any new log line include caller data without `log_value`?
 
 ---
 

@@ -15,17 +15,12 @@ Second opinion on malicious packages beyond the GuardDog CI gate: install the
 Socket GitHub App (free for OSS, no repo changes needed) so new dependencies are
 scored on PRs. GuardDog stays the blocking gate; Socket is advisory.
 
-### 2. ASVS 7.3.1 log encoding (robustness)
-No user-controlled content reaches log sinks today (static messages only); add
-an explicit log-encoding layer so future logging cannot introduce injection by
-accident. Closes the last easy ASVS Partial.
-
-### 3. Evaluate stricter defaults (product decision)
+### 2. Evaluate stricter defaults (product decision)
 Revisit deliberate opt-ins: `meta.limits` off by default, permissive `verify_*`
 ergonomics, LGPL/MPL tolerance. Requires a maintainer call on compatibility vs.
 hardening — no code until decided.
 
-### 4. Scorecard: branch-protection hardening (process)
+### 3. Scorecard: branch-protection hardening (process)
 Remaining `Branch-Protection` gaps: stale-review dismissal, CODEOWNERS review,
 last-push approval. Excluded deliberately: requiring approvers, which would
 deadlock a single maintainer (self-approval is not a review).
@@ -41,6 +36,10 @@ replace v0.12.0 in the last-5 window. Movable checks: `Signed-Releases`,
 
 ## Done (post-v0.13.0)
 
+- **ASVS 7.3.1 log encoding**: `logging_utils.log_value` escapes CR/LF/tabs,
+  ANSI/control characters and Unicode separators; the package logger installs
+  `LogEncodingFilter` as a safety net. Applied to the egress host and service
+  name, with tests for injection and no double encoding. ASVS 7.3.1 now Pass.
 - **Release immutability**: enabled on the repository; `publish.yml` now runs
   on the tag push, attaches wheel/sdist/SBOM/SLSA `provenance.intoto.jsonl` to
   a **draft** release, uploads to PyPI and publishes the release **last**

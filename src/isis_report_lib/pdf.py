@@ -6,13 +6,14 @@ never awaited (cross-loop close hangs on Linux).
 """
 
 import asyncio
-import logging
 from typing import Any
 from urllib.parse import urlsplit
 
 from playwright.async_api import Browser, BrowserContext, Playwright, Route, async_playwright
 
-logger = logging.getLogger("isis_report_lib")
+from isis_report_lib.logging_utils import get_logger, log_value
+
+logger = get_logger()
 
 _playwright_ctx = None
 _playwright: Playwright | None = None
@@ -100,7 +101,7 @@ async def _guard_outbound(route: Route, allowed_hosts: list[str] | None) -> None
         host = urlsplit(route.request.url).hostname or "?"
     except ValueError:
         host = "?"
-    logger.warning("Blocked outbound request to %s (not in allowed_hosts).", host)
+    logger.warning("Blocked outbound request to %s (not in allowed_hosts).", log_value(host))
     await route.abort()
 
 
@@ -132,7 +133,7 @@ async def _reset_unlocked() -> None:
         try:
             await asyncio.wait_for(coro, timeout=10)
         except Exception:
-            logger.warning("Failed to close %s during pool reset; abandoning.", label)
+            logger.warning("Failed to close %s during pool reset; abandoning.", log_value(label))
 
     global _playwright_ctx, _playwright, _browser, _context, _owner_loop
     try:

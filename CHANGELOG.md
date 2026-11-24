@@ -13,6 +13,7 @@ the `Publish` workflow (tagged `vX.Y.Z` + GitHub Release, trusted publishing).
 ### Changed
 - Releases are now draft-first: `publish.yml` runs on the tag push, attaches the wheel, sdist, SBOM and `provenance.intoto.jsonl` to a draft release, uploads to PyPI and publishes the release last; this is required for GitHub immutable releases
 ### Fixed
+- Log encoding: caller-controlled log fields are escaped (CR/LF, ANSI/control characters, Unicode separators) via `logging_utils.log_value`, with `LogEncodingFilter` on the package logger as a safety net; ASVS 7.3.1 now Pass
 - Nested group fields holding a scalar (or a bare dict) now fail closed with `ValueError` naming the field, instead of raising `TypeError` from inside traversal (found by fuzzing)
 - Top-level records that are not objects fail closed with `ValueError` naming the index (found by fuzzing)
 - Composed documents: `table`/`crosstab` sections with a non-list `data` or a non-object `layout` fail closed with `ValueError` instead of `AttributeError`/`TypeError` (found by fuzzing)

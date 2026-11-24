@@ -5,7 +5,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, overload
 
 from isis_report_lib.api import generate_csv, generate_pdf, generate_xlsx, render_html
 from isis_report_lib.inputs import from_csv
@@ -116,15 +116,23 @@ def _detect_format(path: Path, explicit: str) -> str:
     raise ValueError(f"Cannot guess input format from extension {path.suffix!r}; use --input-format.")
 
 
+@overload
+def _read_text_file(path: Path, label: str) -> str: ...
+
+
+@overload
+def _read_text_file(path: None, label: str) -> None: ...
+
+
 def _read_text_file(path: Path | None, label: str) -> str | None:
     if path is None:
         return None
     try:
         return path.read_text(encoding="utf-8")
     except FileNotFoundError:
-        raise FileNotFoundError(f"{label} file not found: {path}") from None
+        raise FileNotFoundError(f"{label} file not found: {path!r}") from None
     except OSError as e:
-        raise ValueError(f"Cannot read {label} file {path}: {e}") from None
+        raise ValueError(f"Cannot read {label} file {path!r}: {e}") from None
 
 
 def _apply_locale(payload: dict[str, Any], locale: str | None) -> dict[str, Any]:
@@ -156,15 +164,13 @@ def _load_payload(path: Path, fmt: str, delimiter: str = ",") -> tuple[dict[str,
         try:
             return from_csv(path, delimiter=delimiter), True
         except FileNotFoundError:
-            raise FileNotFoundError(f"Input file not found: {path}") from None
+            raise FileNotFoundError(f"Input file not found: {path!r}") from None
     text = _read_text_file(path, "Input")
-    if text is None:
-        raise ValueError(f"Cannot read input file: {path}")
     if fmt == "json":
         try:
             loaded = json.loads(text)
         except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON in {path}: {e}") from None
+            raise ValueError(f"Invalid JSON in {path!r}: {e}") from None
         return (loaded if isinstance(loaded, dict) else {"data": loaded}), True
     return parse_toon(text), True
 
@@ -251,12 +257,12 @@ def _read_key_file(path: Path) -> bytes:
     try:
         data = path.read_bytes()
     except FileNotFoundError:
-        raise FileNotFoundError(f"Key file not found: {path}") from None
+        raise FileNotFoundError(f"Key file not found: {path!r}") from None
     except OSError as e:
-        raise ValueError(f"Cannot read key file {path}: {e}") from None
+        raise ValueError(f"Cannot read key file {path!r}: {e}") from None
     if os.name == "posix" and bool(path.stat().st_mode & 0o077):
         print(
-            f"warning: key file {path} is readable by group/others; restrict it (chmod 600)",
+            "warning: key file is readable by group/others; restrict it (chmod 600)",
             file=sys.stderr,
         )
     return data

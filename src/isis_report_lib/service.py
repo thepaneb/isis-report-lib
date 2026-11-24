@@ -1,13 +1,14 @@
 """Report generation pipeline: Fetch -> Process -> HTML -> PDF."""
 
 import json
-import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
 from typing import Any, final
 
-logger = logging.getLogger("isis_report_lib")
+from isis_report_lib.logging_utils import get_logger, log_value
+
+logger = get_logger()
 
 _LIMIT_KEYS = ("max_rows", "max_bytes")
 
@@ -116,7 +117,7 @@ def _validate_payload_shape(payload: Any) -> None:
         )
         more = f" (+{e.error_count() - 3} more)" if e.error_count() > 3 else ""
         problems = "problem" if e.error_count() == 1 else "problems"
-        raise ValueError(f"Invalid payload ({e.error_count()} {problems}): {details}{more}") from e
+        raise ValueError(f"Invalid payload ({e.error_count()} {problems}): {log_value(details, max_length=800)}{more}") from e
 
 
 def prepare_report(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
@@ -284,15 +285,15 @@ class BaseReportService(ABC):
     async def execute(self, payload: dict[str, Any]) -> bytes:
         service_name = self.__class__.__name__
         try:
-            logger.info("Starting report processing: %s", service_name)
+            logger.info("Starting report processing: %s", log_value(service_name))
             raw_data = await self._fetch_data(payload)
             processed_data = await self._process_data(raw_data, payload)
             html_content = await self._render_html(processed_data, payload)
             pdf_bytes = await self._generate_pdf(html_content)
-            logger.info("Report %s generated successfully.", service_name)
+            logger.info("Report %s generated successfully.", log_value(service_name))
             return pdf_bytes
         except Exception:
-            logger.exception("Pipeline failed for service %s", service_name)
+            logger.exception("Pipeline failed for service %s", log_value(service_name))
             raise
 
     @abstractmethod

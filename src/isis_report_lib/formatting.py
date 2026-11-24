@@ -24,7 +24,7 @@ def normalize_locale(locale: str) -> str:
     try:
         Locale.parse(norm)
     except (UnknownLocaleError, ValueError) as e:
-        raise ValueError(f"Unknown locale: {locale}") from e
+        raise ValueError(f"Unknown locale: {locale!r}") from e
     return norm
 
 
@@ -36,7 +36,7 @@ def default_currency(normalized_locale: str) -> str:
         codes = get_territory_currencies(territory) if territory else []
         return codes[0] if codes else "USD"
     except UnknownLocaleError as e:
-        raise ValueError(f"Unknown locale: {normalized_locale}") from e
+        raise ValueError(f"Unknown locale: {normalized_locale!r}") from e
 
 
 def field_text(value: Any, field: dict[str, Any] | None) -> str | None:
