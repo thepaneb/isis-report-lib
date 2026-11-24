@@ -23,3 +23,6 @@ fuzz/corpus/*/*
 !fuzz/corpus/toon/*.toon
 !fuzz/corpus/payload/*.json
 !fuzz/corpus/layout/*.json
+
+# LinkedIn curation is local (posts, cards, queue state and credentials)
+linkedin/

@@ -39,6 +39,15 @@ tests/             # test_formatting/layout/toon/service (mocks), test_pdf_e2e (
 examples/          # generate_example.py + sales_order.toon
 ```
 
+## LinkedIn curation (local)
+`linkedin/` keeps the LinkedIn posts, cards and publish queue. It is **local and
+gitignored** (never commit it) and lives outside `docs/` on purpose: the docs
+site builds `docs/` with `--strict`. Two independent trees, `pt-br/` (source)
+and `en/` (mirror, same NN/slug). Follow the `linkedin-posts` skill; quick
+commands: `python linkedin/publish.py --lang en --list` (queue),
+`python linkedin/assets/gen_cards.py` (cards), `python linkedin/export.py`
+(plain text), `python linkedin/check_drift.py` (version/tests/mirror).
+
 ## Pitfalls (do not reintroduce)
 - **Raw data without `layout`:** the template iterates `row.fields`, so raw records must
   be wrapped in `{"fields": ...}` (see `_process_data` and `arender_html`).
