@@ -10,31 +10,22 @@ otherwise.
 
 ## Next (prioritized)
 
-### 1. Release immutability (supply chain)
-Enable GitHub's immutable releases so published assets and tags cannot be
-swapped in place after publication. This requires changing `publish.yml` to
-attach every asset to a **draft** release and publish it last, because assets
-cannot be added after publication. Only new releases become immutable, so
-Scorecard `Signed-Releases` rises as they replace the older releases in the
-last-5 window; attaching the real `.intoto.jsonl` provenance to the existing
-releases can close it sooner.
-
-### 2. Socket Security monitoring (supply chain, defense in depth)
+### 1. Socket Security monitoring (supply chain, defense in depth)
 Second opinion on malicious packages beyond the GuardDog CI gate: install the
 Socket GitHub App (free for OSS, no repo changes needed) so new dependencies are
 scored on PRs. GuardDog stays the blocking gate; Socket is advisory.
 
-### 3. ASVS 7.3.1 log encoding (robustness)
+### 2. ASVS 7.3.1 log encoding (robustness)
 No user-controlled content reaches log sinks today (static messages only); add
 an explicit log-encoding layer so future logging cannot introduce injection by
 accident. Closes the last easy ASVS Partial.
 
-### 4. Evaluate stricter defaults (product decision)
+### 3. Evaluate stricter defaults (product decision)
 Revisit deliberate opt-ins: `meta.limits` off by default, permissive `verify_*`
 ergonomics, LGPL/MPL tolerance. Requires a maintainer call on compatibility vs.
 hardening — no code until decided.
 
-### 5. Scorecard: branch-protection hardening (process)
+### 4. Scorecard: branch-protection hardening (process)
 Remaining `Branch-Protection` gaps: stale-review dismissal, CODEOWNERS review,
 last-push approval. Excluded deliberately: requiring approvers, which would
 deadlock a single maintainer (self-approval is not a review).
@@ -44,10 +35,17 @@ deadlock a single maintainer (self-approval is not a review).
 organization contributes; `Maintained` rises on its own 90 days after repo
 creation; `SAST` climbs as new commits pass through CodeQL. `CII-Best-Practices`
 is 5 (Passing); Silver (7) and Gold (10) are optional and Gold needs a second
-maintainer. Movable checks: `Signed-Releases`, `Branch-Protection`.
+maintainer. Movable checks: `Signed-Releases` (rises with new immutable
+releases), `Branch-Protection`.
 
 ## Done (post-v0.13.0)
 
+- **Release immutability**: enabled on the repository; `publish.yml` now runs
+  on the tag push, attaches wheel/sdist/SBOM/SLSA `provenance.intoto.jsonl` to
+  a **draft** release, uploads to PyPI and publishes the release **last**
+  (immutable releases lock assets at publication). v0.12.0/v0.13.0 predate the
+  setting; `Signed-Releases` rises as new releases replace them in the last-5
+  window.
 - **OpenSSF Best Practices badge (Passing)**: self-certified at
   [bestpractices.dev/projects/17047](https://www.bestpractices.dev/projects/17047);
   all Passing MUST/SHOULD criteria met (63 Met, 5 N/A). Scorecard
