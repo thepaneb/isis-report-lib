@@ -7,14 +7,31 @@ name: Dependabot SARIF
 # `Send write tokens to workflows from pull requests` setting only exists for
 # private repositories.
 #
-# Those workflows now export the SARIF as an artifact. This workflow runs in
-# the base repository with a write token (workflow_run context) and uploads
-# that artifact. It only accepts same-repository Dependabot PRs, so a fork can
+# Those workflows export the SARIF as an artifact. This workflow runs in the
+# base repository with a write token (workflow_run context) and uploads that
+# artifact. It only accepts same-repository Dependabot PRs, so a fork can
 # never inject code scanning results, and it never checks out or runs PR code.
+#
+# `workflow_dispatch` is the diagnostic path for a maintainer (write access
+# required): it replays the upload for an existing scan run, e.g. to prove the
+# plumbing after changing this file.
 on:
   workflow_run:
     workflows: ["GuardDog", "Gitleaks"]
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "ID of the GuardDog/Gitleaks workflow run holding the SARIF artifact"
+        required: true
+      pr:
+        description: "Pull request number to attach the analysis to"
+        required: true
+      tool:
+        description: "Which artifact/category to upload"
+        type: choice
+        options: [guarddog, gitleaks]
+        default: guarddog
 
 permissions:
   actions: read
@@ -24,27 +41,53 @@ permissions:
 jobs:
   upload:
     if: >-
-      github.event.workflow_run.conclusion == 'success' &&
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.actor.login == 'dependabot[bot]' &&
-      github.event.workflow_run.head_repository.full_name == github.repository
+      github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # One place resolves both triggers into the same four values, so the
+      # download and upload steps stay identical.
+      - name: Resolve run, PR, tool and commit
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            run_id="${{ inputs.run_id }}"
+            pr="${{ inputs.pr }}"
+            tool="${{ inputs.tool }}"
+            sha=$(gh api "repos/${{ github.repository }}/pulls/${pr}" --jq .head.sha)
+          else
+            run_id="${{ github.event.workflow_run.id }}"
+            pr="${{ github.event.workflow_run.pull_requests[0].number }}"
+            tool=$([ "${{ github.event.workflow_run.name }}" = "GuardDog" ] && echo guarddog || echo gitleaks)
+            sha="${{ github.event.workflow_run.head_sha }}"
+          fi
+          {
+            echo "run_id=${run_id}"
+            echo "pr=${pr}"
+            echo "tool=${tool}"
+            echo "sha=${sha}"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Download SARIF artifact
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
-          name: ${{ github.event.workflow_run.name == 'GuardDog' && 'guarddog-sarif' || 'gitleaks-sarif' }}
+          name: ${{ steps.resolve.outputs.tool }}-sarif
           path: sarif
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ steps.resolve.outputs.run_id }}
           github-token: ${{ github.token }}
 
       - name: Upload to code scanning
         uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           sarif_file: sarif
-          category: ${{ github.event.workflow_run.name == 'GuardDog' && 'guarddog' || 'gitleaks' }}
+          category: ${{ steps.resolve.outputs.tool }}
           # The workflow_run runs on the base branch tip; point the analysis at
           # the PR head commit so it satisfies the merge protection.
-          ref: refs/pull/${{ github.event.workflow_run.pull_requests[0].number }}/head
-          sha: ${{ github.event.workflow_run.head_sha }}
+          ref: refs/pull/${{ steps.resolve.outputs.pr }}/head
+          sha: ${{ steps.resolve.outputs.sha }}
