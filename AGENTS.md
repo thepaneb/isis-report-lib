@@ -103,6 +103,7 @@ python -m pytest tests -q --cov=isis_report_lib  # 85% gate (enforced in CI e2e 
 python -m ruff check src tests
 python -m ruff format --check src tests
 python -m mypy src
+python scripts/gen_api_docs.py --check      # docs/api.md is generated from docstrings
 ```
 
 ## Tests

@@ -1,0 +1,26 @@
+﻿# Board Pack - Q1
+# table: Highlights
+Text
+"Revenue grew for the second quarter in a row, driven by Product Alpha."
+Churn stayed flat at 2%.
+# table: Revenue by product
+Product,Total
+Alpha,"12,000.00"
+Beta,"8,000.00"
+# table: Key figures
+Label,Value
+Orders,152
+Churn,0.02
+# table: Quarterly revenue
+Label,Value
+Q3,15000
+Q4,18000
+Q1,20000
+# table: Revenue trend
+Label,Value
+Q3,15000
+Q4,18000
+Q1,20000
+# summary
+Item,Value
+Revenue by product / Total,"20,000.00"

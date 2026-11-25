@@ -6,6 +6,10 @@ Tabular PDF reports from Python — hierarchical layouts, Jinja2 rendering, Play
 
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/17047/badge)](https://www.bestpractices.dev/projects/17047)
 
+**[See real outputs](gallery.md)** — PDF, HTML, XLSX and CSV generated from the
+examples. **[How it compares](comparison.md)** — a fair look at WeasyPrint,
+ReportLab and fpdf2.
+
 ## What it does
 
 From nested records to a polished PDF. The document adapts to the data instead of rigid bands.
@@ -76,6 +80,9 @@ Declarative behavior, not rigid templates. See the full parameter table in the p
 ## Going further
 
 - **User guide** — task-oriented walkthroughs: first report, data inputs, sections, signing, hardening, CLI recipes, troubleshooting.
+- **Gallery** — real PDF/HTML/XLSX/CSV outputs, with the source payload.
+- **Comparison** — when to choose this library, WeasyPrint, ReportLab or fpdf2.
+- **API reference** — generated signatures and docstrings for the public surface.
 - **Standards** — architecture, engineering, security and design rules for contributors.
 - **Security model (ASVS)** — OWASP ASVS 4.0.3 applicability mapping.
 - **Contributing** — how to report bugs, propose changes and run the checks.

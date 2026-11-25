@@ -38,6 +38,8 @@ python -m ruff check src tests fuzz
 python -m ruff format --check src tests fuzz
 python -m mypy src
 python -m zensical build --strict             # only when docs change
+python scripts/gen_api_docs.py --check        # public API/docstring changes
+python scripts/gen_gallery.py                 # only when gallery artifacts change
 bash scripts/fuzz-smoke.sh 30                 # parsers changed (Linux/macOS, needs atheris)
 ```
 

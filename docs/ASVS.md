@@ -19,7 +19,7 @@ intent with documented limits), **N/A** (no such surface in this project).
 | 1.1.7 | L1L2 | Pass | `STANDARDS.md` + `AGENTS.md` are the secure-coding checklist; enforced by CI gates |
 | 1.5.4 | L1L2 | Pass | Output encoding at the interpreter: Jinja `autoescape=True` at render time (`rendering.py`) |
 | 1.7.1 | L1L2 | Partial | stdlib logging is used consistently, but there is no central log format/syslog — the host application owns log routing |
-| 1.10.1 | L1L2 | Pass | git + protected `main` + mandatory PR review + `gate` check |
+| 1.10.1 | L1L2 | Pass | git + protected `main` + required `gate` check; review approval is not enforced (single maintainer — see `ROADMAP.md`) |
 | 1.11.1 | L1L2 | Pass | Components documented by security function (`STANDARDS.md` §1.2) |
 | 1.14.3 | L2L3 | Pass | `pip-audit` gate and Dependabot warn/upgrade on outdated components |
 | V1.2/V1.3/V1.4 (auth/session/access) | — | N/A | no identities, sessions or access decisions exist in the library |
@@ -40,7 +40,7 @@ intent with documented limits), **N/A** (no such surface in this project).
 | 5.3.3 | L1L2 | Pass | Stored-XSS regression tests (`<script>`/event handlers render inert) |
 | 5.3.9 | L1L2 | Pass | `FileSystemLoader` blocks `..`/absolute templates (tested); no file inclusion surface |
 | 5.5.3 | L1L2 | Pass | JSON parsed with `json` only (no `eval`); RecursionError → `ValueError`; custom `.toon` parser depth-guarded |
-| 5.2.2 | L1L2 | Partial | No length quotas on payloads by design; nesting depth is bounded, unbounded *size* is the deployer's limit to set |
+| 5.2.2 | L1L2 | Pass | `DEFAULT_LIMITS` (1M records / 64 MiB) is enforced before shaping for every output; payload `meta.limits` may only tighten it; API `limits`, CLI `--max-rows/--max-bytes/--unlimited`; nesting depth is also bounded |
 | V5.1.1/5.1.2/5.1.5, 5.2.1, 5.2.3, 5.2.8, 5.3.4–5.3.8, 5.3.10, 5.4.x, 5.5.2 | — | N/A | no HTTP params/redirects/WYSIWYG/mail/SQL/LDAP/OS-shell/XPath/XML parsing in scope |
 
 ## V6 — Stored Cryptography
@@ -68,15 +68,15 @@ intent with documented limits), **N/A** (no such surface in this project).
 ## V8/V9/V11 — Data Protection, Communications, Business Logic
 
 Mostly **N/A**: no caches, sessions, browser storage, listeners, TLS endpoints,
-or multi-step business flows in the library. Deliberate Partial: volume quotas
-are a deployer duty (12.1.1, `meta.limits` are opt-in, not on by default).
+or multi-step business flows in the library. Volume quotas are operator-controlled
+and on by default (12.1.1); payload limits can only tighten them.
 
 ## V10 — Malicious Code
 
 | Req | Lvl | Verdict | Evidence |
 |---|---|---|---|
 | 10.1.1 | L3 | Pass | Semgrep SAST gates every PR/push/weekly (registry pack + custom `.semgrep/` rules) with SARIF to code scanning; `ruff` S-rules + `pip-audit` + `mypy` + 99% tests run in CI |
-| 10.2.3 | L3 | Pass | Mandatory review on every PR to protected `main`; no hardcoded secrets/keys (verified); Gitleaks scans every PR/push/weekly with SARIF to code scanning, plus an optional pre-commit hook |
+| 10.2.3 | L3 | Pass | Protected `main` + required `gate`; no hardcoded secrets/keys (verified); Gitleaks scans every PR/push/weekly with SARIF to code scanning, plus an optional pre-commit hook |
 | 10.3.2 | L1L2L3 | Pass | No auto-update; no remote code execution (JS off, no link fetch, no dynamic imports); releases via OIDC trusted publishing |
 
 ## V12 — Files and Resources

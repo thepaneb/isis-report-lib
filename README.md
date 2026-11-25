@@ -19,6 +19,10 @@ Python library for **tabular PDF reports** with customizable hierarchical layout
 
 **Landing page:** <https://thepaneb.github.io/isis-report-lib/>
 
+**See real outputs:** <https://thepaneb.github.io/isis-report-lib/gallery/> ·
+**How it compares:** <https://thepaneb.github.io/isis-report-lib/comparison/> ·
+**API reference:** <https://thepaneb.github.io/isis-report-lib/api/>
+
 - Input: `dict`/`ReportPayload` (`meta` + optional `layout` + `data`) or **`.toon`** text
 - Rendering: Jinja2 (templates bundled in the package)
 - PDF: Playwright (Chromium)

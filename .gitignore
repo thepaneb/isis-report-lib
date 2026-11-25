@@ -13,6 +13,7 @@ htmlcov/
 .coverage
 coverage.xml
 *.pdf
+!docs/assets/gallery/*.pdf
 playwright/
 
 # Fuzzing artifacts (libFuzzer writes crash/leak/timeout reproducers here)

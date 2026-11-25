@@ -146,6 +146,10 @@ jobs:
       - name: Full tests with coverage (incl. browser)
         run: timeout 600 python -m pytest tests -q --cov=isis_report_lib --cov-report=term-missing --cov-report=xml
 
+      - name: Check generated API reference
+        # docs/api.md is generated from docstrings; keep it in sync with code.
+        run: python scripts/gen_api_docs.py --check
+
       - name: Perf budgets
         run: timeout 300 python bench/bench.py --check
 
