@@ -1,12 +1,15 @@
 name: GuardDog
 
 # Malicious-package screening (complements pip-audit, which tracks known
-# CVEs): GuardDog correlates capabilities with threat indicators per package
-# and reports SARIF to code scanning under the `guarddog` category. Findings
-# are gated on *threat* indicators: bare capabilities (subprocess use,
-# file reads...) are normal in legitimate packages and stay visible but
-# non-blocking. `repository_integrity_mismatch` is excluded per the official
-# sample (flags legitimate packages whose GitHub repo has extra files).
+# CVEs): GuardDog scans the project's dependency environment and reports SARIF
+# to code scanning under the `guarddog` category. It must not scan its own
+# toolchain: the project deps are installed from the hash-pinned CI lock in a
+# clean venv, and GuardDog runs from a separate venv.
+# Bare capabilities (subprocess use, file reads...) are normal in legitimate
+# packages, so only `threat-*` results are uploaded to code scanning; the full
+# SARIF stays as an artifact for triage. `repository_integrity_mismatch` is
+# excluded per the official sample (flags legitimate packages whose GitHub repo
+# has extra files).
 on:
   pull_request:
     branches: [main]
@@ -37,25 +40,60 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
 
-      - name: Scan dependencies with GuardDog
-        # pygit2 (a GuardDog dep) has no cp314 wheel: install the system
-        # libgit2 first so it builds from source. GuardDog exits 0 once the
-        # scan completes (verified locally, even with findings): anything it
-        # reports uploads as SARIF below for triage in code scanning, where
-        # false positives are dismissed once and new alerts surface on the PR
-        # that introduced them. A non-zero exit means the scanner itself
-        # failed, which fails the job (fail closed).
+      - name: Scan project dependencies with GuardDog
+        # The project environment is installed from the hash-pinned CI lock
+        # (runtime + dev deps) in a clean venv; GuardDog lives in a separate
+        # venv so its own toolchain is never part of the freeze. pygit2 (a
+        # GuardDog dep) has no cp314 wheel: install libgit2 first so it builds
+        # from source. GuardDog exits 0 once the scan completes (findings do
+        # not fail the job); a non-zero exit means the scanner itself failed,
+        # which fails the job (fail closed).
         # `repository_integrity_mismatch` is excluded per the official sample:
         # it flags legitimate packages whose GitHub repo has extra files.
         run: |
           sudo apt-get update && sudo apt-get install -y libgit2-dev pkg-config
-          pip install --require-hashes -r .github/requirements/requirements-guarddog.txt
-          pip freeze --exclude-editable > /tmp/frozen.txt
-          guarddog pypi verify /tmp/frozen.txt --output-format sarif --exclude-rules repository_integrity_mismatch > guarddog.sarif
+          python -m venv /tmp/project-env
+          /tmp/project-env/bin/pip install --require-hashes -r .github/requirements/requirements-ci.txt
+          /tmp/project-env/bin/pip freeze --exclude-editable > /tmp/frozen.txt
+          python -m venv /tmp/guarddog-env
+          /tmp/guarddog-env/bin/pip install --require-hashes -r .github/requirements/requirements-guarddog.txt
+          /tmp/guarddog-env/bin/guarddog pypi verify /tmp/frozen.txt \
+            --output-format sarif --exclude-rules repository_integrity_mismatch > guarddog-full.sarif
+
+      - name: Filter SARIF for code scanning
+        # Code scanning should surface actionable threat indicators, not the
+        # capabilities every legitimate package has (requests can open
+        # sockets, click can spawn a pager, ...). The full SARIF is kept as an
+        # artifact for triage.
+        run: |
+          python - <<'PY'
+          import json
+          import pathlib
+
+          source = pathlib.Path("guarddog-full.sarif")
+          data = json.loads(source.read_text(encoding="utf-8"))
+          for run in data.get("runs", []):
+              run["results"] = [
+                  result
+                  for result in run.get("results", [])
+                  if str(result.get("ruleId", "")).startswith("threat-")
+              ]
+          pathlib.Path("guarddog.sarif").write_text(json.dumps(data), encoding="utf-8")
+          PY
+
+      - name: Upload full SARIF artifact
+        # Capabilities remain available for triage without filling code
+        # scanning with expected findings.
+        if: always() && hashFiles('guarddog-full.sarif') != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: guarddog-full-sarif
+          path: guarddog-full.sarif
+          retention-days: 1
 
       - name: Upload SARIF artifact
         # Dependabot PRs get a read-only token; dependabot-sarif.yml uploads
-        # this artifact with a write token instead.
+        # this filtered artifact with a write token instead.
         if: always() && hashFiles('guarddog.sarif') != ''
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:

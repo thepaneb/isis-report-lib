@@ -214,10 +214,11 @@ keys: accepted from API/CLI arguments only, never from the payload.
   `GITHUB_TOKEN` permissions are minimal; publishing uses OIDC.
 - OpenSSF Scorecard runs weekly + on push (SARIF to code scanning);
   Codecov reports coverage via OIDC (no stored token; the gate stays on pytest).
-- GuardDog screens dependencies for malicious packages (capability +
-  threat correlation, SARIF under `guarddog` for triage in code scanning —
-  bare capabilities are expected in legitimate packages, so the job gates on
-  scanner health and humans triage new alerts); dependency-review blocks
+- GuardDog scans the project's dependency environment for malicious packages
+  (capability + threat correlation; only `threat-*` results upload as SARIF
+  under `guarddog` — bare capabilities stay in the full artifact because they
+  are expected in legitimate packages; the job gates on scanner health);
+  dependency-review blocks
   vulnerable or copyleft-licensed deps on PRs (GPL/AGPL denied, LGPL/MPL
   allowed); a `pip-licenses` gate fails closed on GPL/AGPL/unknown licenses.
   Socket Security (GitHub App) runs as an **advisory** PR check; it is not a
