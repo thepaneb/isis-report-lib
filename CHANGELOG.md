@@ -8,12 +8,15 @@ draft GitHub Release, uploads to PyPI via trusted publishing and publishes the
 release last.
 
 ## [Unreleased]
+
+## [0.14.0] - 2026-11-25
 ### Added
 - Operator-level DoS quotas: `DEFAULT_LIMITS` (1M records / 64 MiB) enforced by default, `limits=` on the API and CLI `--max-rows/--max-bytes/--unlimited`; payload `meta.limits` may only tighten
 - `--require-key-permissions` on `sign`/`verify` to fail (instead of warn) on POSIX when a key file is group/other-readable
 ### Changed
 - HMAC keygen/sign require at least 32 bytes; `verify_pdf` still accepts legacy short keys for existing seals and reports a warning
 - License policy reviewed: LGPL/MPL remain allowed (weak copyleft compatible with MIT; MPL appears via `certifi`/`pathspec` in the CI toolchain)
+- CI: GuardDog scans the project's dependency environment (only `threat-*` findings go to code scanning; full capability SARIF stays an artifact); the previous job scanned its own toolchain
 
 ## [0.13.1] - 2026-11-24
 ### Added
