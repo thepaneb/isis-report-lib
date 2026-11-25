@@ -10,19 +10,22 @@ otherwise.
 
 ## Next (prioritized)
 
-### 1. Scorecard: branch-protection hardening (process)
-Remaining `Branch-Protection` gaps: stale-review dismissal, CODEOWNERS review,
-last-push approval. Excluded deliberately: requiring approvers, which would
-deadlock a single maintainer (self-approval is not a review).
+No open code items. The remaining Scorecard gaps are structural (see below).
 
-### Structural Scorecard limits (accepted, not actionable)
+## Structural Scorecard limits (accepted)
+
 `Code-Review` and `Contributors` stay at 0 until a second reviewer or
 organization contributes; `Maintained` rises on its own 90 days after repo
-creation; `SAST` climbs as new commits pass through CodeQL. `CII-Best-Practices`
-is 5 (Passing); Silver (7) and Gold (10) are optional and Gold needs a second
-maintainer. `Signed-Releases` is 7 and reaches 10 as new immutable releases
-replace v0.12.0 in the last-5 window. Movable checks: `Signed-Releases`,
-`Branch-Protection`.
+creation; `SAST` is 10. `CII-Best-Practices` is 5 (Passing); Silver (7) and Gold
+(10) are optional and Gold needs a second maintainer. `Signed-Releases` is 7 and
+reaches 10 as new immutable releases replace v0.12.0 in the last-5 window.
+
+`Branch-Protection` is 4. The remaining gaps — required approvers, stale-review
+dismissal, CODEOWNERS review and last-push approval — need a **second human
+reviewer**. Enabling them without one either deadlocks merges (self-approval is
+not a review) or is cosmetic, so the ruleset stays as is and the limit is
+accepted; revisit if a co-maintainer joins. The only passively movable check is
+`Signed-Releases`.
 
 ## Done (post-v0.13.0)
 
