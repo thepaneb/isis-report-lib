@@ -10,17 +10,12 @@ otherwise.
 
 ## Next (prioritized)
 
-### 1. Socket Security monitoring (supply chain, defense in depth)
-Second opinion on malicious packages beyond the GuardDog CI gate: install the
-Socket GitHub App (free for OSS, no repo changes needed) so new dependencies are
-scored on PRs. GuardDog stays the blocking gate; Socket is advisory.
-
-### 2. Evaluate stricter defaults (product decision)
+### 1. Evaluate stricter defaults (product decision)
 Revisit deliberate opt-ins: `meta.limits` off by default, permissive `verify_*`
 ergonomics, LGPL/MPL tolerance. Requires a maintainer call on compatibility vs.
 hardening — no code until decided.
 
-### 3. Scorecard: branch-protection hardening (process)
+### 2. Scorecard: branch-protection hardening (process)
 Remaining `Branch-Protection` gaps: stale-review dismissal, CODEOWNERS review,
 last-push approval. Excluded deliberately: requiring approvers, which would
 deadlock a single maintainer (self-approval is not a review).
@@ -36,6 +31,10 @@ replace v0.12.0 in the last-5 window. Movable checks: `Signed-Releases`,
 
 ## Done (post-v0.13.0)
 
+- **Socket Security (advisory)**: GitHub App installed on `isis-report-lib`
+  only (organization `thepaneb`); it scans dependency/manifest changes and
+  reports on PRs. The Socket check is **not** a required check — GuardDog
+  remains the blocking supply-chain gate.
 - **ASVS 7.3.1 log encoding**: `logging_utils.log_value` escapes CR/LF/tabs,
   ANSI/control characters and Unicode separators; the package logger installs
   `LogEncodingFilter` as a safety net. Applied to the egress host and service

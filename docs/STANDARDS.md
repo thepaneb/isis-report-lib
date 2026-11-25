@@ -220,6 +220,8 @@ keys: accepted from API/CLI arguments only, never from the payload.
   scanner health and humans triage new alerts); dependency-review blocks
   vulnerable or copyleft-licensed deps on PRs (GPL/AGPL denied, LGPL/MPL
   allowed); a `pip-licenses` gate fails closed on GPL/AGPL/unknown licenses.
+  Socket Security (GitHub App) runs as an **advisory** PR check; it is not a
+  required check, so GuardDog remains the blocking gate.
 - CodeQL advanced setup (Python + GitHub Actions, `none` build mode,
   default query suite, weekly + per-PR) complements Semgrep's fast patterns
   with cross-file dataflow; SARIF under `/language:*`.
