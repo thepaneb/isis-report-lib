@@ -27,6 +27,7 @@ from typing import Any
 
 MARKER = b"%ISIS-SIGNATURE "
 SIGNATURE_VERSION = 1
+HMAC_MIN_KEY_BYTES = 32
 
 
 @dataclass
@@ -42,8 +43,10 @@ class SignatureInfo:
     details: dict[str, Any] = field(default_factory=dict)
 
 
-def generate_hmac_key(nbytes: int = 32) -> bytes:
-    """Generate a random shared secret for ``hmac-sha256`` signatures."""
+def generate_hmac_key(nbytes: int = HMAC_MIN_KEY_BYTES) -> bytes:
+    """Generate a random shared secret for ``hmac-sha256`` signatures (>=32 bytes)."""
+    if nbytes < HMAC_MIN_KEY_BYTES:
+        raise ValueError(f"HMAC keys must be at least {HMAC_MIN_KEY_BYTES} bytes, got {nbytes}")
     return secrets.token_bytes(nbytes)
 
 
@@ -146,6 +149,10 @@ def sign_pdf(
     """
     if alg not in ("hmac-sha256", "ed25519"):
         raise ValueError(f"Unknown signature algorithm: {alg!r} (expected hmac-sha256|ed25519)")
+    if not isinstance(key, bytes):
+        raise ValueError(f"Signature key must be bytes, got {type(key).__name__}")
+    if alg == "hmac-sha256" and len(key) < HMAC_MIN_KEY_BYTES:
+        raise ValueError(f"HMAC key must be at least {HMAC_MIN_KEY_BYTES} bytes, got {len(key)}; rotate to a new key")
     original, _envelopes = _split_blocks(pdf)  # validates the %%EOF marker
     envelope: dict[str, Any] = {
         "v": SIGNATURE_VERSION,
@@ -225,11 +232,13 @@ def verify_pdf(
         return SignatureInfo(valid=False, reason=str(e), alg=alg)
     failures = 0
     for candidate in candidates:
+        short_hmac = alg == "hmac-sha256" and len(candidate) < HMAC_MIN_KEY_BYTES
         try:
             ok = _verify_bytes(_canonical(body), envelope["sig"], candidate, alg)
         except (ImportError, ValueError, TypeError) as e:
             return SignatureInfo(valid=False, reason=str(e), alg=alg)
         if ok:
+            details = {"warning": f"legacy HMAC key shorter than {HMAC_MIN_KEY_BYTES} bytes; rotate it"} if short_hmac else {}
             return SignatureInfo(
                 valid=True,
                 reason="ok",
@@ -237,6 +246,7 @@ def verify_pdf(
                 sha256=envelope["sha256"],
                 key_id=envelope.get("key_id"),
                 issued_at=envelope.get("issued_at"),
+                details=details,
             )
         failures += 1
     if failures > 1:

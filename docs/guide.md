@@ -145,20 +145,28 @@ order. Retire the old key once its seals expire out of circulation.
 `verify_pdf` never raises: malformed blocks, keys or algorithms report
 `invalid` — always check `.valid`.
 
+HMAC keys must be **at least 32 bytes** (`generate_hmac_key`/`sign_pdf`);
+`verify_pdf` still accepts legacy short keys for existing seals and reports a
+warning in `info.details`. Key files should be `0600`; add
+`--require-key-permissions` to `sign`/`verify` to fail instead of warn on POSIX
+when the file is group/other-readable.
+
 ## Hardening untrusted input
 
 Report *data* is untrusted by design (escaped, never executed); *templates*
-are code (load only from sources you trust). Two deployer knobs close the
-remaining holes:
+are code (load only from sources you trust). The operator quota cap is
+authoritative and on by default (`DEFAULT_LIMITS`: 1M records / 64 MiB);
+payload `meta.limits` may only tighten it:
 
 ```python
-# Cap input size before any shaping (applies to PDF, XLSX, CSV and HTML).
-payload["meta"]["limits"] = {"max_rows": 10_000, "max_bytes": 1_048_576}
-generate_pdf(payload)  # ValueError naming the exceeded limit otherwise
+# Operator cap (applies to PDF, XLSX, CSV and HTML); payload can only lower it.
+generate_pdf(payload, limits={"max_rows": 10_000, "max_bytes": 1_048_576})
+generate_pdf(payload, limits={})  # disable the operator cap (payload limits still apply)
 ```
 
 ```bash
 isis-report generate untrusted.toon -o out.pdf --max-rows 10000 --max-bytes 1048576
+isis-report generate untrusted.toon -o out.pdf --unlimited   # opt out of the operator caps
 ```
 
 ```python
@@ -182,14 +190,16 @@ isis-report schema -o payload.schema.json                 # JSON Schema for edit
 ```
 
 Exit codes: `0` ok, `1` generation failure, `2` bad input/usage. Key files
-should be `0600` (the CLI warns otherwise on POSIX).
+should be `0600` (the CLI warns otherwise on POSIX; `--require-key-permissions`
+makes it fail).
 
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `ValueError: ... exceeding meta.limits.max_rows=...` | payload over the configured quota | raise the limit or shrink the input |
+| `ValueError: ... exceeding the max_rows limit (...)` | payload over the effective (operator ∩ payload) quota | raise the operator cap or shrink the input |
 | `ValueError: Invalid meta.limits...` / `Unknown meta.limits key` | typo'd or non-positive limit | use `{max_rows, max_bytes}` positive ints |
+| `ValueError: HMAC key must be at least 32 bytes` | short/legacy key on sign | generate a new key with `isis-report keygen` |
 | `ValueError: Invalid allowed_hosts...` | scheme/port/path/wildcard in an entry | pass bare hostnames (`example.com`), one per `--allowed-hosts` |
 | Remote images/fonts missing in the PDF | egress deny-by-default | add the host to `allowed_hosts` |
 | `ValueError: ... nested too deeply ...` | hostile `.toon`/JSON/layout nesting | recursion is bounded by design; simplify the input |

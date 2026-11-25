@@ -131,7 +131,7 @@ def test_render_propagates_failure_as_exit_1(tmp_path, monkeypatch, capsys):
 
     src = _write(tmp_path, "in.toon", TOON)
 
-    def boom(*args):
+    def boom(*args, **kwargs):
         raise RuntimeError("jinja exploded")
 
     monkeypatch.setattr(cli, "render_html", boom)
@@ -255,6 +255,51 @@ def test_generate_csv_bom_flag(tmp_path, capsys):
     assert main(["generate", str(src), "-o", str(dst), "--format", "csv", "--bom"]) == 0
     assert dst.read_bytes().startswith(b"\xef\xbb\xbf# Order")
     capsys.readouterr()
+
+
+def test_verify_warns_on_legacy_short_key(tmp_path, capsys):
+    import hashlib
+    import json
+
+    from isis_report_lib.signing import MARKER, SIGNATURE_VERSION, _canonical, _sign_bytes
+
+    pdf = b"%PDF-1.4\n%%EOF\n"
+    short = b"legacy"
+    body = {
+        "v": SIGNATURE_VERSION,
+        "alg": "hmac-sha256",
+        "sha256": hashlib.sha256(pdf).hexdigest(),
+        "issued_at": "2026-01-01T00:00:00+00:00",
+    }
+    body["sig"] = _sign_bytes(_canonical(body), short, "hmac-sha256")
+    signed = tmp_path / "signed.pdf"
+    signed.write_bytes(pdf + b"\n" + MARKER + json.dumps(body, separators=(",", ":")).encode() + b"\n")
+    key = tmp_path / "legacy.key"
+    key.write_bytes(short)
+
+    assert main(["verify", str(signed), "--key-file", str(key)]) == 0
+    out, err = capsys.readouterr()
+    assert "VALID" in out
+    assert "shorter than 32" in err
+
+
+def test_limits_from_args_defaults_and_unlimited():
+    import argparse
+
+    from isis_report_lib.cli import _limits_from_args
+    from isis_report_lib.service import DEFAULT_LIMITS
+
+    args = argparse.Namespace(unlimited=False, max_rows=None, max_bytes=None)
+    assert _limits_from_args(args) == dict(DEFAULT_LIMITS)
+    args = argparse.Namespace(unlimited=False, max_rows=10, max_bytes=None)
+    limits = _limits_from_args(args)
+    assert limits["max_rows"] == 10
+    assert limits["max_bytes"] == DEFAULT_LIMITS["max_bytes"]
+    args = argparse.Namespace(unlimited=True, max_rows=None, max_bytes=None)
+    assert _limits_from_args(args) == {}
+    args = argparse.Namespace(unlimited=True, max_rows=10, max_bytes=None)
+    with pytest.raises(ValueError, match="cannot be combined"):
+        _limits_from_args(args)
 
 
 def test_generate_enforces_max_rows_flag(tmp_path, capsys):

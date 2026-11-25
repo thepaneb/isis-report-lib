@@ -10,12 +10,7 @@ otherwise.
 
 ## Next (prioritized)
 
-### 1. Evaluate stricter defaults (product decision)
-Revisit deliberate opt-ins: `meta.limits` off by default, permissive `verify_*`
-ergonomics, LGPL/MPL tolerance. Requires a maintainer call on compatibility vs.
-hardening — no code until decided.
-
-### 2. Scorecard: branch-protection hardening (process)
+### 1. Scorecard: branch-protection hardening (process)
 Remaining `Branch-Protection` gaps: stale-review dismissal, CODEOWNERS review,
 last-push approval. Excluded deliberately: requiring approvers, which would
 deadlock a single maintainer (self-approval is not a review).
@@ -31,6 +26,11 @@ replace v0.12.0 in the last-5 window. Movable checks: `Signed-Releases`,
 
 ## Done (post-v0.13.0)
 
+- **Stricter defaults (decided)**: operator quota caps are on by default (1M
+  records / 64 MiB; payload `meta.limits` may only tighten; `limits={}` or
+  `--unlimited` opts out); HMAC keygen/sign require **≥32 bytes** (verify still
+  accepts legacy short keys with a warning); LGPL/MPL remain allowed (weak
+  copyleft; MPL appears via `certifi`/`pathspec` in the CI toolchain).
 - **Socket Security (advisory)**: GitHub App installed on `isis-report-lib`
   only (organization `thepaneb`); it scans dependency/manifest changes and
   reports on PRs. The Socket check is **not** a required check — GuardDog

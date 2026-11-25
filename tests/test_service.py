@@ -560,7 +560,7 @@ def _limited(rows, **limits):
 
 
 def test_quotas_reject_over_max_rows():
-    with pytest.raises(ValueError, match="exceeding meta.limits.max_rows=2"):
+    with pytest.raises(ValueError, match=r"exceeding the max_rows limit \(2\)"):
         render_html(_limited([{"a": 1}, {"a": 2}, {"a": 3}], max_rows=2))
 
 
@@ -587,7 +587,7 @@ def test_quotas_cover_sections():
 
 
 def test_quotas_reject_over_max_bytes():
-    with pytest.raises(ValueError, match=r"exceeding meta.limits.max_bytes=1"):
+    with pytest.raises(ValueError, match=r"exceeding the max_bytes limit \(1\)"):
         render_html(_limited([], max_bytes=1))
 
 
@@ -616,10 +616,54 @@ def test_quotas_invalid_limits_fail_closed():
             render_html({"meta": {"title": "T", "limits": limits}, "data": []})
 
 
-def test_quotas_empty_and_none_limits_are_unlimited():
+def test_quotas_empty_and_none_payload_limits_are_ignored():
     assert "T" in render_html({"meta": {"title": "T", "limits": {}}, "data": []})
     assert "T" in render_html({"meta": {"title": "T", "limits": {"max_rows": None}}, "data": []})
     assert "T" in render_html({"meta": {"title": "T"}, "data": [{"a": 1}] * 100})
+
+
+def test_operator_limits_default_apply(monkeypatch):
+    from isis_report_lib import service
+
+    monkeypatch.setattr(service, "DEFAULT_LIMITS", {"max_rows": 1, "max_bytes": 10_000})
+    with pytest.raises(ValueError, match=r"max_rows limit \(1\)"):
+        render_html({"meta": {"title": "T"}, "data": [{"a": 1}, {"a": 2}]})
+
+
+def test_payload_limits_cannot_raise_operator_cap():
+    payload = {"meta": {"title": "T", "limits": {"max_rows": 100}}, "data": [{"a": 1}, {"a": 2}]}
+    with pytest.raises(ValueError, match=r"max_rows limit \(1\)"):
+        render_html(payload, limits={"max_rows": 1})
+
+
+def test_payload_limits_can_tighten_operator_cap():
+    payload = {"meta": {"title": "T", "limits": {"max_rows": 1}}, "data": [{"a": 1}, {"a": 2}]}
+    with pytest.raises(ValueError, match=r"max_rows limit \(1\)"):
+        render_html(payload, limits={"max_rows": 100})
+
+
+def test_payload_limits_can_add_a_cap():
+    payload = {"meta": {"title": "T", "limits": {"max_bytes": 1}}, "data": []}
+    with pytest.raises(ValueError, match=r"max_bytes limit \(1\)"):
+        render_html(payload, limits={"max_rows": 10})
+
+
+def test_operator_limits_can_be_disabled(monkeypatch):
+    from isis_report_lib import service
+
+    monkeypatch.setattr(service, "DEFAULT_LIMITS", {"max_rows": 1})
+    assert "T" in render_html({"meta": {"title": "T"}, "data": [{"a": 1}, {"a": 2}]}, limits={})
+
+
+def test_quota_size_recursion_fails_closed(monkeypatch):
+    from isis_report_lib import service
+
+    def boom(*args, **kwargs):
+        raise RecursionError("boom")
+
+    monkeypatch.setattr(service.json, "dumps", boom)
+    with pytest.raises(ValueError, match="nested too deeply"):
+        service._check_payload_quotas({}, {"max_bytes": 10})
 
 
 def test_quotas_enforced_across_outputs():

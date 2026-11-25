@@ -9,7 +9,29 @@ from typing import Any, overload
 
 from isis_report_lib.api import generate_csv, generate_pdf, generate_xlsx, render_html
 from isis_report_lib.inputs import from_csv
+from isis_report_lib.service import DEFAULT_LIMITS
 from isis_report_lib.toon import parse_toon
+
+
+def _add_quota_args(parser: argparse.ArgumentParser) -> None:
+    """Operator quota controls shared by the generate/render commands."""
+    parser.add_argument(
+        "--max-rows",
+        type=int,
+        default=None,
+        help="Operator cap on data records (payload meta.limits may only tighten).",
+    )
+    parser.add_argument(
+        "--max-bytes",
+        type=int,
+        default=None,
+        help="Operator cap on payload bytes (payload meta.limits may only tighten).",
+    )
+    parser.add_argument(
+        "--unlimited",
+        action="store_true",
+        help="Disable the operator quota caps (payload meta.limits still apply).",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -41,8 +63,7 @@ def build_parser() -> argparse.ArgumentParser:
     gen.add_argument("--delimiter", default=",", help="CSV delimiter for input and output (default: ',').")
     gen.add_argument("--template-dir", type=Path, default=None, help="Directory with custom .jinja templates.")
     gen.add_argument("--template-name", default="tabular.jinja", help="Template file to render (default: tabular.jinja).")
-    gen.add_argument("--max-rows", type=int, default=None, help="Reject payloads with more data records (DoS guard).")
-    gen.add_argument("--max-bytes", type=int, default=None, help="Reject payloads larger than N bytes (DoS guard).")
+    _add_quota_args(gen)
     gen.add_argument(
         "--allowed-hosts",
         action="append",
@@ -67,6 +88,7 @@ def build_parser() -> argparse.ArgumentParser:
     ren.add_argument("--locale", default=None, help="Override meta locale (e.g. en-US, pt-BR).")
     ren.add_argument("--inline-css", action="store_true", help="Inline CSS into style attributes (email-friendly HTML).")
     ren.add_argument("--delimiter", default=",", help="CSV delimiter for input (default: ',').")
+    _add_quota_args(ren)
     ren.set_defaults(func=_cmd_render)
 
     sch = sub.add_parser("schema", help="Print the report payload JSON Schema.")
@@ -84,6 +106,11 @@ def build_parser() -> argparse.ArgumentParser:
     sign.add_argument("--key-file", type=Path, required=True, help="Secret (hmac) or private PEM (ed25519) file.")
     sign.add_argument("--alg", choices=["hmac-sha256", "ed25519"], default="hmac-sha256")
     sign.add_argument("--key-id", default=None, help="Key identifier recorded in the envelope.")
+    sign.add_argument(
+        "--require-key-permissions",
+        action="store_true",
+        help="Refuse key files readable by group/others (POSIX; otherwise warn).",
+    )
     sign.add_argument("-o", "--output", type=Path, default=None, help="Signed PDF output (default: <input>.signed.pdf).")
     sign.set_defaults(func=_cmd_sign)
 
@@ -98,6 +125,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     verify.add_argument("--alg", choices=["hmac-sha256", "ed25519"], default="hmac-sha256")
     verify.add_argument("--json", action="store_true", help="Print the full verification report as JSON.")
+    verify.add_argument(
+        "--require-key-permissions",
+        action="store_true",
+        help="Refuse key files readable by group/others (POSIX; otherwise warn).",
+    )
     verify.set_defaults(func=_cmd_verify)
 
     return parser
@@ -144,18 +176,18 @@ def _apply_locale(payload: dict[str, Any], locale: str | None) -> dict[str, Any]
     return {**payload, "meta": meta}
 
 
-def _apply_limits(payload: dict[str, Any], max_rows: int | None, max_bytes: int | None) -> dict[str, Any]:
-    """Inject ``meta.limits`` when ``--max-rows``/``--max-bytes`` are given."""
-    if max_rows is None and max_bytes is None:
-        return payload
-    meta = dict(payload.get("meta") or {})
-    limits = dict(meta.get("limits") or {})
-    if max_rows is not None:
-        limits["max_rows"] = max_rows
-    if max_bytes is not None:
-        limits["max_bytes"] = max_bytes
-    meta["limits"] = limits
-    return {**payload, "meta": meta}
+def _limits_from_args(args: argparse.Namespace) -> dict[str, int]:
+    """Build the operator quota caps from the CLI flags (``{}`` disables them)."""
+    if args.unlimited:
+        if args.max_rows is not None or args.max_bytes is not None:
+            raise ValueError("--unlimited cannot be combined with --max-rows/--max-bytes")
+        return {}
+    limits = dict(DEFAULT_LIMITS)
+    if args.max_rows is not None:
+        limits["max_rows"] = args.max_rows
+    if args.max_bytes is not None:
+        limits["max_bytes"] = args.max_bytes
+    return limits
 
 
 def _load_payload(path: Path, fmt: str, delimiter: str = ",") -> tuple[dict[str, Any], bool]:
@@ -180,7 +212,7 @@ def _cmd_generate(args: argparse.Namespace) -> int:
         fmt = _detect_format(args.input, args.input_format)
         payload, _is_json = _load_payload(args.input, fmt, args.delimiter)
         payload = _apply_locale(payload, args.locale)
-        payload = _apply_limits(payload, args.max_rows, args.max_bytes)
+        limits = _limits_from_args(args)
         output_format = _detect_output_format(args)
         pdf_options: dict[str, Any] = {"format": args.page_format}
         header = _read_text_file(args.header_template, "Header template")
@@ -191,14 +223,24 @@ def _cmd_generate(args: argparse.Namespace) -> int:
             pdf_options["footer_template"] = footer
         output = args.output or args.input.with_suffix(f".{output_format}")
         if output_format == "pdf":
-            result = generate_pdf(payload, pdf_options, args.template_dir, args.template_name, allowed_hosts=args.allowed_hosts)
+            result = generate_pdf(
+                payload,
+                pdf_options,
+                args.template_dir,
+                args.template_name,
+                allowed_hosts=args.allowed_hosts,
+                limits=limits,
+            )
             output.write_bytes(result)
         elif output_format == "xlsx":
-            output.write_bytes(generate_xlsx(payload))
+            output.write_bytes(generate_xlsx(payload, limits=limits))
         elif output_format == "csv":
-            output.write_text(generate_csv(payload, delimiter=args.delimiter, bom=args.bom), encoding="utf-8")
+            output.write_text(generate_csv(payload, delimiter=args.delimiter, bom=args.bom, limits=limits), encoding="utf-8")
         else:  # html
-            output.write_text(render_html(payload, args.template_dir, args.template_name, args.inline_css), encoding="utf-8")
+            output.write_text(
+                render_html(payload, args.template_dir, args.template_name, args.inline_css, limits=limits),
+                encoding="utf-8",
+            )
     except (FileNotFoundError, ValueError) as e:
         print(f"isis-report: error: {e}", file=sys.stderr)
         return 2
@@ -226,7 +268,13 @@ def _cmd_render(args: argparse.Namespace) -> int:
         fmt = _detect_format(args.input, args.input_format)
         payload, _is_json = _load_payload(args.input, fmt, args.delimiter)
         payload = _apply_locale(payload, args.locale)
-        html = render_html(payload, args.template_dir, args.template_name, args.inline_css)
+        html = render_html(
+            payload,
+            args.template_dir,
+            args.template_name,
+            args.inline_css,
+            limits=_limits_from_args(args),
+        )
     except (FileNotFoundError, ValueError) as e:
         print(f"isis-report: error: {e}", file=sys.stderr)
         return 2
@@ -253,7 +301,7 @@ def _cmd_schema(args: argparse.Namespace) -> int:
     return 0
 
 
-def _read_key_file(path: Path) -> bytes:
+def _read_key_file(path: Path, *, require_permissions: bool = False) -> bytes:
     try:
         data = path.read_bytes()
     except FileNotFoundError:
@@ -261,6 +309,8 @@ def _read_key_file(path: Path) -> bytes:
     except OSError as e:
         raise ValueError(f"Cannot read key file {path!r}: {e}") from None
     if os.name == "posix" and bool(path.stat().st_mode & 0o077):
+        if require_permissions:
+            raise ValueError("Key file is readable by group/others; chmod 600 or omit --require-key-permissions.")
         print(
             "warning: key file is readable by group/others; restrict it (chmod 600)",
             file=sys.stderr,
@@ -297,7 +347,12 @@ def _cmd_sign(args: argparse.Namespace) -> int:
             pdf = args.input.read_bytes()
         except FileNotFoundError:
             raise FileNotFoundError(f"Input file not found: {args.input}") from None
-        signed = sign_pdf(pdf, _read_key_file(args.key_file), alg=args.alg, key_id=args.key_id)
+        signed = sign_pdf(
+            pdf,
+            _read_key_file(args.key_file, require_permissions=args.require_key_permissions),
+            alg=args.alg,
+            key_id=args.key_id,
+        )
     except (FileNotFoundError, ValueError, ImportError) as e:
         print(f"isis-report: error: {e}", file=sys.stderr)
         return 2
@@ -315,7 +370,11 @@ def _cmd_verify(args: argparse.Namespace) -> int:
             signed = args.input.read_bytes()
         except FileNotFoundError:
             raise FileNotFoundError(f"Input file not found: {args.input}") from None
-        info = verify_pdf(signed, [_read_key_file(path) for path in args.key_file], alg=args.alg)
+        info = verify_pdf(
+            signed,
+            [_read_key_file(path, require_permissions=args.require_key_permissions) for path in args.key_file],
+            alg=args.alg,
+        )
     except (FileNotFoundError, ValueError, ImportError) as e:
         print(f"isis-report: error: {e}", file=sys.stderr)
         return 2
@@ -329,11 +388,14 @@ def _cmd_verify(args: argparse.Namespace) -> int:
                     "sha256": info.sha256,
                     "key_id": info.key_id,
                     "issued_at": info.issued_at,
+                    "details": info.details,
                 }
             )
         )
     else:
         print("VALID" if info.valid else f"INVALID: {info.reason}")
+    if info.details.get("warning"):
+        print(f"warning: {info.details['warning']}", file=sys.stderr)
     return 0 if info.valid else 1
 
 

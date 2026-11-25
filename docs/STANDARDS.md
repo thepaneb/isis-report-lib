@@ -167,14 +167,20 @@ keys: accepted from API/CLI arguments only, never from the payload.
   `'`-prefixed in CSV/XLSX; numeric values are never prefixed.
 - `verify_pdf` is total: malformed blocks/keys/algorithms yield `invalid`
   verdicts, never exceptions.
+- Quotas: the operator cap (`DEFAULT_LIMITS`, API `limits`, CLI
+  `--max-rows/--max-bytes`) is authoritative; payload `meta.limits` may only
+  tighten it. Defaults are 1M records / 64 MiB; `limits={}` or `--unlimited`
+  opts out. Caps are enforced before any shaping, for every output.
 
 ### 3.3 Cryptography and secrets (MUST)
 
 - HMAC-SHA256 via `hmac.compare_digest` on a canonical JSON body that
   includes `key_id`; Ed25519 keys are type-checked after PEM load;
   algorithms are allow-listed on both sign and verify paths.
-- Keys arrive as bytes (files); never log, print, or embed them in outputs.
-  Key files should be `0600` (the CLI warns otherwise on POSIX).
+- Keys arrive as bytes (files); HMAC keys are at least 32 bytes on
+  keygen/sign (`verify_pdf` accepts legacy short keys for existing seals and
+  reports a warning). Never log, print, or embed keys in outputs. Key files
+  should be `0600` (the CLI warns on POSIX; `--require-key-permissions` fails).
 - Logs are single-line: caller-controlled fields go through
   `logging_utils.log_value`, and the package logger installs
   `LogEncodingFilter` so CR/LF, ANSI/control characters and Unicode line
@@ -220,7 +226,9 @@ keys: accepted from API/CLI arguments only, never from the payload.
   are expected in legitimate packages; the job gates on scanner health);
   dependency-review blocks
   vulnerable or copyleft-licensed deps on PRs (GPL/AGPL denied, LGPL/MPL
-  allowed); a `pip-licenses` gate fails closed on GPL/AGPL/unknown licenses.
+  allowed — weak copyleft is compatible with MIT distribution; MPL appears via
+  `certifi`/`pathspec` in the CI toolchain, so a blanket MPL ban would break the
+  gate); a `pip-licenses` gate fails closed on GPL/AGPL/unknown licenses.
   Socket Security (GitHub App) runs as an **advisory** PR check; it is not a
   required check, so GuardDog remains the blocking gate.
 - CodeQL advanced setup (Python + GitHub Actions, `none` build mode,
@@ -249,6 +257,7 @@ keys: accepted from API/CLI arguments only, never from the payload.
 5. Does any new `verify_*`/parser raise where callers expect a verdict/`ValueError`?
 6. Does any new dependency widen the install or need a system package?
 7. Does any new log line include caller data without `log_value`?
+8. Does any new quota come from the payload instead of the operator cap?
 
 ---
 

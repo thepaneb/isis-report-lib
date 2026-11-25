@@ -51,7 +51,7 @@ intent with documented limits), **N/A** (no such surface in this project).
 | 6.2.2 | L2L3 | Pass | Only stdlib HMAC-SHA256 and `cryptography` Ed25519; no custom crypto (`signing.py`) |
 | 6.2.7 | L2 | Pass | Envelope (hash + metadata incl. `key_id`) is signed; tampering breaks verification |
 | 6.2.8 | L2 | Pass | `hmac.compare_digest` for HMAC; Ed25519 verify is constant-time in `cryptography` |
-| 6.3.1 | L1L2 | Pass | `secrets.token_bytes` for HMAC keys |
+| 6.3.1 | L1L2 | Pass | `secrets.token_bytes` for HMAC keys; keygen/sign enforce ≥32 bytes, while `verify_pdf` accepts legacy short keys with a rotation warning |
 | 6.4.1/6.4.2 | L2L3 | Partial | Library never persists keys and never logs them; rotation is supported in-library via `key_id`-selected keyrings (`verify_pdf` mapping/list, repeatable CLI `--key-file`); vault/HSM storage stays the deployer's duty |
 | V6.1.x/6.2.3–6.2.6 | — | N/A | no at-rest PII encryption, cipher modes, or nonces in scope (seal only, no confidentiality claim) |
 
@@ -83,7 +83,7 @@ are a deployer duty (12.1.1, `meta.limits` are opt-in, not on by default).
 
 | Req | Lvl | Verdict | Evidence |
 |---|---|---|---|
-| 12.1.1 | L1L2 | Pass | Opt-in `meta.limits` (`max_rows` records, `max_bytes` payload bytes) enforced fail-closed in `prepare_report` for every output (CLI `--max-rows`/`--max-bytes`); recursion guards bound nesting below that |
+| 12.1.1 | L1L2 | Pass | Operator quota caps (`DEFAULT_LIMITS`: 1M records / 64 MiB) enforced fail-closed in `prepare_report` for every output; payload `meta.limits` may only tighten, API `limits`, CLI `--max-rows/--max-bytes/--unlimited`; recursion guards bound nesting below that |
 | 12.3.1/12.3.2/12.3.5 | L1L2 | Pass | Template names cannot escape the template dir (tested); user metadata never touches filesystem APIs |
 | 12.3.3 | L1L2 | Pass | No remote file inclusion: `<link>` stripped, no URL-driven includes |
 | 12.3.6 | L1L2 | Pass | No unverified CDN/remote libraries in output; JS disabled |
@@ -109,5 +109,5 @@ are a deployer duty (12.1.1, `meta.limits` are opt-in, not on by default).
 
 ## Gaps accepted (deliberate, tracked)
 
-1. Volume quotas are opt-in (`meta.limits`), not on by default; recursion is bounded regardless.
-2. Secrets management (vault/HSM storage) lives with the deployer; rotation across keys is library-supported (`key_id` keyrings), and the library guarantees never-log/never-persist.
+1. Secrets management (vault/HSM storage) lives with the deployer; rotation across keys is library-supported (`key_id` keyrings), and the library guarantees never-log/never-persist.
+2. `verify_pdf` accepts legacy HMAC keys shorter than 32 bytes for existing seals (with a warning); new keys from keygen/sign are ≥32 bytes.

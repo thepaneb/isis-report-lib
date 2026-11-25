@@ -52,15 +52,22 @@ async def agenerate_pdf(
     template_dir: str | Path | None = None,
     template_name: str = "tabular.jinja",
     allowed_hosts: list[str] | None = None,
+    limits: dict[str, int] | None = None,
 ) -> bytes:
     """Generate a PDF (async) from a dict/ReportPayload payload.
 
     Custom layouts: point ``template_dir`` at a directory with your own
     ``.jinja`` files and pick one via ``template_name``. Outbound http(s) is
     denied by default; pass ``allowed_hosts`` (bare hostnames) to opt in.
+    ``limits`` is the operator quota cap (``None`` = defaults, ``{}`` = off);
+    payload ``meta.limits`` may only tighten it.
     """
     service = TabularReportService(
-        pdf_options=pdf_options, template_dir=template_dir, template_name=template_name, allowed_hosts=allowed_hosts
+        pdf_options=pdf_options,
+        template_dir=template_dir,
+        template_name=template_name,
+        allowed_hosts=allowed_hosts,
+        limits=limits,
     )
     return await service.execute(_normalize_payload(payload))
 
@@ -71,9 +78,10 @@ def generate_pdf(
     template_dir: str | Path | None = None,
     template_name: str = "tabular.jinja",
     allowed_hosts: list[str] | None = None,
+    limits: dict[str, int] | None = None,
 ) -> bytes:
     """Generate a PDF (sync) from a dict/ReportPayload payload."""
-    return _run(agenerate_pdf(payload, pdf_options, template_dir, template_name, allowed_hosts))
+    return _run(agenerate_pdf(payload, pdf_options, template_dir, template_name, allowed_hosts, limits))
 
 
 async def agenerate_pdf_from_toon(
@@ -82,9 +90,10 @@ async def agenerate_pdf_from_toon(
     template_dir: str | Path | None = None,
     template_name: str = "tabular.jinja",
     allowed_hosts: list[str] | None = None,
+    limits: dict[str, int] | None = None,
 ) -> bytes:
     """Generate a PDF (async) from `.toon` text."""
-    return await agenerate_pdf(parse_toon(text), pdf_options, template_dir, template_name, allowed_hosts)
+    return await agenerate_pdf(parse_toon(text), pdf_options, template_dir, template_name, allowed_hosts, limits)
 
 
 def generate_pdf_from_toon(
@@ -93,9 +102,10 @@ def generate_pdf_from_toon(
     template_dir: str | Path | None = None,
     template_name: str = "tabular.jinja",
     allowed_hosts: list[str] | None = None,
+    limits: dict[str, int] | None = None,
 ) -> bytes:
     """Generate a PDF (sync) from `.toon` text."""
-    return _run(agenerate_pdf_from_toon(text, pdf_options, template_dir, template_name, allowed_hosts))
+    return _run(agenerate_pdf_from_toon(text, pdf_options, template_dir, template_name, allowed_hosts, limits))
 
 
 async def arender_html(
@@ -103,12 +113,13 @@ async def arender_html(
     template_dir: str | Path | None = None,
     template_name: str = "tabular.jinja",
     inline_css: bool = False,
+    limits: dict[str, int] | None = None,
 ) -> str:
     """Render only the intermediate HTML (async, no Playwright)."""
     from isis_report_lib.service import prepare_report
 
     data = _normalize_payload(payload)
-    dataset, layout, meta = prepare_report(data)
+    dataset, layout, meta = prepare_report(data, limits=limits)
 
     from isis_report_lib.rendering import arender_report_html
 
@@ -124,9 +135,10 @@ def render_html(
     template_dir: str | Path | None = None,
     template_name: str = "tabular.jinja",
     inline_css: bool = False,
+    limits: dict[str, int] | None = None,
 ) -> str:
     """Render only the intermediate HTML (sync, no Playwright)."""
-    return _run(arender_html(payload, template_dir, template_name, inline_css))
+    return _run(arender_html(payload, template_dir, template_name, inline_css, limits))
 
 
 def render_html_from_toon(
@@ -134,17 +146,18 @@ def render_html_from_toon(
     template_dir: str | Path | None = None,
     template_name: str = "tabular.jinja",
     inline_css: bool = False,
+    limits: dict[str, int] | None = None,
 ) -> str:
     """Render HTML (sync) from `.toon` text."""
-    return render_html(parse_toon(text), template_dir, template_name, inline_css)
+    return render_html(parse_toon(text), template_dir, template_name, inline_css, limits)
 
 
-async def agenerate_xlsx(payload: dict[str, Any] | ReportPayload) -> bytes:
+async def agenerate_xlsx(payload: dict[str, Any] | ReportPayload, limits: dict[str, int] | None = None) -> bytes:
     """Generate an .xlsx workbook (async, no browser needed)."""
     from isis_report_lib.export import build_workbook, collect_tables
     from isis_report_lib.service import prepare_report
 
-    dataset, layout, meta = prepare_report(_normalize_payload(payload))
+    dataset, layout, meta = prepare_report(_normalize_payload(payload), limits=limits)
     tables, summaries = collect_tables(dataset, layout, meta)
     return build_workbook(tables, summaries, meta)
 
@@ -156,6 +169,7 @@ async def agenerate_many(
     template_dir: str | Path | None = None,
     template_name: str = "tabular.jinja",
     allowed_hosts: list[str] | None = None,
+    limits: dict[str, int] | None = None,
 ) -> list[bytes]:
     """Generate several PDFs concurrently, rejoining results in input order.
 
@@ -168,7 +182,7 @@ async def agenerate_many(
 
     async def _one(payload: dict[str, Any] | ReportPayload) -> bytes:
         async with semaphore:
-            return await agenerate_pdf(payload, pdf_options, template_dir, template_name, allowed_hosts)
+            return await agenerate_pdf(payload, pdf_options, template_dir, template_name, allowed_hosts, limits)
 
     return list(await asyncio.gather(*[_one(payload) for payload in payloads]))
 
@@ -180,27 +194,33 @@ def generate_many(
     template_dir: str | Path | None = None,
     template_name: str = "tabular.jinja",
     allowed_hosts: list[str] | None = None,
+    limits: dict[str, int] | None = None,
 ) -> list[bytes]:
     """Generate several PDFs concurrently (sync); results come back in input order."""
-    return _run(agenerate_many(payloads, pdf_options, max_concurrency, template_dir, template_name, allowed_hosts))
+    return _run(agenerate_many(payloads, pdf_options, max_concurrency, template_dir, template_name, allowed_hosts, limits))
 
 
-def generate_xlsx(payload: dict[str, Any] | ReportPayload) -> bytes:
+def generate_xlsx(payload: dict[str, Any] | ReportPayload, limits: dict[str, int] | None = None) -> bytes:
     """Generate an .xlsx workbook (sync, no browser needed)."""
-    return _run(agenerate_xlsx(payload))
+    return _run(agenerate_xlsx(payload, limits))
 
 
-async def agenerate_xlsx_from_toon(text: str) -> bytes:
+async def agenerate_xlsx_from_toon(text: str, limits: dict[str, int] | None = None) -> bytes:
     """Generate an .xlsx workbook (async) from `.toon` text."""
-    return await agenerate_xlsx(parse_toon(text))
+    return await agenerate_xlsx(parse_toon(text), limits)
 
 
-def generate_xlsx_from_toon(text: str) -> bytes:
+def generate_xlsx_from_toon(text: str, limits: dict[str, int] | None = None) -> bytes:
     """Generate an .xlsx workbook (sync) from `.toon` text."""
-    return _run(agenerate_xlsx_from_toon(text))
+    return _run(agenerate_xlsx_from_toon(text, limits))
 
 
-async def agenerate_csv(payload: dict[str, Any] | ReportPayload, delimiter: str = ",", bom: bool = False) -> str:
+async def agenerate_csv(
+    payload: dict[str, Any] | ReportPayload,
+    delimiter: str = ",",
+    bom: bool = False,
+    limits: dict[str, int] | None = None,
+) -> str:
     """Generate CSV text (async, no browser needed).
 
     ``bom=True`` prepends a UTF-8 BOM so Excel (PT) opens accented text correctly.
@@ -208,22 +228,27 @@ async def agenerate_csv(payload: dict[str, Any] | ReportPayload, delimiter: str 
     from isis_report_lib.export import collect_tables, render_csv
     from isis_report_lib.service import prepare_report
 
-    dataset, layout, meta = prepare_report(_normalize_payload(payload))
+    dataset, layout, meta = prepare_report(_normalize_payload(payload), limits=limits)
     tables, summaries = collect_tables(dataset, layout, meta)
     text = render_csv(tables, summaries, meta, delimiter=delimiter)
     return "\ufeff" + text if bom else text
 
 
-def generate_csv(payload: dict[str, Any] | ReportPayload, delimiter: str = ",", bom: bool = False) -> str:
+def generate_csv(
+    payload: dict[str, Any] | ReportPayload,
+    delimiter: str = ",",
+    bom: bool = False,
+    limits: dict[str, int] | None = None,
+) -> str:
     """Generate CSV text (sync, no browser needed)."""
-    return _run(agenerate_csv(payload, delimiter, bom))
+    return _run(agenerate_csv(payload, delimiter, bom, limits))
 
 
-async def agenerate_csv_from_toon(text: str, delimiter: str = ",", bom: bool = False) -> str:
+async def agenerate_csv_from_toon(text: str, delimiter: str = ",", bom: bool = False, limits: dict[str, int] | None = None) -> str:
     """Generate CSV text (async) from `.toon` text."""
-    return await agenerate_csv(parse_toon(text), delimiter, bom)
+    return await agenerate_csv(parse_toon(text), delimiter, bom, limits)
 
 
-def generate_csv_from_toon(text: str, delimiter: str = ",", bom: bool = False) -> str:
+def generate_csv_from_toon(text: str, delimiter: str = ",", bom: bool = False, limits: dict[str, int] | None = None) -> str:
     """Generate CSV text (sync) from `.toon` text."""
-    return _run(agenerate_csv_from_toon(text, delimiter, bom))
+    return _run(agenerate_csv_from_toon(text, delimiter, bom, limits))

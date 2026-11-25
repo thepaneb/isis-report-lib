@@ -226,3 +226,19 @@ def test_key_file_world_readable_warns(tmp_path, capsys):
     assert _read_key_file(secret) == b"x" * 32
     _, err = capsys.readouterr()
     assert "chmod 600" not in err
+
+
+def test_key_file_strict_permissions(tmp_path):
+    import os
+
+    if os.name != "posix":
+        pytest.skip("POSIX-only permission check")
+    from isis_report_lib.cli import _read_key_file
+
+    secret = tmp_path / "secret.key"
+    secret.write_bytes(b"x" * 32)
+    secret.chmod(0o644)
+    with pytest.raises(ValueError, match="readable by group/others"):
+        _read_key_file(secret, require_permissions=True)
+    secret.chmod(0o600)
+    assert _read_key_file(secret, require_permissions=True) == b"x" * 32

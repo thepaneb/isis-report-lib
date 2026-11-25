@@ -72,6 +72,11 @@ saved/changed first. Close agent tabs when done.
   shuts down its own browser at the end via `close_owned_browser` (current loop only).
 - **`_run` with a running loop:** uses `ThreadPoolExecutor + asyncio.run` to avoid
   blocking (Jupyter). Do not simplify to a bare `asyncio.run`.
+- **Quotas are operator-capped:** `DEFAULT_LIMITS`/the API `limits` argument is
+  the security boundary; payload `meta.limits` may only tighten it. Never let a
+  payload-provided limit become the authoritative one. HMAC keys are ≥32 bytes
+  on sign/keygen; `verify_pdf` keeps accepting legacy short keys for existing
+  seals (warn, don't raise).
 
 ## Workflow (`main` is protected: branch → PR → CI → merge)
 ```bash

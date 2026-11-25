@@ -12,6 +12,10 @@ logger = get_logger()
 
 _LIMIT_KEYS = ("max_rows", "max_bytes")
 
+# Operator-level safety net. Payload ``meta.limits`` may only tighten these;
+# set ``limits={}`` on the API (CLI ``--unlimited``) to opt out.
+DEFAULT_LIMITS: dict[str, int] = {"max_rows": 1_000_000, "max_bytes": 64 * 1024 * 1024}
+
 
 def with_meta_defaults(meta: dict[str, Any]) -> dict[str, Any]:
     """Fill display metadata the payload did not provide (e.g. print timestamp)."""
@@ -43,6 +47,17 @@ def _normalize_limits(limits: Any) -> dict[str, int]:
             raise ValueError(f"Invalid meta.limits.{key} (must be a positive integer): {value!r}")
         out[key] = value
     return out
+
+
+def _effective_limits(operator: dict[str, int], payload: dict[str, int] | None) -> dict[str, int]:
+    """Merge operator caps with payload limits: payload values may only tighten."""
+    effective = dict(operator)
+    for key, value in (payload or {}).items():
+        if key in effective:
+            effective[key] = min(effective[key], value)
+        else:
+            effective[key] = value
+    return effective
 
 
 def _count_data_records(data: Any) -> int:
@@ -80,21 +95,23 @@ def _count_payload_records(payload: dict[str, Any]) -> int:
     return _count_data_records(payload.get("data", []))
 
 
-def _check_payload_quotas(payload: dict[str, Any], meta: dict[str, Any]) -> None:
-    """Enforce opt-in ``meta.limits`` before any expensive shaping (fail fast on DoS-sized input)."""
-    limits = meta.get("limits") or {}
+def _check_payload_quotas(payload: dict[str, Any], limits: dict[str, int]) -> None:
+    """Enforce the effective operator/payload quotas before any expensive shaping."""
     max_rows = limits.get("max_rows")
     max_bytes = limits.get("max_bytes")
     if max_rows is None and max_bytes is None:
         return
     if max_bytes is not None:
-        size = len(json.dumps(payload, sort_keys=True, default=str).encode("utf-8"))
+        try:
+            size = len(json.dumps(payload, sort_keys=True, default=str).encode("utf-8"))
+        except RecursionError as e:
+            raise ValueError("Payload is nested too deeply to measure its size") from e
         if size > max_bytes:
-            raise ValueError(f"Payload is {size} bytes, exceeding meta.limits.max_bytes={max_bytes}")
+            raise ValueError(f"Payload is {size} bytes, exceeding the max_bytes limit ({max_bytes})")
     if max_rows is not None:
         total = _count_payload_records(payload)
         if total > max_rows:
-            raise ValueError(f"Payload has {total} data records, exceeding meta.limits.max_rows={max_rows}")
+            raise ValueError(f"Payload has {total} data records, exceeding the max_rows limit ({max_rows})")
 
 
 def _validate_payload_shape(payload: Any) -> None:
@@ -120,8 +137,13 @@ def _validate_payload_shape(payload: Any) -> None:
         raise ValueError(f"Invalid payload ({e.error_count()} {problems}): {log_value(details, max_length=800)}{more}") from e
 
 
-def prepare_report(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
-    """Build (dataset, layout, meta) from a normalized payload dict (shared by all outputs)."""
+def prepare_report(payload: dict[str, Any], limits: dict[str, int] | None = None) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """Build (dataset, layout, meta) from a normalized payload dict (shared by all outputs).
+
+    ``limits`` is the operator cap: ``None`` applies :data:`DEFAULT_LIMITS`,
+    ``{}`` disables the operator cap, and a dict sets explicit caps. Payload
+    ``meta.limits`` may only tighten the effective values.
+    """
     from isis_report_lib.layout import (
         assign_report_footnotes,
         build_report,
@@ -133,7 +155,8 @@ def prepare_report(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str, A
 
     _validate_payload_shape(payload)
     meta = with_meta_defaults(payload.get("meta", {}) or {})
-    _check_payload_quotas(payload, meta)
+    operator_limits = _normalize_limits(DEFAULT_LIMITS if limits is None else limits)
+    _check_payload_quotas(payload, _effective_limits(operator_limits, meta.get("limits")))
     if "sections" in payload:
         dataset, layout, _meta = _prepare_sections(payload.get("sections", []) or [], meta)
         assign_report_footnotes(layout, dataset.get("sections", []))
@@ -322,6 +345,7 @@ class TabularReportService(BaseReportService):
         template_dir: str | Path | None = None,
         template_name: str = "tabular.jinja",
         allowed_hosts: list[str] | None = None,
+        limits: dict[str, int] | None = None,
     ) -> None:
         from isis_report_lib import pdf as _pdf
         from isis_report_lib.pdf import validate_allowed_hosts
@@ -330,6 +354,7 @@ class TabularReportService(BaseReportService):
         self._template_dir = template_dir
         self._template_name = template_name
         self._allowed_hosts = validate_allowed_hosts(allowed_hosts)
+        self._limits = limits
         self._printed_at: str | None = None
         self._meta_locale: str = "pt-BR"
         self._page: dict[str, Any] = {}
@@ -339,7 +364,7 @@ class TabularReportService(BaseReportService):
         return payload.get("data", [])
 
     async def _process_data(self, data: Any, payload: dict[str, Any]) -> dict[str, Any]:
-        dataset, layout, meta = prepare_report({**payload, "data": data})
+        dataset, layout, meta = prepare_report({**payload, "data": data}, limits=self._limits)
         self._printed_at = meta.get("printed_at")
         self._meta_locale = meta.get("locale", "pt-BR")
         self._page = meta.get("page", {}) or {}

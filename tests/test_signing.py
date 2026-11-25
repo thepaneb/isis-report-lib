@@ -5,6 +5,39 @@ import pytest
 PDF = b"%PDF-1.4\n%\xe2\xe3\n1 0 obj<</>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n"
 
 
+def test_hmac_key_minimum_on_keygen_and_sign():
+    from isis_report_lib.signing import generate_hmac_key, sign_pdf
+
+    with pytest.raises(ValueError, match="at least 32"):
+        generate_hmac_key(31)
+    assert len(generate_hmac_key(32)) == 32
+    with pytest.raises(ValueError, match="at least 32"):
+        sign_pdf(PDF, b"short")
+    with pytest.raises(ValueError, match="must be bytes"):
+        sign_pdf(PDF, "not-bytes")  # type: ignore[arg-type]
+    sign_pdf(PDF, b"x" * 32)
+
+
+def test_verify_accepts_legacy_short_hmac_key_with_warning():
+    import hashlib
+    import json
+
+    from isis_report_lib.signing import MARKER, SIGNATURE_VERSION, _canonical, _sign_bytes, verify_pdf
+
+    short = b"legacy"
+    body = {
+        "v": SIGNATURE_VERSION,
+        "alg": "hmac-sha256",
+        "sha256": hashlib.sha256(PDF).hexdigest(),
+        "issued_at": "2026-01-01T00:00:00+00:00",
+    }
+    body["sig"] = _sign_bytes(_canonical(body), short, "hmac-sha256")
+    signed = PDF + b"\n" + MARKER + json.dumps(body, separators=(",", ":")).encode() + b"\n"
+    info = verify_pdf(signed, short)
+    assert info.valid is True
+    assert "shorter than 32" in info.details["warning"]
+
+
 def test_hmac_roundtrip_with_metadata():
     from isis_report_lib.signing import generate_hmac_key, sign_pdf, verify_pdf
 

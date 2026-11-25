@@ -123,6 +123,8 @@ assert verify_pdf(signed, {"2026-a": old_secret, "portal-1": secret}).valid
 
 A `%ISIS-SIGNATURE` block is appended after the PDF `%%EOF` (readers ignore it; any modification invalidates the seal). `verify_pdf` never raises — check `.valid`. This is an origin/integrity seal, not Adobe PAdES.
 
+`generate_hmac_key` and `sign_pdf` require **at least 32 bytes** for HMAC; `verify_pdf` still accepts legacy short keys for existing seals and reports a warning in `info.details`. Key files should be `0600`; `--require-key-permissions` makes `sign`/`verify` fail on POSIX when the key file is group/other-readable (default: warn).
+
 ## Data inputs
 
 ```python
@@ -277,7 +279,7 @@ payload = {
 | `source_note` / `source` | `meta` / any section | provenance line under the report/section (`# [source]` in CSV, `Notes` sheet in XLSX) |
 | `color_scale` / `data_bar` | field def | `color_scale: {min, max}` gradient fill by value (explicit `cell_rules` win); `data_bar: true` native Excel bars (XLSX only) |
 | `meta.summary_side` | `meta` | `top\|bottom` (default) grand-summary placement |
-| `meta.limits` | `meta` | opt-in DoS quotas `{max_rows, max_bytes}` — enforced in `prepare_report` for every output, fail-closed `ValueError` (unknown keys and non-positive ints raise) |
+| `meta.limits` | `meta` | DoS quotas `{max_rows, max_bytes}` — may only **tighten** the operator cap (defaults `1M` records / `64 MiB`; API `limits`, CLI `--max-rows/--max-bytes/--unlimited`); fail-closed `ValueError` for unknown keys/non-positive ints |
 
 ## `.toon` syntax
 
@@ -301,19 +303,19 @@ See `examples/sales_order.toon`.
 
 | Function | Description |
 | --- | --- |
-| `generate_pdf(payload, pdf_options?, allowed_hosts?) -> bytes` | sync PDF from dict/`ReportPayload`; `allowed_hosts=[...]` allow-lists outbound http(s) hosts (default denies all network) |
+| `generate_pdf(payload, pdf_options?, allowed_hosts?, limits?) -> bytes` | sync PDF from dict/`ReportPayload`; `allowed_hosts=[...]` allow-lists outbound http(s) hosts (default denies all network); `limits` is the operator quota cap |
 | `agenerate_pdf(...)` | same, async |
-| `generate_many(payloads, max_concurrency=4) -> list[bytes]` / `agenerate_many` | concurrent PDFs sharing the pool, results in input order (per-call `allowed_hosts` supported) |
-| `generate_pdf_from_toon(text, ...)` / `agenerate_pdf_from_toon` | PDF from `.toon` (same `allowed_hosts` keyword) |
-| `generate_xlsx(payload) -> bytes` / `agenerate_xlsx` / `..._from_toon` | .xlsx workbook, no browser (needs `.[xlsx]` extra) |
-| `generate_csv(payload, delimiter=",") -> str` / `agenerate_csv` / `..._from_toon` | CSV text, no browser (`bom=True` for Excel) |
-| `render_html(payload, inline_css=False)` / `arender_html` / `render_html_from_toon` | intermediate HTML (no browser); `inline_css=True` for email clients (needs `.[email]` extra; resolves CSS variables, sets `lang` from `meta.locale`) |
+| `generate_many(payloads, max_concurrency=4, ..., limits?) -> list[bytes]` / `agenerate_many` | concurrent PDFs sharing the pool, results in input order (per-call `allowed_hosts`/`limits` supported) |
+| `generate_pdf_from_toon(text, ..., limits?)` / `agenerate_pdf_from_toon` | PDF from `.toon` (same `allowed_hosts`/`limits` keywords) |
+| `generate_xlsx(payload, limits?) -> bytes` / `agenerate_xlsx` / `..._from_toon` | .xlsx workbook, no browser (needs `.[xlsx]` extra) |
+| `generate_csv(payload, delimiter=",", bom=False, limits?) -> str` / `agenerate_csv` / `..._from_toon` | CSV text, no browser (`bom=True` for Excel) |
+| `render_html(payload, inline_css=False, limits?)` / `arender_html` / `render_html_from_toon` | intermediate HTML (no browser); `inline_css=True` for email clients (needs `.[email]` extra; resolves CSS variables, sets `lang` from `meta.locale`) |
 | Sections payload (`meta` + `sections: [...]`) | composed documents: `table` (full tabular engine), `text`, `kpi`, `chart` (`bar`/`line` inline SVG) |
 | `ToonParser().parse(text)` / `parse_toon(text)` | `.toon` -> dict |
 | `from_dataframe(df, ...)` / `from_csv(...)` / `from_json(...)` | payload builders (needs `.[pandas]` for DataFrame) |
 | `payload_schema()` | JSON Schema of the payload (`isis-report schema`) |
 | `collect_tables(dataset, layout)` | flat tables + summary rows (powers XLSX/CSV) |
-| `TabularReportService(pdf_options?)` | pipeline `execute(payload)` (Fetch→Process→HTML→PDF) |
+| `TabularReportService(pdf_options?, limits?)` | pipeline `execute(payload)` (Fetch→Process→HTML→PDF) |
 
 ## Tests
 
@@ -350,6 +352,6 @@ MIT — see `LICENSE`.
 - **Secrets**: Gitleaks scans the working tree and history on every PR, push and weekly; findings fail CI and upload as SARIF to code scanning. Optional local gate: `pip install pre-commit && pre-commit install`.
 - **Trust boundary**: templates (`.jinja` files, `template_dir`) are code — only load them from sources you trust. Report *data* is escaped in HTML output and never executed as template code (charts/sparklines emit pre-built SVG); if you serve the HTML/email output to browsers, treat it like any user-content page.
 - **Browser**: pages render with JavaScript disabled in an isolated Chromium context per sync call (shared pool in async mode); `inline_css` strips remote `<link>` stylesheets (no server-side fetches on render); outbound http(s) is denied by default at render time — allow hosts with `allowed_hosts=[...]` (`generate_pdf(...)` / CLI `--allowed-hosts`, never from the payload); the Playwright browser runs headless in its own Chromium sandbox.
-- **Denial of service**: opt-in `meta.limits` (`max_rows` records, `max_bytes` payload bytes, CLI `--max-rows`/`--max-bytes`) are enforced before any shaping for every output format; deeply nested layouts/inputs are rejected with `ValueError`.
+- **Denial of service**: operator caps (`DEFAULT_LIMITS`: 1M records / 64 MiB) via API `limits=` or CLI `--max-rows/--max-bytes`, with `--unlimited`/`limits={}` opt-out; payload `meta.limits` may only tighten. Enforced before any shaping for every output format; deeply nested layouts/inputs are rejected with `ValueError`.
 - **Exports**: text cells starting with `= + - @` (or tab/CR) are `'`-prefixed in CSV/XLSX so spreadsheets cannot evaluate data as formulas (numeric values, including negatives, are untouched).
 - **Robustness**: deeply nested `.toon`/JSON input and report layouts are rejected with `ValueError` instead of crashing the interpreter; `verify_pdf` never raises — malformed signatures report `invalid`.
