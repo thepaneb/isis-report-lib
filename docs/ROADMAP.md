@@ -31,7 +31,7 @@ visible features landed on 2026-11-26 (see [Done](#done-2026-11-26)).
 
 ### Continuous
 Hypothesis property tests + mutation testing; RTL (`meta.direction`);
-Arrow/Polars/DuckDB/DB-API adapters; PT-BR quickstart. PDF/A stays an optional
+Arrow/Polars/DuckDB/DB-API adapters. PDF/A stays an optional
 extra only if demand appears; PAdES remains a non-goal.
 
 ## Done (2026-11-26)
@@ -47,6 +47,12 @@ extra only if demand appears; PAdES remains a non-goal.
 - **Adoption surface** — issue forms, pull-request template, Discussions and
   five starter issues (#89–#93: PT-BR quickstart, `--version`, `from_jsonl`,
   Windows/macOS CI and RTL).
+- **PT-BR quickstart** — `docs/pt-br/quickstart.md`, scoped with a notice that
+  the full documentation stays in English; the two-build foundation is tracked
+  in #99.
+- **Fork PR SARIF** — docs-only fork PRs get trusted empty GuardDog, Semgrep and
+  CodeQL analyses; code- or dependency-changing forks require a same-repo
+  integration branch.
 - **Distribution** — composite GitHub Action (`.github/actions/render`) and a
   Dockerfile with Chromium/fonts, including an example workflow; shipped in
   v0.15.1.
