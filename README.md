@@ -102,6 +102,33 @@ isis-report generate input.toon --format xlsx   # or csv | html | pdf
 isis-report render examples/sales_order.toon -o report.html
 ```
 
+## CI and Docker
+
+A composite GitHub Action is in `.github/actions/render` — copy
+[`examples/github-action.yml`](examples/github-action.yml) or use it directly:
+
+```yaml
+- uses: thepaneb/isis-report-lib/.github/actions/render@v0.15.1
+  with:
+    input: examples/sales_order.toon
+    output: artifacts/report.pdf
+    format: pdf            # pdf | xlsx | csv | html
+```
+
+It installs a pinned PyPI release and downloads Chromium only for `pdf`.
+Inputs: `input`, `output`, `format`, `version` and `extra-args`. Linux, macOS
+and Windows runners are supported.
+
+The `Dockerfile` bundles Chromium and fonts for a reproducible runner:
+
+```bash
+docker build -t isis-report .
+docker run --rm -v "$PWD:/work" isis-report generate examples/sales_order.toon -o report.pdf
+```
+
+Pin another release with
+`docker build --build-arg ISIS_REPORT_VERSION=<version> -t isis-report .`.
+
 ## Report signing (tamper-evident seal)
 
 ```bash

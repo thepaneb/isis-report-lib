@@ -221,6 +221,34 @@ Exit codes: `0` ok, `1` generation failure, `2` bad input/usage. Key files
 should be `0600` (the CLI warns otherwise on POSIX; `--require-key-permissions`
 makes it fail).
 
+## CI and Docker
+
+Use the composite GitHub Action in `.github/actions/render` to render a report
+in a workflow (example:
+[`examples/github-action.yml`](https://github.com/thepaneb/isis-report-lib/blob/main/examples/github-action.yml)):
+
+```yaml
+- uses: thepaneb/isis-report-lib/.github/actions/render@v0.15.1
+  with:
+    input: examples/sales_order.toon
+    output: artifacts/report.pdf
+    format: pdf            # pdf | xlsx | csv | html
+    version: "0.15.1"      # optional; pin the PyPI release
+```
+
+Chromium is installed only when `format: pdf`; XLSX/CSV/HTML skip the browser
+download. The action works on Ubuntu, macOS and Windows runners.
+
+For a self-contained runner, build the Docker image (Chromium and fonts
+included):
+
+```bash
+docker build -t isis-report .
+docker run --rm -v "$PWD:/work" isis-report generate examples/sales_order.toon -o report.pdf
+```
+
+`--build-arg ISIS_REPORT_VERSION=<version>` pins another release.
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |

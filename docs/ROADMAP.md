@@ -17,11 +17,10 @@ API reference and the docs drift fixes (see [Done](#done-2026-11-25)); the 0.15
 visible features landed on 2026-11-26 (see [Done](#done-2026-11-26)).
 
 ### Adoption
-- **Demo and distribution** — 5-minute demo repo, a GitHub Action/Docker image
-  with Chromium and fonts, and posts to r/Python, Hacker News, Lobsters,
-  Python Weekly and awesome lists.
-- **Contribution surface** — issue/PR templates, Discussions and 3–5
-  `good first issue`s (the repo currently has no open issues).
+- **Demo and distribution** — publish a 5-minute demo repo and posts to
+  r/Python, Hacker News, Lobsters, Python Weekly and awesome lists. The GitHub
+  Action, Dockerfile, Discussions and starter issues are done (see
+  [Done](#done-2026-11-26)).
 
 ### 1.0 — packaging and contract
 - **Playwright as an optional `[pdf]` extra** so HTML/XLSX/CSV users do not
@@ -46,6 +45,12 @@ extra only if demand appears; PAdES remains a non-goal.
   native bar/line/pie/donut chart, including horizontal bars.
 - **PDF outline** — bookmarks from the headings by default; the outline
   implies a tagged PDF and `pdf_options={"outline": False}` opts out.
+- **Adoption surface** — issue forms, pull-request template, Discussions and
+  five starter issues (#89–#93: PT-BR quickstart, `--version`, `from_jsonl`,
+  Windows/macOS CI and RTL).
+- **Distribution** — composite GitHub Action (`.github/actions/render`) and a
+  Dockerfile with Chromium/fonts, including an example workflow; shipped in
+  v0.15.1.
 
 ## Done (2026-11-25)
 

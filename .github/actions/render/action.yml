@@ -1,0 +1,77 @@
+name: Render report
+description: Generate a PDF, XLSX, CSV or HTML report with isis-report-lib
+author: thepaneb
+branding:
+  icon: file-text
+  color: blue
+
+inputs:
+  input:
+    description: Path to the .toon, .json or .csv input.
+    required: true
+  output:
+    description: Output path for the generated report.
+    required: false
+    default: report.pdf
+  format:
+    description: "Output format: pdf, xlsx, csv or html."
+    required: false
+    default: pdf
+  version:
+    description: isis-report-lib release to install from PyPI (pin a release).
+    required: false
+    default: "0.15.1"
+  extra-args:
+    description: Extra arguments for `isis-report generate` (quoted).
+    required: false
+    default: ""
+
+outputs:
+  output:
+    description: Path to the generated report.
+    value: ${{ inputs.output }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+      with:
+        python-version: "3.14"
+
+    - name: Install isis-report-lib
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: |
+        python -m pip install --disable-pip-version-check "isis-report-lib==${VERSION}"
+
+    - name: Install Chromium
+      shell: bash
+      env:
+        FORMAT: ${{ inputs.format }}
+      run: |
+        if [ "$FORMAT" != "pdf" ]; then
+          echo "Skipping Chromium install for format=$FORMAT"
+          exit 0
+        fi
+        if [ "$RUNNER_OS" = "Linux" ]; then
+          python -m playwright install --with-deps chromium
+        else
+          python -m playwright install chromium
+        fi
+
+    - name: Generate report
+      shell: bash
+      env:
+        INPUT: ${{ inputs.input }}
+        OUTPUT: ${{ inputs.output }}
+        FORMAT: ${{ inputs.format }}
+        EXTRA_ARGS: ${{ inputs.extra-args }}
+      run: |
+        mkdir -p "$(dirname "$OUTPUT")"
+        args=(generate "$INPUT" -o "$OUTPUT" --format "$FORMAT")
+        if [ -n "$EXTRA_ARGS" ]; then
+          read -r -a extra <<< "$EXTRA_ARGS"
+          args+=("${extra[@]}")
+        fi
+        isis-report "${args[@]}"

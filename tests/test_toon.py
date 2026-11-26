@@ -106,3 +106,11 @@ def test_full_example_file():
     assert result["layout"]["company"]["label"] == "Company"
     assert len(result["data"]) == 1
     assert len(result["data"][0]["orders"]) == 2
+
+
+def test_full_example_passes_the_strict_envelope():
+    from isis_report_lib import render_html
+
+    text = (Path(__file__).parent.parent / "examples" / "sales_order.toon").read_text(encoding="utf-8")
+    html = render_html(parse_toon(text))
+    assert "Sales Order" in html and "ACME CONSULTING" in html
