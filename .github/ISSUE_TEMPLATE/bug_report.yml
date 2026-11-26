@@ -1,0 +1,78 @@
+name: Bug report
+description: Something rendered wrong, failed, or crashed
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please redact real data from payloads and screenshots.
+        Security issues must use the private advisory flow, never a public issue.
+
+  - type: input
+    id: version
+    attributes:
+      label: isis-report-lib version
+      description: Output of `pip show isis-report-lib` (or the release tag).
+      placeholder: "0.15.0"
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Python and OS
+      description: Python version, OS and how Chromium was installed.
+      placeholder: "Python 3.14 on Ubuntu 24.04, playwright install chromium"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: output
+    attributes:
+      label: Output format
+      options:
+        - pdf
+        - xlsx
+        - csv
+        - html
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproducer
+    attributes:
+      label: Minimal reproducer
+      description: The smallest payload + command/API call that shows the problem. Redact real data.
+      render: python
+      placeholder: |
+        from isis_report_lib import generate_pdf
+        payload = {"meta": {"title": "T"}, "data": [{"a": 1}]}
+        pdf = generate_pdf(payload)
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead?
+      description: Include the traceback or a screenshot of the wrong output.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and Discussions for the same problem.
+          required: true
+        - label: I removed secrets and real personal data from the payload/logs.
+          required: true

@@ -1,0 +1,57 @@
+name: Feature request
+description: Propose a new capability or an improvement
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Start with the problem, not the implementation. Small, focused proposals
+        are easier to review; check the roadmap first to avoid duplicates.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do that the library makes hard or impossible today?
+      placeholder: "I need to ... but the current API ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: The API, payload key or behavior you would like. Examples are welcome.
+      render: python
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds, other libraries, or a smaller change that would solve it.
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - Docs / examples
+        - Small API addition
+        - New output or section type
+        - Packaging / CI
+        - Not sure
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I checked the roadmap and existing issues/Discussions.
+          required: true
+        - label: I can help test or implement this (optional).
+          required: false

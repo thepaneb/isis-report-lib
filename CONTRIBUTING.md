@@ -5,11 +5,18 @@ library, so the fastest path is a focused issue or a small pull request.
 
 ## Ways to contribute
 
+- **Questions and ideas** — use
+  [Discussions](https://github.com/thepaneb/isis-report-lib/discussions) to ask
+  how to model a report, share a payload, or discuss a proposal before opening
+  an issue.
 - **Bug reports and feature requests** — open an issue at
-  <https://github.com/thepaneb/isis-report-lib/issues>. Include the library
-  version (`pip show isis-report-lib`), the output format (`pdf`/`xlsx`/`csv`/
-  `html`), a minimal reproducer payload (redact real data), and what you
-  expected versus what happened.
+  <https://github.com/thepaneb/isis-report-lib/issues>. The forms ask for the
+  library version (`pip show isis-report-lib`), the output format
+  (`pdf`/`xlsx`/`csv`/`html`), a minimal reproducer payload (redact real data),
+  and what you expected versus what happened.
+- **Good first issues** — look for the
+  [`good first issue`](https://github.com/thepaneb/isis-report-lib/labels/good%20first%20issue)
+  label; each one lists the files to touch and the acceptance criteria.
 - **Code and documentation** — fork the repository, create a branch, and open
   a pull request against `main`.
 - **Security issues** — **do not open a public issue**. Follow
