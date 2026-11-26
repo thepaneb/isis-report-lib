@@ -8,9 +8,12 @@ draft GitHub Release, uploads to PyPI via trusted publishing and publishes the
 release last.
 
 ## [Unreleased]
+
+## [0.16.0] - 2026-11-26
 ### Added
-- Portuguese (pt-BR) quickstart page in the documentation, linked from the site navigation
 - Runnable `demo/` folder: a board-pack payload that renders PDF/HTML/XLSX/CSV with TOC, watermark, KPI, crosstab and native XLSX charts
+- Portuguese (pt-BR) quickstart page in the documentation, linked from the site navigation
+- GHCR image (`ghcr.io/thepaneb/isis-report-lib`) built from the release wheel and pushed by `publish.yml`; stable releases also update `latest`
 ### Changed
 - Dockerfile pins the Python base image by digest and installs the runtime from a hash-pinned `docker/requirements.txt`
 - Fork PRs with only docs/config changes get trusted empty GuardDog, Semgrep and CodeQL analyses from `fork-sarif.yml`; code- or dependency-changing forks still need a same-repo integration branch

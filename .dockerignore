@@ -1,3 +1,5 @@
 *
 !Dockerfile
+!Dockerfile.release
 !docker/requirements.txt
+!dist/*.whl

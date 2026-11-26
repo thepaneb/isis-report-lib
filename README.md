@@ -17,6 +17,17 @@
 
 Python library for **tabular PDF reports** with customizable hierarchical layouts — extracted from the [isis_report](https://github.com/thepaneb/isis_report) PoC (Robyn microservice), without the server.
 
+[![Board pack: a paginated PDF report with KPI cards, a table and charts](https://thepaneb.github.io/isis-report-lib/assets/gallery/board-pack.png)](https://thepaneb.github.io/isis-report-lib/gallery/)
+
+One payload, four outputs:
+
+| Output | What you get |
+|---|---|
+| **PDF** | print-ready pages, bookmarks, watermark and page numbers |
+| **HTML** | the same layout, no browser |
+| **XLSX** | one sheet per table, plus native Excel charts |
+| **CSV** | flattened sections with a UTF-8 BOM |
+
 **Landing page:** <https://thepaneb.github.io/isis-report-lib/>
 
 **See real outputs:** <https://thepaneb.github.io/isis-report-lib/gallery/> ·
@@ -110,7 +121,7 @@ A composite GitHub Action is in `.github/actions/render` — copy
 [`examples/github-action.md`](examples/github-action.md) or use it directly:
 
 ```yaml
-- uses: thepaneb/isis-report-lib/.github/actions/render@v0.15.1
+- uses: thepaneb/isis-report-lib/.github/actions/render@v0.16.0
   with:
     input: examples/sales_order.toon
     output: artifacts/report.pdf
@@ -128,8 +139,15 @@ docker build -t isis-report .
 docker run --rm -v "$PWD:/work" isis-report generate examples/sales_order.toon -o report.pdf
 ```
 
-The image is locked to the release in `docker/requirements.in` (hash-pinned);
-for a new release, bump that file and run `bash scripts/lock-requirements.sh`.
+Or use the published GHCR image, built from the release wheel:
+
+```bash
+docker run --rm -v "$PWD:/work" ghcr.io/thepaneb/isis-report-lib:0.16.0 generate examples/sales_order.toon -o report.pdf
+```
+
+The local `Dockerfile` uses the hash-pinned `docker/requirements.in`; after a
+release, bump that file and run `bash scripts/lock-requirements.sh`. The GHCR
+image is built from the release wheel by the `Publish` workflow.
 The image runs as UID 1000; on Linux, add `--user "$(id -u):$(id -g)"` to the
 `docker run` command if your host user has a different UID.
 

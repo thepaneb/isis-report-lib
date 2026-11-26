@@ -228,12 +228,12 @@ in a workflow (example:
 [`examples/github-action.md`](https://github.com/thepaneb/isis-report-lib/blob/main/examples/github-action.md)):
 
 ```yaml
-- uses: thepaneb/isis-report-lib/.github/actions/render@v0.15.1
+- uses: thepaneb/isis-report-lib/.github/actions/render@v0.16.0
   with:
     input: examples/sales_order.toon
     output: artifacts/report.pdf
     format: pdf            # pdf | xlsx | csv | html
-    version: "0.15.1"      # optional; pin the PyPI release
+    version: "0.16.0"      # optional; pin the PyPI release
 ```
 
 Chromium is installed only when `format: pdf`; XLSX/CSV/HTML skip the browser

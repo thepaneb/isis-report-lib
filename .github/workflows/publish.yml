@@ -19,6 +19,7 @@ jobs:
       contents: write # create/update the draft release and upload assets
       id-token: write # OIDC for Trusted Publishing and Sigstore
       attestations: write # Sigstore attestations for the release artifacts
+      packages: write # push the release image to GHCR
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -92,8 +93,13 @@ jobs:
             fi
             echo "Reusing draft release $TAG."
           else
-            # --draft: nothing is published until all assets are attached.
-            gh release create "$TAG" --draft --title "$TAG" --generate-notes
+            NOTES_FILE="release-notes/${TAG#v}.md"
+            if [[ -f "$NOTES_FILE" ]]; then
+              gh release create "$TAG" --draft --title "$TAG" --notes-file "$NOTES_FILE"
+            else
+              # --draft: nothing is published until all assets are attached.
+              gh release create "$TAG" --draft --title "$TAG" --generate-notes
+            fi
           fi
 
       - name: Attach release assets
@@ -117,6 +123,30 @@ jobs:
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
         with:
           skip-existing: true
+
+      - name: Publish Docker image to GHCR
+        # Build from the just-uploaded wheel so the image version matches this
+        # tag even though the local Dockerfile keeps the previous lock until the
+        # post-release lock bump.
+        env:
+          TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ steps.classify.outputs.prerelease }}
+          REGISTRY: ghcr.io
+          IMAGE_NAME: ${{ github.repository }}
+        run: |
+          echo "${{ github.token }}" | docker login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
+          tag_values=("$REGISTRY/$IMAGE_NAME:$TAG" "$REGISTRY/$IMAGE_NAME:${TAG#v}")
+          if [[ "$PRERELEASE" != "true" ]]; then
+            tag_values+=("$REGISTRY/$IMAGE_NAME:latest")
+          fi
+          build_tags=()
+          for value in "${tag_values[@]}"; do
+            build_tags+=(-t "$value")
+          done
+          docker build -f Dockerfile.release --build-arg VERSION="${TAG#v}" "${build_tags[@]}" .
+          for value in "${tag_values[@]}"; do
+            docker push "$value"
+          done
 
       - name: Publish the release
         # Last step: with immutable releases enabled, publishing locks the tag

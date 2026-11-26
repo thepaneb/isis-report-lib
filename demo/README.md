@@ -70,7 +70,7 @@ The image bundles Chromium and fonts; see the root `Dockerfile`. On Linux, add
 The composite action can render the same payload in CI:
 
 ```yaml
-- uses: thepaneb/isis-report-lib/.github/actions/render@v0.15.1
+- uses: thepaneb/isis-report-lib/.github/actions/render@v0.16.0
   with:
     input: demo/payload.json
     output: demo/out/report.pdf

@@ -40,6 +40,8 @@ isis-report = "isis_report_lib.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/thepaneb/isis-report-lib"
+Documentation = "https://thepaneb.github.io/isis-report-lib/"
+Demo = "https://github.com/thepaneb/isis-report-lib/tree/main/demo"
 Source = "https://github.com/thepaneb/isis-report-lib"
 Issues = "https://github.com/thepaneb/isis-report-lib/issues"
 Changelog = "https://github.com/thepaneb/isis-report-lib/blob/main/CHANGELOG.md"

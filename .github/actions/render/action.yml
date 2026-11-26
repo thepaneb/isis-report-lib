@@ -20,7 +20,7 @@ inputs:
   version:
     description: isis-report-lib release to install from PyPI (pin a release).
     required: false
-    default: "0.15.1"
+    default: "0.16.0"
   extra-args:
     description: Extra arguments for `isis-report generate` (quoted).
     required: false
