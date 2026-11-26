@@ -8,6 +8,8 @@ draft GitHub Release, uploads to PyPI via trusted publishing and publishes the
 release last.
 
 ## [Unreleased]
+### Changed
+- Docker runtime lock bumped to 0.16.0; the local image matches the published release
 
 ## [0.16.0] - 2026-11-26
 ### Added
