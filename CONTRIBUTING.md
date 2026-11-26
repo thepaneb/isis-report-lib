@@ -38,6 +38,60 @@ knowing before you start:
   (credit preserved) or asks for a split. Open an issue first for anything
   beyond docs/config so we can agree on the path.
 
+## Maintainer: integrating a fork PR
+
+Fork PRs that change code, tests, CI or dependencies cannot upload the
+code-scanning SARIF (the token is read-only). Integrate them from a branch in
+this repository and **never use `--admin` to bypass the gate**.
+
+```bash
+# 1. Fetch the contributor's head and start from main
+git fetch origin pull/<N>/head:pr-<N>
+git switch -c integrate/pr-<N> origin/main
+
+# Tip: copy the author identity from the PR head
+git log -1 --format='%an <%ae>' pr-<N>
+
+# 2a. Preserve the original commits (author is kept)
+git cherry-pick <sha>...      # or: git rebase --onto origin/main <base> pr-<N>
+
+# 2b. If merge commits/conflicts make cherry-pick impractical, apply the diff
+#     and commit it with the original author:
+git diff --binary origin/main...pr-<N> | git apply
+git add -A
+git commit --author="Original Author <email>" -m "<original title>" \
+  -m "Supersedes #<N>."
+# Multiple authors: keep the primary author and add
+# `Co-authored-by: Name <email>` trailers.
+```
+
+```bash
+# 3. Push the integration branch and open the internal PR
+git push -u origin integrate/pr-<N>
+gh pr create --base main --head integrate/pr-<N> \
+  --title "<original title>" \
+  --body "Supersedes #<N>. Original author: @<user>. ..."
+
+# 4. After the full gate is green, merge with rebase (NOT squash)
+gh pr merge <internal> --rebase --delete-branch
+
+# 5. Close the fork PR and credit the author
+gh pr close <N> --comment "Integrated in #<internal> with the original authorship preserved."
+```
+
+Why rebase: a squash would make the maintainer the author of the final commit;
+a rebase keeps the contributor's commit author. The maintainer remains the
+committer and the internal PR opener.
+
+Integration checklist:
+
+- [ ] The integration branch lives in this repository, based on `main`.
+- [ ] `git show --format='%an <%ae>'` shows the contributor, not the maintainer.
+- [ ] The internal PR says `Supersedes #<N>` and `Original author: @<user>`.
+- [ ] The full CI/SARIF gate is green; there is no admin bypass.
+- [ ] The merge is **Rebase and merge**, not squash.
+- [ ] The original fork PR is closed with a link and credit.
+
 ## Development setup
 
 ```bash

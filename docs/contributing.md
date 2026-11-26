@@ -42,6 +42,23 @@ Pull requests against `main` are the contribution mechanism:
 > trusted); the maintainer integrates those from a same-repo branch. Open an
 > issue first for anything beyond docs/config.
 
+## Integrating fork PRs (maintainers)
+
+For a code/tests/CI/dependency fork PR, create an `integrate/pr-<N>` branch in
+this repository from `main`, apply the contributor's commits, and preserve the
+original author:
+
+- use `git cherry-pick` when the commits are clean, or `git commit --author=...`
+  when applying the diff/conflicts; use `Co-authored-by` for additional authors;
+- open an internal PR saying `Supersedes #<N>` and `Original author: @<user>`;
+- merge with **Rebase and merge**, never squash (squash would replace the
+  author with the maintainer);
+- close the original PR with a link and credit.
+
+The full command sequence and checklist are in
+[`CONTRIBUTING.md`](https://github.com/thepaneb/isis-report-lib/blob/main/CONTRIBUTING.md#maintainer-integrating-a-fork-pr).
+Never use `--admin` to bypass the code-scanning gate.
+
 ```bash
 pip install -e ".[dev]"
 python -m pytest tests -q -m "not browser"
