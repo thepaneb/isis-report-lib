@@ -64,16 +64,14 @@ extra only if demand appears; PAdES remains a non-goal.
 `Code-Review` and `Contributors` stay at 0 until a second reviewer or
 organization contributes; `Maintained` rises on its own 90 days after repo
 creation; `SAST` is 10. `CII-Best-Practices` is 5 (Passing); Silver (7) and Gold
-(10) are optional and Gold needs a second maintainer. `Signed-Releases` is 8
-after v0.14.0 and reaches 10 as new immutable releases replace v0.12.0 in the
-last-5 window.
+(10) are optional and Gold needs a second maintainer. `Signed-Releases` is **10**
+after v0.15.0: all five releases in the window are immutable and attested.
 
 `Branch-Protection` is 4. The remaining gaps — required approvers, stale-review
 dismissal, CODEOWNERS review and last-push approval — need a **second human
 reviewer**. Enabling them without one either deadlocks merges (self-approval is
 not a review) or is cosmetic, so the ruleset stays as is and the limit is
-accepted; revisit if a co-maintainer joins. The only passively movable check is
-`Signed-Releases`.
+accepted; revisit if a co-maintainer joins.
 
 ## Done (post-v0.13.0)
 
