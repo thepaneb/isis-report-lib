@@ -17,8 +17,8 @@ charts, in a single payload.
 [CSV](assets/gallery/board-pack.csv)
 
 The same payload drives every format: PDF and HTML keep the visual layout;
-XLSX and CSV flatten the sections into tables (one sheet per table, plus a
-summary). No browser is needed for XLSX/CSV/HTML.
+XLSX keeps each table plus a native chart for chart sections; CSV flattens
+sections into tables and summary lines. No browser is needed for XLSX/CSV/HTML.
 
 ## Account statement — hierarchy and running balance
 

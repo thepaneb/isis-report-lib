@@ -17,7 +17,7 @@ constraint, not by feature count.
 | **Outputs** | PDF, HTML, XLSX, CSV | PDF, PNG | PDF (+ bitmap via `renderPM`) | PDF |
 | **Nested records** | Built in (groups → sections/tables) | Manual | Manual | Manual |
 | **Tables + totals** | Built in (`aggregate`, crosstab) | Manual HTML | Platypus tables | Manual |
-| **Charts** | Inline SVG (bar/line/sparkline) | External/HTML | External | External |
+| **Charts** | Inline SVG (PDF/HTML); native Excel charts (XLSX) | External/HTML | External | External |
 | **Signing** | HMAC-SHA256 / Ed25519 seal | — | — | — |
 | **Runtime footprint** | Playwright + Chromium | Pango/fontconfig | Pure Python | Pure Python |
 

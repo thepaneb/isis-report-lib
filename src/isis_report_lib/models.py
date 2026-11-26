@@ -18,6 +18,8 @@ class MetaInfo(BaseModel):
     locale: str | None = None
     currency: str | None = None
     accent_color: str | None = None
+    logo: str | None = None
+    watermark: Any = None
     printed_at: Any = None
     summary_side: Any = None
     source_note: Any = None

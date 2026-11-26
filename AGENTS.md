@@ -26,6 +26,7 @@ src/isis_report_lib/
 ├── layout.py      # convert_layout, convert_data, infer_layout, is_template_format
 ├── toon.py        # ToonParser, parse_toon
 ├── formatting.py  # format_value (int/float/date/str masks)
+├── media.py       # data-URI image/watermark validation (no paths/URLs)
 ├── rendering.py   # arender_report_html / render_report_html
 ├── pdf.py         # Playwright pool (ensure_browser, get_pdf_from_html, close_browser)
 ├── service.py     # BaseReportService + TabularReportService (+prepare_report, sections)
@@ -72,6 +73,10 @@ saved/changed first. Close agent tabs when done.
   shuts down its own browser at the end via `close_owned_browser` (current loop only).
 - **`_run` with a running loop:** uses `ThreadPoolExecutor + asyncio.run` to avoid
   blocking (Jupyter). Do not simplify to a bare `asyncio.run`.
+- **Payload images are data URIs only:** `media.normalize_image_src` accepts
+  `data:image/png|jpeg|webp|gif;base64,...` (2 MiB decoded, magic-checked) and
+  rejects paths, URLs and SVG. Never read a file or fetch a URL from a report
+  payload; `meta.logo` and `image` sections go through the same gate.
 - **Quotas are operator-capped:** `DEFAULT_LIMITS`/the API `limits` argument is
   the security boundary; payload `meta.limits` may only tighten it. Never let a
   payload-provided limit become the authoritative one. HMAC keys are ≥32 bytes

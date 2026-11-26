@@ -26,6 +26,14 @@ def with_meta_defaults(meta: dict[str, Any]) -> dict[str, Any]:
         raise ValueError(f"Invalid meta.source_note (must be a non-empty string): {meta['source_note']!r}")
     if meta.get("summary_side") is not None and meta["summary_side"] not in ("top", "bottom"):
         raise ValueError(f"Invalid meta.summary_side (expected top|bottom): {meta['summary_side']!r}")
+    if meta.get("logo") is not None:
+        from isis_report_lib.media import normalize_image_src
+
+        meta["logo"] = normalize_image_src(meta["logo"], "meta.logo")
+    if meta.get("watermark") is not None:
+        from isis_report_lib.media import normalize_watermark
+
+        meta["watermark"] = normalize_watermark(meta["watermark"])
     if "limits" in meta and meta["limits"] is not None:
         meta["limits"] = _normalize_limits(meta["limits"])
     return meta
@@ -226,7 +234,7 @@ def _section_source(section: dict[str, Any]) -> str:
 
 
 def _prepare_sections(sections: list[dict[str, Any]], meta: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
-    """Build a composed document: table/text/kpi/chart sections sharing the report meta."""
+    """Build a composed document: table/text/kpi/chart/image/toc sections sharing the report meta."""
     from isis_report_lib.layout import build_report
 
     built: list[dict[str, Any]] = []
@@ -290,8 +298,51 @@ def _prepare_sections(sections: list[dict[str, Any]], meta: dict[str, Any]) -> t
 
             ct = build_crosstab(section.get("data", []), section)
             built.append({"type": "crosstab", "title": section.get("title"), "crosstab": ct})
+        elif stype == "image":
+            from isis_report_lib.media import normalize_image_src
+
+            src = normalize_image_src(section.get("src"), "image section src")
+            alt = section.get("alt", "")
+            caption = section.get("caption", "")
+            if alt is None:
+                alt = ""
+            if caption is None:
+                caption = ""
+            if not isinstance(alt, str):
+                raise ValueError(f"Invalid image section alt (must be a string): {alt!r}")
+            if not isinstance(caption, str):
+                raise ValueError(f"Invalid image section caption (must be a string): {caption!r}")
+            width = section.get("width")
+            if width is not None and (isinstance(width, bool) or not isinstance(width, int) or not 16 <= width <= 1600):
+                raise ValueError(f"Invalid image section width (must be an integer 16..1600): {width!r}")
+            align = section.get("align", "center")
+            if align not in ("left", "center", "right"):
+                raise ValueError(f"Invalid image section align (expected left|center|right): {align!r}")
+            built.append(
+                {
+                    "type": "image",
+                    "title": section.get("title"),
+                    "src": src,
+                    "alt": alt,
+                    "caption": caption,
+                    "width": width,
+                    "align": align,
+                }
+            )
+        elif stype == "toc":
+            built.append({"type": "toc", "title": section.get("title"), "items": []})
         else:
-            raise ValueError(f"Unknown section type: {stype!r} (expected table|text|kpi|chart|crosstab)")
+            raise ValueError(f"Unknown section type: {stype!r} (expected table|text|kpi|chart|crosstab|image|toc)")
+    anchors: list[dict[str, str]] = []
+    anchor_index = 0
+    for entry in built:
+        if entry.get("title") and entry.get("type") != "toc":
+            anchor_index += 1
+            entry["anchor"] = f"section-{anchor_index}"
+            anchors.append({"title": entry["title"], "anchor": entry["anchor"]})
+    for entry in built:
+        if entry.get("type") == "toc":
+            entry["items"] = anchors
     for entry, section in zip(built, sections, strict=True):
         if not isinstance(section, dict):
             continue
@@ -405,5 +456,8 @@ class TabularReportService(BaseReportService):
             raise ValueError(f"Invalid page orientation: {page.get('orientation')!r}")
         margins = page.get("margins") or {}
         options["margin"] = {key: margins.get(key, DEFAULT_MARGIN[key]) for key in ("top", "bottom", "left", "right")}
+        # PDF bookmarks from the document headings. Explicit pdf_options win,
+        # so ``{"outline": False}`` opts out.
+        options.setdefault("outline", True)
         options.update(self._pdf_options)
         return options

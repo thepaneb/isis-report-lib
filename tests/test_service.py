@@ -318,6 +318,30 @@ async def test_execute_forwards_pdf_accessibility_options():
         assert kwargs["prefer_css_page_size"] is True
 
 
+async def test_execute_enables_pdf_outline_by_default():
+    service = TabularReportService()
+    with (
+        patch("isis_report_lib.rendering.arender_report_html", new_callable=AsyncMock) as mock_render,
+        patch("isis_report_lib.pdf.get_pdf_from_html", new_callable=AsyncMock) as mock_pdf,
+    ):
+        mock_render.return_value = "<html>OK</html>"
+        mock_pdf.return_value = b"%PDF-1.4"
+        await service.execute({"meta": {"title": "T"}, "data": []})
+        assert mock_pdf.call_args.kwargs["outline"] is True
+
+
+async def test_execute_pdf_outline_can_be_disabled():
+    service = TabularReportService(pdf_options={"outline": False})
+    with (
+        patch("isis_report_lib.rendering.arender_report_html", new_callable=AsyncMock) as mock_render,
+        patch("isis_report_lib.pdf.get_pdf_from_html", new_callable=AsyncMock) as mock_pdf,
+    ):
+        mock_render.return_value = "<html>OK</html>"
+        mock_pdf.return_value = b"%PDF-1.4"
+        await service.execute({"meta": {"title": "T"}, "data": []})
+        assert mock_pdf.call_args.kwargs["outline"] is False
+
+
 async def test_agenerate_many_keeps_input_order():
     from isis_report_lib import agenerate_many
 
@@ -463,6 +487,30 @@ def test_sections_build_and_render():
     assert "Pen" in html
     assert "42" in html
     assert "<svg" in html and "Trend" in html
+
+
+def test_sections_toc_links_titled_sections():
+    payload = {
+        "meta": {"title": "T"},
+        "sections": [
+            {"type": "toc", "title": "Contents"},
+            {"type": "text", "title": "Intro", "paragraphs": ["Hi"]},
+            {
+                "type": "table",
+                "title": "Sales",
+                "layout": {"product": {"label": "Product", "format_mask": "str", "alignment": "left"}},
+                "data": [{"product": "Pen"}],
+            },
+        ],
+    }
+    html = render_html(payload)
+    assert 'id="section-1"' in html
+    assert 'id="section-2"' in html
+    assert 'href="#section-1"' in html
+    assert 'href="#section-2"' in html
+    assert ">Intro</a>" in html and ">Sales</a>" in html
+    # The TOC section itself is not an entry.
+    assert html.count('href="#section-') == 2
 
 
 async def test_sections_generate_pdf_uses_sections_template():

@@ -160,7 +160,7 @@ Render HTML (sync) from `.toon` text.
 ### `MetaInfo`
 
 ```python
-class MetaInfo(*, title: str | None = None, sub_title: str | None = None, company: str | None = None, mode: str = 'exact', page: dict[str, Any] | None = None, locale: str | None = None, currency: str | None = None, accent_color: str | None = None, printed_at: Any = None, summary_side: Any = None, source_note: Any = None, empty_text: Any = None, limits: Any = None) -> None
+class MetaInfo(*, title: str | None = None, sub_title: str | None = None, company: str | None = None, mode: str = 'exact', page: dict[str, Any] | None = None, locale: str | None = None, currency: str | None = None, accent_color: str | None = None, logo: str | None = None, watermark: Any = None, printed_at: Any = None, summary_side: Any = None, source_note: Any = None, empty_text: Any = None, limits: Any = None) -> None
 ```
 
 Report metadata.

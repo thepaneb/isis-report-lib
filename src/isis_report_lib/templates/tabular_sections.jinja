@@ -98,8 +98,7 @@
         {% endfor %}
     </section>
 {% endmacro %}
-{% macro render_crosstab(ct, zip, fmt, cellstyle) %}
-    {% if ct.has_data %}
+{% macro render_crosstab(ct, zip, fmt, cellstyle) %}    {% if ct.has_data %}
     <table class="report">
         <thead>
             <tr>
@@ -139,5 +138,22 @@
     </table>
     {% elif ct.empty_text %}
     <p class="empty-table">{{ct.empty_text}}</p>
+    {% endif %}
+{% endmacro %}
+{% macro render_image(src, alt, width, align, caption) %}
+    <figure class="report-image" style="text-align: {{ align }};">
+        <img src="{{ src }}" alt="{{ alt }}"{% if width %} width="{{ width }}"{% endif %}/>
+        {% if caption %}<figcaption>{{ caption }}</figcaption>{% endif %}
+    </figure>
+{% endmacro %}
+{% macro render_toc(items) %}
+    {% if items %}
+    <nav class="toc">
+        <ul>
+            {% for item in items %}
+                <li><a href="#{{ item.anchor }}">{{ item.title }}</a></li>
+            {% endfor %}
+        </ul>
+    </nav>
     {% endif %}
 {% endmacro %}

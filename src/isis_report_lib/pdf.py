@@ -213,13 +213,14 @@ async def get_pdf_from_html(html: str, allowed_hosts: list[str] | tuple[str, ...
 
     Accepted kwargs: ``format``, ``landscape``, ``display_header_footer``,
     ``header_template``, ``footer_template``, ``margin``, ``outline``
-    (clickable PDF outline), ``tagged`` (accessible tagged PDF),
-    ``prefer_css_page_size`` (let CSS ``@page`` win over ``format``).
+    (clickable PDF outline; implies ``tagged``), ``tagged`` (accessible tagged
+    PDF), ``prefer_css_page_size`` (let CSS ``@page`` win over ``format``).
 
     ``allowed_hosts`` allow-lists outbound http(s) hosts (bare hostnames);
     ``None`` (default) denies all network traffic at render time.
     """
     page = await new_page(allowed_hosts)
+    outline = kwargs.get("outline", False)
     try:
         await page.set_content(html)
         return await page.pdf(
@@ -229,8 +230,9 @@ async def get_pdf_from_html(html: str, allowed_hosts: list[str] | tuple[str, ...
             header_template=kwargs.get("header_template", ""),
             footer_template=kwargs.get("footer_template", DEFAULT_FOOTER),
             margin=kwargs.get("margin", DEFAULT_MARGIN),
-            outline=kwargs.get("outline", False),
-            tagged=kwargs.get("tagged", False),
+            outline=outline,
+            # Chromium only emits the outline for a tagged document.
+            tagged=kwargs.get("tagged", outline),
             prefer_css_page_size=kwargs.get("prefer_css_page_size", False),
         )
     finally:

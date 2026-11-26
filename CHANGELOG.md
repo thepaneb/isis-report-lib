@@ -8,6 +8,13 @@ draft GitHub Release, uploads to PyPI via trusted publishing and publishes the
 release last.
 
 ## [Unreleased]
+### Added
+- `image` sections (data-URI PNG/JPEG/WebP/GIF, `alt`/`caption`/`width`/`align`), `meta.logo` and `meta.watermark` (string or `{text, opacity, color, angle, size}`); images are payload-only, capped at 2 MiB decoded, and SVG is rejected
+- `toc` sections with internal links to every titled section
+- Native Excel charts for `chart` sections (`bar`/`line`/`pie`/`donut`, including horizontal bars)
+- PDF outline/bookmarks generated from headings by default (implies a tagged PDF; `pdf_options={"outline": False}` opts out)
+### Changed
+- XLSX chart sections keep the label/value data table and add a native Excel chart
 
 ## [0.14.0] - 2026-11-25
 ### Added

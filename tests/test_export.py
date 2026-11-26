@@ -398,17 +398,138 @@ def test_collect_tables_with_sections():
     assert by_key["Sales"].rows == [{"product": "Pen"}]
     assert by_key["Intro"].rows == [{"text": "Hello."}]
     assert by_key["Totals"].rows == [{"label": "Orders", "value": 42}]
+    assert by_key["Trend"].chart == {"kind": "bar", "title": "Trend", "color": None, "orientation": None}
 
 
 def test_generate_xlsx_from_sections():
     import io
+    import zipfile
 
     from openpyxl import load_workbook
 
     from isis_report_lib import generate_xlsx
 
-    wb = load_workbook(io.BytesIO(generate_xlsx(SECTIONS_EXPORT_PAYLOAD)))
+    raw = generate_xlsx(SECTIONS_EXPORT_PAYLOAD)
+    wb = load_workbook(io.BytesIO(raw))
     assert wb.sheetnames == ["Intro", "Sales", "Totals", "Trend"]
+    with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+        assert any(name.startswith("xl/charts/chart") for name in archive.namelist())
+
+
+@pytest.mark.parametrize(
+    ("kind", "chart_class"),
+    [("bar", "BarChart"), ("line", "LineChart"), ("pie", "PieChart"), ("donut", "DoughnutChart")],
+)
+def test_add_native_chart_matches_kind(kind: str, chart_class: str) -> None:
+    import openpyxl.chart as charts
+    from openpyxl import Workbook
+
+    from isis_report_lib.export import Column, Table, _add_native_chart
+
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Label", "Value"])
+    ws.append(["Jan", 10])
+    ws.append(["Feb", 20])
+    table = Table(
+        key="Trend",
+        columns=[Column("label", "Label"), Column("value", "Value")],
+        rows=[{"label": "Jan", "value": 10}, {"label": "Feb", "value": 20}],
+        chart={"kind": kind, "title": "Trend"},
+    )
+    _add_native_chart(ws, 1, table)
+    assert len(ws._charts) == 1
+    assert isinstance(ws._charts[0], getattr(charts, chart_class))
+
+
+def test_add_native_chart_horizontal_bar() -> None:
+    from openpyxl import Workbook
+
+    from isis_report_lib.export import Column, Table, _add_native_chart
+
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Label", "Value"])
+    ws.append(["Jan", 10])
+    table = Table(
+        key="Trend",
+        columns=[Column("label", "Label"), Column("value", "Value")],
+        rows=[{"label": "Jan", "value": 10}],
+        chart={"kind": "bar", "orientation": "horizontal"},
+    )
+    _add_native_chart(ws, 1, table)
+    assert ws._charts[0].type == "bar"
+
+
+def test_add_native_chart_applies_series_color() -> None:
+    from openpyxl import Workbook
+
+    from isis_report_lib.export import Column, Table, _add_native_chart
+
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Label", "Value"])
+    ws.append(["Jan", 10])
+    table = Table(
+        key="Trend",
+        columns=[Column("label", "Label"), Column("value", "Value")],
+        rows=[{"label": "Jan", "value": 10}],
+        chart={"kind": "bar", "color": "#1B7A3D"},
+    )
+    _add_native_chart(ws, 1, table)
+    assert ws._charts[0].series[0].graphicalProperties.solidFill.srgbClr == "FF1B7A3D"
+
+
+def test_add_native_chart_applies_line_color() -> None:
+    from openpyxl import Workbook
+
+    from isis_report_lib.export import Column, Table, _add_native_chart
+
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Label", "Value"])
+    ws.append(["Jan", 10])
+    table = Table(
+        key="Trend",
+        columns=[Column("label", "Label"), Column("value", "Value")],
+        rows=[{"label": "Jan", "value": 10}],
+        chart={"kind": "line", "color": "#1B7A3D"},
+    )
+    _add_native_chart(ws, 1, table)
+    assert ws._charts[0].series[0].graphicalProperties.line.solidFill.srgbClr == "FF1B7A3D"
+
+
+def test_add_native_chart_is_a_noop_without_data_or_chart_spec() -> None:
+    from openpyxl import Workbook
+
+    from isis_report_lib.export import Column, Table, _add_native_chart
+
+    wb = Workbook()
+    ws = wb.active
+    columns = [Column("label", "Label"), Column("value", "Value")]
+    _add_native_chart(ws, 1, Table(key="A", columns=columns, rows=[]))
+    _add_native_chart(ws, 1, Table(key="B", columns=columns, rows=[{"label": "x", "value": 1}]))
+    assert ws._charts == []
+
+
+def test_collect_tables_with_toc_and_image_sections() -> None:
+    png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+    payload = {
+        "meta": {"title": "T"},
+        "sections": [
+            {"type": "toc", "title": "Contents"},
+            {"type": "text", "title": "Intro", "paragraphs": ["Hi"]},
+            {"type": "image", "title": "Logo", "src": png, "alt": "ACME logo"},
+        ],
+    }
+    dataset, layout, _meta = prepare_report(payload)
+    tables, _summaries = collect_tables(dataset, layout)
+    by_key = {table.key: table for table in tables}
+    assert by_key["Contents"].rows == [{"section": "Intro"}, {"section": "Logo"}]
+    assert by_key["Logo"].rows == [{"image": "ACME logo"}]
+    text = generate_csv(payload)
+    assert "# table: Contents" in text and "Intro" in text
+    assert "# table: Logo" in text and "ACME logo" in text
 
 
 def test_generate_csv_from_sections():

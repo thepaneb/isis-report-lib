@@ -44,6 +44,7 @@ class Table:
     total_rows: set[int] = field(default_factory=set)
     note: str = ""
     notes: list[tuple[str, str]] = field(default_factory=list)
+    chart: dict[str, Any] | None = None
 
 
 def collect_tables(
@@ -176,9 +177,34 @@ def _collect(
                     key=key,
                     columns=[Column(key="label", label="Label"), Column(key="value", label="Value")],
                     rows=rows,
+                    chart={
+                        "kind": spec.get("kind", "bar"),
+                        "title": key,
+                        "color": spec.get("color"),
+                        "orientation": spec.get("orientation"),
+                    },
                 )
                 _attach_notes(table, _section_notes(section))
                 by_key[key] = table
+        elif stype == "image":
+            label = section.get("alt") or section.get("caption") or "image"
+            key = section.get("title") or "image"
+            suffix, n = key, 2
+            while suffix in by_key:
+                suffix, n = f"{key}_{n}", n + 1
+            table = Table(key=suffix, columns=[Column(key="image", label="Image")], rows=[{"image": label}])
+            _attach_notes(table, _section_notes(section))
+            by_key[suffix] = table
+        elif stype == "toc":
+            rows = [{"section": item.get("title")} for item in section.get("items", []) if isinstance(item, dict) and item.get("title")]
+            if rows:
+                key = section.get("title") or "contents"
+                suffix, n = key, 2
+                while suffix in by_key:
+                    suffix, n = f"{key}_{n}", n + 1
+                table = Table(key=suffix, columns=[Column(key="section", label="Section")], rows=rows)
+                _attach_notes(table, _section_notes(section))
+                by_key[suffix] = table
         elif stype == "crosstab":
             from isis_report_lib.crosstab import build_crosstab, crosstab_table
 
@@ -370,6 +396,42 @@ def _apply_data_bars(ws: Any, header_row: int, table: Table) -> None:
         )
 
 
+def _add_native_chart(ws: Any, header_row: int, table: Table) -> None:
+    """Add a native Excel chart next to a chart section's data (openpyxl)."""
+    from openpyxl.chart import BarChart, DoughnutChart, LineChart, PieChart, Reference
+
+    if not table.chart or not table.rows:
+        return
+    kind = table.chart.get("kind", "bar")
+    data = Reference(ws, min_col=2, min_row=header_row, max_row=header_row + len(table.rows))
+    categories = Reference(ws, min_col=1, min_row=header_row + 1, max_row=header_row + len(table.rows))
+    if kind == "line":
+        chart: Any = LineChart()
+    elif kind == "pie":
+        chart = PieChart()
+    elif kind == "donut":
+        chart = DoughnutChart()
+    else:
+        chart = BarChart()
+        if table.chart.get("orientation") == "horizontal":
+            chart.type = "bar"
+    chart.add_data(data, titles_from_data=True)
+    chart.set_categories(categories)
+    chart.title = str(table.chart.get("title") or table.key)
+    chart.height = 8
+    chart.width = 16
+    chart.style = 10
+    color = table.chart.get("color")
+    if isinstance(color, str) and len(color.lstrip("#")) in (3, 6) and kind in ("bar", "line"):
+        for series in chart.series:
+            if kind == "line":
+                series.graphicalProperties.line.solidFill = _argb(color)
+                series.graphicalProperties.line.width = 22000
+            else:
+                series.graphicalProperties.solidFill = _argb(color)
+    ws.add_chart(chart, f"D{header_row}")
+
+
 def _sheet_name(base: str, used: set[str]) -> str:
     """Sanitize an Excel sheet name (≤31 chars, no \\ / * ? : [ ]) and dedupe."""
     clean = "".join(c if c not in "\\/*?:[]" else "-" for c in base).strip() or "Sheet"
@@ -497,6 +559,7 @@ def build_workbook(
         for col, width in enumerate(widths, start=1):
             ws.column_dimensions[ws.cell(row=header_row, column=col).column_letter].width = min(max(width + 2, 10), 50)
         _apply_data_bars(ws, header_row, table)
+        _add_native_chart(ws, header_row, table)
 
     if summaries:
         ws = new_sheet("Summary")

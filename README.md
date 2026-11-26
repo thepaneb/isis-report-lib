@@ -147,7 +147,7 @@ generate_pdf(from_json("payload.json"))              # list -> data; full payloa
 | Format | API | Notes |
 | --- | --- | --- |
 | PDF | `generate_pdf` / `agenerate_pdf` | Needs Chromium (`playwright install chromium`) |
-| XLSX | `generate_xlsx` / `agenerate_xlsx` | One sheet per detail table (context columns repeated), bold totals, `Summary` sheet. Needs `pip install isis-report-lib[xlsx]` |
+| XLSX | `generate_xlsx` / `agenerate_xlsx` | One sheet per detail table (context columns repeated), bold totals, `Summary` sheet, native charts for `chart` sections. Needs `pip install isis-report-lib[xlsx]` |
 | CSV | `generate_csv` / `agenerate_csv` | Locale-formatted values, `# table:` / `# summary` sections, `--delimiter` (`;` for Excel PT), `--bom` (UTF-8 BOM for Excel) |
 | HTML | `render_html` / `arender_html` | Intermediate output, no browser needed |
 
@@ -174,6 +174,8 @@ generate_pdf(
 
 Via CLI: `--page-format`, `--header-template FILE`, `--footer-template FILE`. The report footer shows `meta.printed_at`, auto-filled with the current timestamp when absent. Footer date/page strings follow `meta.locale` (`pt` → "Impresso em / Página X de Y").
 
+PDF bookmarks are generated from the document headings by default (`outline=True`, which also produces a tagged PDF). Pass `pdf_options={"outline": False}` to opt out.
+
 Full example in `examples/`. Note: the sync API opens/closes the browser per call (no leaked processes); the async API reuses the shared pool.
 
 ## Composed documents (sections)
@@ -184,19 +186,23 @@ For free-form reports, pass `sections` instead of `data` + `layout`:
 payload = {
     "meta": {"title": "Board Pack", "locale": "en-US"},
     "sections": [
+        {"type": "toc", "title": "Contents"},
         {"type": "text", "title": "Intro", "paragraphs": ["Hello.", "World."]},
         {"type": "table", "title": "Sales", "layout": {...}, "data": [...]},
         {"type": "kpi", "title": "Totals", "items": [{"label": "Orders", "value": 42, "format_mask": "int"}]},
         {"type": "chart", "title": "Trend", "chart": {"kind": "bar", "labels": ["Jan", "Feb"], "values": [10, 20]}},
+        {"type": "image", "title": "Logo", "src": "data:image/png;base64,...", "alt": "Logo", "width": 160},
         {"type": "crosstab", "title": "Sales by region × quarter",
          "data": [...], "rows": "region", "columns": "quarter",
          "measure": "total", "function": "sum"},   # buckets × measure, totals included
     ],
 }
-generate_pdf(payload)   # HTML sections.jinja; XLSX/CSV flatten each table/text/kpi/chart/crosstab section
+generate_pdf(payload)   # HTML/PDF sections.jinja; XLSX gets native charts, CSV flattens the sections
 ```
 
 A running balance column is just a field with `"running_balance": "<source field>"` — cumulative sums are computed in row order (e.g. bank statements).
+
+`toc` lists every titled section with internal links (the PDF also gets bookmarks). `image` embeds a data-URI image (PNG/JPEG/WebP/GIF, ≤2 MiB) with `alt`, `caption`, `width` and `align`; paths and URLs are never read from the payload. `meta.logo` replaces the header icon and `meta.watermark` stamps every printed page (see the payload table).
 
 ## Custom templates
 
@@ -222,11 +228,32 @@ payload = {"meta": {"title": "Sales Order", "accent_color": "#1B7A3D"}, ...}
 
 It overrides the `--brand-color` CSS variable. More masks: `str` · `int` · `float` (pt-BR) · `date` · `percent` · `currency` (R$) · `bool`.
 
+## Logo, watermark and image sections
+
+Brand a report without a custom template:
+
+```python
+payload = {
+    "meta": {
+        "title": "Statement",
+        "company": "ACME",
+        "logo": "data:image/png;base64,...",                  # replaces the header icon
+        "watermark": {"text": "DRAFT", "opacity": 0.08, "color": "#0A2F46", "angle": -35, "size": 110},
+    },
+    "sections": [
+        {"type": "image", "title": "Signature", "src": "data:image/png;base64,...",
+         "alt": "Authorized signature", "width": 180, "align": "right", "caption": "Finance"},
+    ],
+}
+```
+
+Images are **payload data only**: `data:image/png|jpeg|webp|gif;base64,...` up to 2 MiB decoded. The library never reads a path or fetches a URL from a payload; SVG is rejected. `meta.logo` also switches the header text to `meta.company` when set. A watermark can be a plain string or `{text, opacity, color, angle, size}` and is repeated on every printed page. `toc` sections list every titled section with internal links.
+
 ## Payload
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `meta` | object | yes | `title`, `sub_title`, `mode` (`"exact"`/`"gray"`), `company`, `locale` (`"pt-BR"`, `"en-US"`…), `currency` (override, e.g. `"EUR"`), `accent_color`, `printed_at` (auto-filled) |
+| `meta` | object | yes | `title`, `sub_title`, `mode` (`"exact"`/`"gray"`), `company`, `locale` (`"pt-BR"`, `"en-US"`…), `currency` (override, e.g. `"EUR"`), `accent_color`, `logo` (data-URI image), `watermark` (string or `{text, opacity, color, angle, size}`), `printed_at` (auto-filled) |
 | `layout` | object | no | hierarchical field definition; omit to infer from data |
 | `data` | array | yes | raw records or template format (`{"fields": ..., "groups": ...}`) |
 
@@ -314,7 +341,7 @@ See `examples/sales_order.toon`.
 | `generate_xlsx(payload, limits?) -> bytes` / `agenerate_xlsx` / `..._from_toon` | .xlsx workbook, no browser (needs `.[xlsx]` extra) |
 | `generate_csv(payload, delimiter=",", bom=False, limits?) -> str` / `agenerate_csv` / `..._from_toon` | CSV text, no browser (`bom=True` for Excel) |
 | `render_html(payload, inline_css=False, limits?)` / `arender_html` / `render_html_from_toon` | intermediate HTML (no browser); `inline_css=True` for email clients (needs `.[email]` extra; resolves CSS variables, sets `lang` from `meta.locale`) |
-| Sections payload (`meta` + `sections: [...]`) | composed documents: `table` (full tabular engine), `text`, `kpi`, `chart` (`bar`/`line` inline SVG) |
+| Sections payload (`meta` + `sections: [...]`) | composed documents: `table` (full tabular engine), `text`, `kpi`, `chart` (`bar`/`line`/`pie`/`donut` inline SVG), `image` (data URI), `toc` (linked contents) |
 | `ToonParser().parse(text)` / `parse_toon(text)` | `.toon` -> dict |
 | `from_dataframe(df, ...)` / `from_csv(...)` / `from_json(...)` | payload builders (needs `.[pandas]` for DataFrame) |
 | `payload_schema()` | JSON Schema of the payload (`isis-report schema`) |

@@ -165,6 +165,9 @@ keys: accepted from API/CLI arguments only, never from the payload.
   back in. Data URIs and other non-network schemes always pass.
 - Spreadsheet safety: text cells starting with `= + - @` (or tab/CR) are
   `'`-prefixed in CSV/XLSX; numeric values are never prefixed.
+- Payload images are data URIs only (`data:image/png|jpeg|webp|gif;base64,...`,
+  2 MiB decoded, magic-checked). Paths, URLs and SVG are rejected; `meta.logo`
+  and `image` sections never reach the filesystem or the network.
 - `verify_pdf` is total: malformed blocks/keys/algorithms yield `invalid`
   verdicts, never exceptions.
 - Quotas: the operator cap (`DEFAULT_LIMITS`, API `limits`, CLI

@@ -42,6 +42,10 @@ def _screenshot(html: str, path: Path) -> None:
 def _write(name: str, data: bytes | str) -> None:
     path = OUT / name
     if isinstance(data, str):
+        if name.endswith(".html"):
+            # Jinja control lines leave indentation-only lines; keep the
+            # committed artifact clean for `git diff --check`.
+            data = "\n".join(line.rstrip() for line in data.splitlines()) + "\n"
         path.write_text(data, encoding="utf-8", newline="\n")
     else:
         path.write_bytes(data)

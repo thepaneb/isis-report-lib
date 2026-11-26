@@ -17,6 +17,8 @@ From nested records to a polished PDF. The document adapts to the data instead o
 - **Hierarchical layouts** — nested groups become sections; flat child lists render as tables.
 - **JSON or `.toon`** — pass a dict/`ReportPayload` or a compact indented `.toon` document.
 - **Jinja2 templates** — bundled in the package; point `template_dir` at your own directory to override the layout or reuse its macros.
+- **Images, watermark and TOC** — data-URI images, optional logo/watermark and linked contents; PDFs also get bookmarks from the headings.
+- **Four outputs** — PDF, XLSX (with native charts), CSV and HTML, from the same payload.
 - **Playwright PDF** — Chromium renders the final document. Sync API opens/closes the browser per call; async API reuses a shared pool.
 - **Sync and async** — `generate_pdf`, `agenerate_pdf` and `render_html` for the intermediate HTML (no browser needed).
 - **Locale-aware masks** — `str`, `int`, `float`, `date`, `percent`, `currency` and `bool` via Babel/CLDR.

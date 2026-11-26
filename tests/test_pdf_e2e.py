@@ -66,6 +66,28 @@ async def test_agenerate_pdf_reuses_shared_browser():
 
 
 @needs_chromium
+async def test_pdf_with_logo_watermark_toc_and_image():
+    png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+    payload = {
+        "meta": {"title": "T", "company": "ACME", "logo": png, "watermark": {"text": "DRAFT", "opacity": 0.1}},
+        "sections": [
+            {"type": "toc", "title": "Contents"},
+            {"type": "text", "title": "Intro", "paragraphs": ["Hello."]},
+            {"type": "image", "title": "Logo", "src": png, "alt": "ACME logo", "width": 80},
+            {
+                "type": "table",
+                "title": "Sales",
+                "layout": {"product": {"label": "Product", "format_mask": "str", "alignment": "left"}},
+                "data": [{"product": "Pen"}],
+            },
+        ],
+    }
+    pdf = await agenerate_pdf(payload)
+    assert pdf.startswith(b"%PDF")
+    assert b"/Outlines" in pdf
+
+
+@needs_chromium
 async def test_agenerate_many_e2e():
     from isis_report_lib import agenerate_many
 

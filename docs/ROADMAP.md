@@ -13,7 +13,8 @@ otherwise.
 **Survey (2026-11-25):** the library is feature-rich and the hardening work is
 done; the constraint is adoption, not surface area. The order below reflects
 that. Completed in the same pass: output gallery, comparison page, generated
-API reference and the docs drift fixes (see [Done](#done-2026-11-25)).
+API reference and the docs drift fixes (see [Done](#done-2026-11-25)); the 0.15
+visible features landed on 2026-11-26 (see [Done](#done-2026-11-26)).
 
 ### Adoption
 - **Demo and distribution** — 5-minute demo repo, a GitHub Action/Docker image
@@ -21,14 +22,6 @@ API reference and the docs drift fixes (see [Done](#done-2026-11-25)).
   Python Weekly and awesome lists.
 - **Contribution surface** — issue/PR templates, Discussions and 3–5
   `good first issue`s (the repo currently has no open issues).
-
-### 0.15 — visible features
-- **Image/logo section + `meta.watermark`** for invoices, letterheads and
-  draft/confidential marks.
-- **Native XLSX charts** — chart sections currently flatten to label/value
-  tables; `openpyxl` can emit real bar/line charts.
-- **PDF outline/bookmarks + TOC** for long reports (post-process with
-  `pypdf`; Chromium does not expose an outline API).
 
 ### 1.0 — packaging and contract
 - **Playwright as an optional `[pdf]` extra** so HTML/XLSX/CSV users do not
@@ -42,6 +35,17 @@ API reference and the docs drift fixes (see [Done](#done-2026-11-25)).
 Hypothesis property tests + mutation testing; RTL (`meta.direction`);
 Arrow/Polars/DuckDB/DB-API adapters; PT-BR quickstart. PDF/A stays an optional
 extra only if demand appears; PAdES remains a non-goal.
+
+## Done (2026-11-26)
+
+- **Media and contents** — `image` sections (data-URI PNG/JPEG/WebP/GIF with
+  `alt`/`caption`/`width`/`align`), `meta.logo`, `meta.watermark` (string or
+  object) and `toc` sections with internal links. Images are payload-only
+  (2 MiB decoded max; SVG rejected); the TOC is link-based, not page-numbered.
+- **Native XLSX charts** — chart sections keep the label/value table and gain a
+  native bar/line/pie/donut chart, including horizontal bars.
+- **PDF outline** — bookmarks from the headings by default; the outline
+  implies a tagged PDF and `pdf_options={"outline": False}` opts out.
 
 ## Done (2026-11-25)
 

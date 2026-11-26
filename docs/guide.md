@@ -117,8 +117,36 @@ payload = {
 generate_pdf(payload)
 ```
 
-A running balance is just a field with `"running_balance": "<source field>"` —
-cumulative sums computed in row order (e.g. bank statements).
+A running balance is just a field with `"running_balance": "<source field>"` -
+cumulative sums computed in row order (e.g. bank statements). XLSX keeps each
+chart's data and adds a native Excel chart (`bar`/`line`/`pie`/`donut`); CSV
+flattens the chart to label/value rows.
+
+### Images, watermark and contents
+
+Images are payload data, never paths or URLs: pass a
+`data:image/png|jpeg|webp|gif;base64,...` URI (2 MiB decoded max; SVG is
+rejected). Use `meta.logo` for the header icon, an `image` section for figures,
+and `meta.watermark` for a repeated print mark:
+
+```python
+payload = {
+    "meta": {
+        "title": "Statement",
+        "company": "ACME",
+        "logo": "data:image/png;base64,...",
+        "watermark": {"text": "DRAFT", "opacity": 0.08, "color": "#0A2F46", "angle": -35, "size": 110},
+    },
+    "sections": [
+        {"type": "toc", "title": "Contents"},
+        {"type": "image", "src": "data:image/png;base64,...",
+         "alt": "Authorized signature", "width": 180, "align": "right"},
+    ],
+}
+```
+
+A `toc` section links every titled section; PDFs also get bookmarks from the
+headings (`pdf_options={"outline": False}` opts out).
 
 ## Signing reports
 

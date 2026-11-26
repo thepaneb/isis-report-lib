@@ -1,12 +1,12 @@
 {% extends 'base.jinja' %}
-{% from 'tabular_sections.jinja' import render_crosstab, render_divider, render_group, render_kpi, render_summary, render_text %}
+{% from 'tabular_sections.jinja' import render_crosstab, render_divider, render_group, render_image, render_kpi, render_summary, render_text, render_toc %}
 {% block title %}{{meta.title}}{% endblock %}
 {% block mode %}{{meta.mode}}{% endblock %}
 {% block subtitle %}{{meta.sub_title}}{% endblock %}
 {% block printed_at %}{{meta.printed_at}}{% endblock %}
 {% block content %}
     {% for section in dataset.sections %}
-        {% if section.title %}<h2 class="section-title">{{section.title}}</h2>{% endif %}
+        {% if section.title %}<h2 class="section-title"{% if section.anchor %} id="{{ section.anchor }}"{% endif %}>{{section.title}}</h2>{% endif %}
         {% if section.type == "table" %}
             {% if meta.summary_side == "top" and section.dataset.summary and section.layout.summary %}
                 {{render_summary(section.dataset.summary, section.layout.summary, zip, fmt, cellstyle)}}
@@ -27,6 +27,10 @@
             {{render_kpi(section['items'], fmt)}}
         {% elif section.type == "chart" %}
             <div class="chart">{{section.svg}}</div>
+        {% elif section.type == "image" %}
+            {{render_image(section.src, section.alt, section.width, section.align, section.caption)}}
+        {% elif section.type == "toc" %}
+            {{render_toc(section['items'])}}
         {% endif %}
         {% if section.footnotes %}
             <ol class="footnotes">
