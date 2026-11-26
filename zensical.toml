@@ -12,6 +12,7 @@ repo_name = "thepaneb/isis-report-lib"
 
 nav = [
   { "Home" = "index.md" },
+  { "Guia rápido (PT-BR)" = "pt-br/quickstart.md" },
   { "User guide" = "guide.md" },
   { "Gallery" = "gallery.md" },
   { "Comparison" = "comparison.md" },
