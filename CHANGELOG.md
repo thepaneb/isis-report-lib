@@ -8,6 +8,8 @@ draft GitHub Release, uploads to PyPI via trusted publishing and publishes the
 release last.
 
 ## [Unreleased]
+### Changed
+- Dockerfile pins the Python base image by digest and installs the runtime from a hash-pinned `docker/requirements.txt`
 
 ## [0.15.1] - 2026-11-26
 ### Added

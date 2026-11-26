@@ -126,8 +126,8 @@ docker build -t isis-report .
 docker run --rm -v "$PWD:/work" isis-report generate examples/sales_order.toon -o report.pdf
 ```
 
-Pin another release with
-`docker build --build-arg ISIS_REPORT_VERSION=<version> -t isis-report .`.
+The image is locked to the release in `docker/requirements.in` (hash-pinned);
+for a new release, bump that file and run `bash scripts/lock-requirements.sh`.
 The image runs as UID 1000; on Linux, add `--user "$(id -u):$(id -g)"` to the
 `docker run` command if your host user has a different UID.
 

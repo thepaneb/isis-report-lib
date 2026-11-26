@@ -28,5 +28,6 @@ for name in ci audit publish guarddog sbom fuzz; do
 done
 
 compile "docs/requirements-docs.in" "docs/requirements-docs.txt"
+compile "docker/requirements.in" "docker/requirements.txt"
 
 echo "Done. Review the diff, then commit."
