@@ -11,9 +11,11 @@ release last.
 
 ## [0.15.1] - 2026-11-26
 ### Added
-- Composite GitHub Action (`.github/actions/render`) that installs a pinned release and skips Chromium for non-PDF outputs, plus an example workflow (`examples/github-action.yml`)
+- Composite GitHub Action (`.github/actions/render`) that installs a pinned release and skips Chromium for non-PDF outputs, plus an example workflow (`examples/github-action.md`)
 - `Dockerfile` with Chromium and fonts, including a build-time PDF smoke test
 - Issue forms, pull request template, Discussions and starter `good first issue`s for contributors
+### Fixed
+- `examples/sales_order.toon` no longer carries the legacy `meta.type` key, so the committed example passes the strict payload gate
 
 ## [0.15.0] - 2026-11-26
 ### Added
@@ -23,8 +25,6 @@ release last.
 - PDF outline/bookmarks generated from headings by default (implies a tagged PDF; `pdf_options={"outline": False}` opts out)
 ### Changed
 - XLSX chart sections keep the label/value data table and add a native Excel chart
-### Fixed
-- `examples/sales_order.toon` no longer carries the legacy `meta.type` key, so the committed example passes the strict payload gate
 
 ## [0.14.0] - 2026-11-25
 ### Added
