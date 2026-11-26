@@ -36,11 +36,17 @@ Pull requests against `main` are the contribution mechanism:
 4. Open a pull request; CI must be green and the maintainer reviews before
    the squash merge.
 
+> **Fork PRs and code scanning:** docs/config-only fork PRs are handled
+> automatically. Fork PRs that change code, tests, CI or dependencies are
+> intentionally blocked by the code-scanning rule (fork-generated SARIF is not
+> trusted); the maintainer integrates those from a same-repo branch. Open an
+> issue first for anything beyond docs/config.
+
 ```bash
 pip install -e ".[dev]"
 python -m pytest tests -q -m "not browser"
-python -m ruff check src tests fuzz
-python -m ruff format --check src tests fuzz
+python -m ruff check src tests demo fuzz
+python -m ruff format --check src tests demo fuzz
 python -m mypy src
 ```
 
