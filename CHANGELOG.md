@@ -8,6 +8,8 @@ draft GitHub Release, uploads to PyPI via trusted publishing and publishes the
 release last.
 
 ## [Unreleased]
+
+## [0.15.0] - 2026-11-26
 ### Added
 - `image` sections (data-URI PNG/JPEG/WebP/GIF, `alt`/`caption`/`width`/`align`), `meta.logo` and `meta.watermark` (string or `{text, opacity, color, angle, size}`); images are payload-only, capped at 2 MiB decoded, and SVG is rejected
 - `toc` sections with internal links to every titled section
