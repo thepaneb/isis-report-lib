@@ -1,0 +1,127 @@
+name: Fork SARIF
+
+# Fork PR workflows get a read-only token, so GuardDog cannot upload SARIF and
+# the main ruleset's code-scanning rule would block the PR forever. We never
+# trust or upload the fork's artifact. When the PR does not change dependency
+# files, this workflow uploads a trusted empty GuardDog analysis for the PR
+# head; the base scan still covers the unchanged dependencies. Dependency-
+# changing forks get a comment and need a same-repo integration branch.
+on:
+  workflow_run:
+    workflows: ["GuardDog"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "Pull request number"
+        required: true
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  upload:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name != github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      security-events: write # SARIF upload to code scanning (job scope only)
+      pull-requests: write # explain blocked dependency-changing forks
+
+    steps:
+      - name: Resolve PR and head SHA
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          IN_PR: ${{ inputs.pr }}
+          WR_PR: ${{ github.event.workflow_run.pull_requests[0].number }}
+          WR_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            pr="$IN_PR"
+            sha=$(gh api "repos/${REPO}/pulls/${pr}" --jq .head.sha)
+          else
+            pr="$WR_PR"
+            sha="$WR_SHA"
+          fi
+          if [ -z "$pr" ] || [ "$pr" = "null" ]; then
+            pr=$(gh api "repos/${REPO}/commits/${sha}/pulls" --jq '.[0].number')
+          fi
+          if [ -z "$pr" ] || [ "$pr" = "null" ] || [ -z "$sha" ]; then
+            echo "Could not resolve the pull request or head SHA." >&2
+            exit 1
+          fi
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Check dependency changes
+        id: deps
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ steps.resolve.outputs.pr }}
+        run: |
+          files=$(gh api "repos/${REPO}/pulls/${PR}/files?per_page=100" --paginate --jq '.[].filename')
+          if [ -z "$files" ]; then
+            echo "Could not list the changed files." >&2
+            exit 1
+          fi
+          if printf '%s\n' "$files" | grep -Eiq '(^|/)(pyproject\.toml|setup\.py|setup\.cfg|Pipfile|Pipfile\.lock|poetry\.lock|uv\.lock|environment[^/]*\.ya?ml|Dockerfile|package\.json|package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$|(^|/)requirements[^/]*\.(txt|in)$|(^|/)\.github/requirements/|(^|/)docker/requirements'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Explain dependency-change block
+        if: steps.deps.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ steps.resolve.outputs.pr }}
+        run: |
+          gh pr comment "$PR" --body "GuardDog SARIF from fork PRs is not trusted, and this PR changes dependency files. A maintainer needs to integrate it from a branch in this repository before merge."
+
+      - name: Build trusted empty SARIF
+        if: steps.deps.outputs.changed != 'true'
+        run: |
+          mkdir -p sarif
+          cat > sarif/guarddog.sarif <<'JSON'
+          {
+            "version": "2.1.0",
+            "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+            "runs": [
+              {
+                "tool": {
+                  "driver": {
+                    "name": "GuardDog-pypi",
+                    "informationUri": "https://github.com/DataDog/guarddog",
+                    "rules": []
+                  }
+                },
+                "invocations": [
+                  {
+                    "executionSuccessful": true
+                  }
+                ],
+                "results": []
+              }
+            ]
+          }
+          JSON
+
+      - name: Upload trusted SARIF
+        if: steps.deps.outputs.changed != 'true'
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: sarif
+          category: guarddog
+          # The workflow_run runs on the base branch tip; point the analysis at
+          # the PR head so it satisfies the merge protection.
+          ref: refs/pull/${{ steps.resolve.outputs.pr }}/head
+          sha: ${{ steps.resolve.outputs.sha }}

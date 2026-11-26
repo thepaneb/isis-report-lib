@@ -12,6 +12,7 @@ release last.
 - Runnable `demo/` folder: a board-pack payload that renders PDF/HTML/XLSX/CSV with TOC, watermark, KPI, crosstab and native XLSX charts
 ### Changed
 - Dockerfile pins the Python base image by digest and installs the runtime from a hash-pinned `docker/requirements.txt`
+- Fork PRs with no dependency changes get a trusted empty GuardDog SARIF from `fork-sarif.yml`; dependency-changing forks still need a same-repo integration branch
 
 ## [0.15.1] - 2026-11-26
 ### Added

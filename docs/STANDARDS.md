@@ -226,7 +226,11 @@ keys: accepted from API/CLI arguments only, never from the payload.
 - GuardDog scans the project's dependency environment for malicious packages
   (capability + threat correlation; only `threat-*` results upload as SARIF
   under `guarddog` — bare capabilities stay in the full artifact because they
-  are expected in legitimate packages; the job gates on scanner health);
+  are expected in legitimate packages; the job gates on scanner health).
+  Fork PRs cannot upload SARIF with a read-only token; `fork-sarif.yml`
+  uploads a trusted empty GuardDog analysis only when the PR changes no
+  dependency files, and dependency-changing forks require a same-repo
+  integration branch (fork artifacts are never trusted).
   dependency-review blocks
   vulnerable or copyleft-licensed deps on PRs (GPL/AGPL denied, LGPL/MPL
   allowed — weak copyleft is compatible with MIT distribution; MPL appears via

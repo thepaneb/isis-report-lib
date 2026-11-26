@@ -93,7 +93,9 @@ jobs:
 
       - name: Upload SARIF artifact
         # Dependabot PRs get a read-only token; dependabot-sarif.yml uploads
-        # this filtered artifact with a write token instead.
+        # this filtered artifact with a write token instead. Fork PRs are
+        # handled by fork-sarif.yml, which never uploads the fork artifact:
+        # it adds a trusted empty analysis only when no dependency file changed.
         if: always() && hashFiles('guarddog.sarif') != ''
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
