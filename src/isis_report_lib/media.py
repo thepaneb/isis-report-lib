@@ -51,8 +51,6 @@ def normalize_image_src(value: Any, field: str = "image") -> str:
         raw = base64.b64decode(payload, validate=True)
     except (binascii.Error, ValueError) as e:
         raise ValueError(f"Invalid {field} (base64 payload is malformed): {e}") from e
-    if not raw:
-        raise ValueError(f"Invalid {field} (empty image payload)")
     if len(raw) > MAX_IMAGE_BYTES:
         raise ValueError(f"Invalid {field} ({len(raw)} decoded bytes; max {MAX_IMAGE_BYTES})")
     if not _magic_ok(mime, raw):

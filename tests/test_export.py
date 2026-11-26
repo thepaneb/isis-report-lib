@@ -532,6 +532,24 @@ def test_collect_tables_with_toc_and_image_sections() -> None:
     assert "# table: Logo" in text and "ACME logo" in text
 
 
+def test_collect_tables_dedupes_toc_and_image_titles() -> None:
+    png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+    payload = {
+        "meta": {"title": "T"},
+        "sections": [
+            {"type": "toc", "title": "Contents"},
+            {"type": "text", "title": "Intro", "paragraphs": ["Hi"]},
+            {"type": "image", "title": "Logo", "src": png, "alt": "one"},
+            {"type": "image", "title": "Logo", "src": png, "alt": "two"},
+            {"type": "toc", "title": "Contents"},
+        ],
+    }
+    dataset, layout, _meta = prepare_report(payload)
+    tables, _summaries = collect_tables(dataset, layout)
+    keys = {table.key for table in tables}
+    assert {"Contents", "Contents_2", "Logo", "Logo_2"} <= keys
+
+
 def test_generate_csv_from_sections():
     from isis_report_lib import generate_csv
 

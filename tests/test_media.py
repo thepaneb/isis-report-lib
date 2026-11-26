@@ -49,6 +49,15 @@ def test_normalize_image_rejects_oversized_payload(monkeypatch: pytest.MonkeyPat
         media.normalize_image_src(uri)
 
 
+def test_normalize_image_rejects_bad_base64_padding() -> None:
+    with pytest.raises(ValueError, match="malformed"):
+        media.normalize_image_src("data:image/png;base64,AAAAA")
+
+
+def test_magic_check_rejects_unknown_mime() -> None:
+    assert media._magic_ok("image/bmp", b"\x00") is False
+
+
 def test_normalize_watermark_defaults_and_overrides() -> None:
     assert media.normalize_watermark(None) is None
     assert media.normalize_watermark("DRAFT") == {
@@ -78,6 +87,7 @@ def test_normalize_watermark_defaults_and_overrides() -> None:
         ({"text": "x", "size": 4}, "watermark.size"),
         ({"text": "x", "size": True}, "watermark.size"),
         ({"text": "x", "extra": 1}, "Unknown meta.watermark key"),
+        ({"text": "x" * 201}, "max 200 characters"),
         (123, "string or object"),
     ],
 )
@@ -137,6 +147,13 @@ def test_image_section_renders_figure() -> None:
     assert 'width="120"' in html
     assert "text-align: right" in html
     assert "Figure 1" in html
+
+
+def test_image_section_tolerates_null_alt_and_caption() -> None:
+    html = render_html({"meta": {"title": "T"}, "sections": [{"type": "image", "src": PNG_1PX, "alt": None, "caption": None}]})
+    assert '<figure class="report-image"' in html
+    assert 'alt=""' in html
+    assert "<figcaption>" not in html
 
 
 @pytest.mark.parametrize(
