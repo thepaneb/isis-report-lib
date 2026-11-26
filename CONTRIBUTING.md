@@ -24,6 +24,20 @@ library, so the fastest path is a focused issue or a small pull request.
   [Report a vulnerability](https://github.com/thepaneb/isis-report-lib/security/advisories/new)
   flow.
 
+## Fork pull requests and code scanning
+
+Fork → branch → pull request is the normal path. One CI constraint is worth
+knowing before you start:
+
+- **Docs/config-only changes** (Markdown, docs assets, `zensical.toml`) are
+  handled automatically: a trusted workflow adds the required empty
+  code-scanning analyses, and the normal CI gate applies.
+- **Code, tests, CI or dependency changes** from a fork are intentionally
+  blocked by the code-scanning ruleset, because fork-generated SARIF cannot be
+  trusted. The maintainer integrates those through a branch in this repository
+  (credit preserved) or asks for a split. Open an issue first for anything
+  beyond docs/config so we can agree on the path.
+
 ## Development setup
 
 ```bash
