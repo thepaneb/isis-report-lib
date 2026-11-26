@@ -228,9 +228,9 @@ keys: accepted from API/CLI arguments only, never from the payload.
   under `guarddog` — bare capabilities stay in the full artifact because they
   are expected in legitimate packages; the job gates on scanner health).
   Fork PRs cannot upload SARIF with a read-only token; `fork-sarif.yml`
-  uploads a trusted empty GuardDog analysis only when the PR changes no
-  dependency files, and dependency-changing forks require a same-repo
-  integration branch (fork artifacts are never trusted).
+  uploads trusted empty GuardDog, Semgrep and CodeQL analyses only for
+  docs/config-only PRs, and code- or dependency-changing forks require a
+  same-repo integration branch (fork artifacts are never trusted).
   dependency-review blocks
   vulnerable or copyleft-licensed deps on PRs (GPL/AGPL denied, LGPL/MPL
   allowed — weak copyleft is compatible with MIT distribution; MPL appears via

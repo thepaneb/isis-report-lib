@@ -1,11 +1,12 @@
 name: Fork SARIF
 
-# Fork PR workflows get a read-only token, so GuardDog cannot upload SARIF and
-# the main ruleset's code-scanning rule would block the PR forever. We never
-# trust or upload the fork's artifact. When the PR does not change dependency
-# files, this workflow uploads a trusted empty GuardDog analysis for the PR
-# head; the base scan still covers the unchanged dependencies. Dependency-
-# changing forks get a comment and need a same-repo integration branch.
+# Fork PR workflows get a read-only token, so GuardDog, Semgrep and CodeQL
+# cannot upload SARIF, and the main ruleset's code-scanning rule would block the
+# PR forever. We never trust or upload the fork's artifacts. For docs-only
+# forks (Markdown/config only), this workflow uploads trusted empty analyses
+# for the three required tools: there is no code change to scan, and the base
+# scans still cover the unchanged code and dependencies. Code or dependency
+# changes in a fork get a comment and need a same-repo integration branch.
 on:
   workflow_run:
     workflows: ["GuardDog"]
@@ -33,7 +34,7 @@ jobs:
       actions: read
       contents: read
       security-events: write # SARIF upload to code scanning (job scope only)
-      pull-requests: write # explain blocked dependency-changing forks
+      pull-requests: write # explain blocked code/dependency-changing forks
 
     steps:
       - name: Resolve PR and head SHA
@@ -45,6 +46,8 @@ jobs:
           IN_PR: ${{ inputs.pr }}
           WR_PR: ${{ github.event.workflow_run.pull_requests[0].number }}
           WR_SHA: ${{ github.event.workflow_run.head_sha }}
+          WR_HEAD_OWNER: ${{ github.event.workflow_run.head_repository.owner.login }}
+          WR_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             pr="$IN_PR"
@@ -54,7 +57,8 @@ jobs:
             sha="$WR_SHA"
           fi
           if [ -z "$pr" ] || [ "$pr" = "null" ]; then
-            pr=$(gh api "repos/${REPO}/commits/${sha}/pulls" --jq '.[0].number')
+            # Fork workflow_run payloads do not always carry pull_requests[].
+            pr=$(gh api "repos/${REPO}/pulls?head=${WR_HEAD_OWNER}:${WR_HEAD_BRANCH}&state=open" --jq '.[0].number')
           fi
           if [ -z "$pr" ] || [ "$pr" = "null" ] || [ -z "$sha" ]; then
             echo "Could not resolve the pull request or head SHA." >&2
@@ -63,8 +67,8 @@ jobs:
           echo "pr=$pr" >> "$GITHUB_OUTPUT"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
-      - name: Check dependency changes
-        id: deps
+      - name: Classify changed files
+        id: classify
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -75,55 +79,104 @@ jobs:
             echo "Could not list the changed files." >&2
             exit 1
           fi
-          if printf '%s\n' "$files" | grep -Eiq '(^|/)(pyproject\.toml|setup\.py|setup\.cfg|Pipfile|Pipfile\.lock|poetry\.lock|uv\.lock|environment[^/]*\.ya?ml|Dockerfile|package\.json|package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$|(^|/)requirements[^/]*\.(txt|in)$|(^|/)\.github/requirements/|(^|/)docker/requirements'; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          fi
+          deps_changed=false
+          docs_only=true
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            case "$file" in
+              *requirements*|*pyproject.toml|*setup.py|*setup.cfg|*Pipfile|*Pipfile.lock|*poetry.lock|*uv.lock|*environment*.yml|*environment*.yaml|*Dockerfile|*package.json|*package-lock.json|*yarn.lock|*pnpm-lock.yaml)
+                deps_changed=true
+                docs_only=false
+                ;;
+              *.md|*zensical.toml|*mkdocs.yml|docs/assets/*.png|docs/assets/*.jpg|docs/assets/*.jpeg|docs/assets/*.gif|docs/assets/*.webp)
+                ;;
+              *)
+                docs_only=false
+                ;;
+            esac
+          done <<< "$files"
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+          echo "deps_changed=$deps_changed" >> "$GITHUB_OUTPUT"
 
-      - name: Explain dependency-change block
-        if: steps.deps.outputs.changed == 'true'
+      - name: Explain why the gate stays blocked
+        if: steps.classify.outputs.docs_only != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ steps.resolve.outputs.pr }}
+          DEPS_CHANGED: ${{ steps.classify.outputs.deps_changed }}
         run: |
-          gh pr comment "$PR" --body "GuardDog SARIF from fork PRs is not trusted, and this PR changes dependency files. A maintainer needs to integrate it from a branch in this repository before merge."
+          if [ "$DEPS_CHANGED" = "true" ]; then
+            reason="changes dependency files"
+          else
+            reason="changes code or CI files"
+          fi
+          gh pr comment "$PR" --body "This fork PR ${reason}. Its GuardDog/Semgrep/CodeQL artifacts are not trusted, so a maintainer needs to integrate it from a branch in this repository before merge."
 
-      - name: Build trusted empty SARIF
-        if: steps.deps.outputs.changed != 'true'
+      - name: Build trusted empty SARIF analyses
+        if: steps.classify.outputs.docs_only == 'true'
         run: |
-          mkdir -p sarif
-          cat > sarif/guarddog.sarif <<'JSON'
-          {
-            "version": "2.1.0",
-            "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
-            "runs": [
-              {
-                "tool": {
-                  "driver": {
-                    "name": "GuardDog-pypi",
-                    "informationUri": "https://github.com/DataDog/guarddog",
-                    "rules": []
-                  }
-                },
-                "invocations": [
-                  {
-                    "executionSuccessful": true
-                  }
-                ],
-                "results": []
+          python - <<'PY'
+          import json
+          import pathlib
+
+          root = pathlib.Path("sarif")
+          root.mkdir(exist_ok=True)
+
+          def document(tool: str, information_uri: str) -> dict:
+              return {
+                  "version": "2.1.0",
+                  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+                  "runs": [
+                      {
+                          "tool": {"driver": {"name": tool, "informationUri": information_uri, "rules": []}},
+                          "invocations": [{"executionSuccessful": True}],
+                          "results": [],
+                      }
+                  ],
               }
-            ]
-          }
-          JSON
 
-      - name: Upload trusted SARIF
-        if: steps.deps.outputs.changed != 'true'
+          tools = {
+              "guarddog.sarif": ("GuardDog-pypi", "https://github.com/DataDog/guarddog"),
+              "semgrep.sarif": ("Semgrep OSS", "https://semgrep.dev/"),
+              "codeql-python.sarif": ("CodeQL", "https://codeql.github.com/"),
+              "codeql-actions.sarif": ("CodeQL", "https://codeql.github.com/"),
+          }
+          for name, (tool, uri) in tools.items():
+              (root / name).write_text(json.dumps(document(tool, uri)), encoding="utf-8")
+          PY
+
+      - name: Upload GuardDog analysis
+        if: steps.classify.outputs.docs_only == 'true'
         uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
-          sarif_file: sarif
+          sarif_file: sarif/guarddog.sarif
           category: guarddog
-          # The workflow_run runs on the base branch tip; point the analysis at
-          # the PR head so it satisfies the merge protection.
+          ref: refs/pull/${{ steps.resolve.outputs.pr }}/head
+          sha: ${{ steps.resolve.outputs.sha }}
+
+      - name: Upload Semgrep analysis
+        if: steps.classify.outputs.docs_only == 'true'
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: sarif/semgrep.sarif
+          category: semgrep
+          ref: refs/pull/${{ steps.resolve.outputs.pr }}/head
+          sha: ${{ steps.resolve.outputs.sha }}
+
+      - name: Upload CodeQL Python analysis
+        if: steps.classify.outputs.docs_only == 'true'
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: sarif/codeql-python.sarif
+          category: "/language:python"
+          ref: refs/pull/${{ steps.resolve.outputs.pr }}/head
+          sha: ${{ steps.resolve.outputs.sha }}
+
+      - name: Upload CodeQL Actions analysis
+        if: steps.classify.outputs.docs_only == 'true'
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: sarif/codeql-actions.sarif
+          category: "/language:actions"
           ref: refs/pull/${{ steps.resolve.outputs.pr }}/head
           sha: ${{ steps.resolve.outputs.sha }}
