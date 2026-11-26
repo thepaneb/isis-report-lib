@@ -23,6 +23,8 @@ Python library for **tabular PDF reports** with customizable hierarchical layout
 **How it compares:** <https://thepaneb.github.io/isis-report-lib/comparison/> ·
 **API reference:** <https://thepaneb.github.io/isis-report-lib/api/>
 
+**5-minute demo:** [demo/](https://github.com/thepaneb/isis-report-lib/tree/main/demo) — one payload, four outputs.
+
 - Input: `dict`/`ReportPayload` (`meta` + optional `layout` + `data`) or **`.toon`** text
 - Rendering: Jinja2 (templates bundled in the package)
 - PDF: Playwright (Chromium)
@@ -382,7 +384,7 @@ See `examples/sales_order.toon`.
 ```bash
 pytest -q
 pytest -q --cov=isis_report_lib   # coverage gate: 85% (enforced in the CI e2e job)
-ruff check src tests
+ruff check src tests demo
 semgrep --test --config .semgrep/rules/ .semgrep/targets/   # custom SAST rules
 semgrep scan --config p/default --config .semgrep/rules/ --exclude=.semgrep/targets --metrics=off  # (+ the 2 --exclude-rule from semgrep.yml)
 pre-commit run --all-files   # gitleaks secret scan (optional local gate; CI runs it too)

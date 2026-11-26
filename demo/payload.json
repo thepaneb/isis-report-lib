@@ -1,0 +1,82 @@
+{
+  "meta": {
+    "title": "Quarterly Board Pack",
+    "sub_title": "Q1 2026 · Sales review",
+    "company": "ACME",
+    "locale": "en-US",
+    "watermark": {
+      "text": "DRAFT",
+      "opacity": 0.06,
+      "color": "#0A2F46",
+      "angle": -32,
+      "size": 120
+    }
+  },
+  "sections": [
+    {
+      "type": "toc",
+      "title": "Contents"
+    },
+    {
+      "type": "text",
+      "title": "Highlights",
+      "paragraphs": [
+        "Revenue grew for the second quarter in a row, driven by Product Alpha.",
+        "Churn stayed flat at 2%."
+      ]
+    },
+    {
+      "type": "kpi",
+      "title": "Key figures",
+      "items": [
+        {"label": "Orders", "value": 152, "format_mask": "int"},
+        {"label": "Churn", "value": 0.02, "format_mask": "percent"},
+        {"label": "Revenue", "value": 20000, "format_mask": "currency"}
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Revenue by product",
+      "layout": {
+        "product": {"label": "Product", "format_mask": "str", "alignment": "left"},
+        "total": {"label": "Total", "format_mask": "currency", "alignment": "right", "aggregate": "sum"}
+      },
+      "data": [
+        {"product": "Alpha", "total": 12000},
+        {"product": "Beta", "total": 8000}
+      ]
+    },
+    {
+      "type": "chart",
+      "title": "Quarterly revenue",
+      "chart": {
+        "kind": "bar",
+        "labels": ["Q3", "Q4", "Q1"],
+        "values": [15000, 18000, 20000]
+      }
+    },
+    {
+      "type": "chart",
+      "title": "Revenue trend",
+      "chart": {
+        "kind": "line",
+        "labels": ["Q3", "Q4", "Q1"],
+        "values": [15000, 18000, 20000]
+      }
+    },
+    {
+      "type": "crosstab",
+      "title": "Revenue by region × quarter",
+      "data": [
+        {"region": "North", "quarter": "Q3", "revenue": 5000},
+        {"region": "North", "quarter": "Q4", "revenue": 6000},
+        {"region": "South", "quarter": "Q3", "revenue": 4000},
+        {"region": "South", "quarter": "Q4", "revenue": 5000}
+      ],
+      "rows": "region",
+      "columns": "quarter",
+      "measure": "revenue",
+      "function": "sum"
+    }
+  ]
+}

@@ -82,6 +82,7 @@ Declarative behavior, not rigid templates. See the full parameter table in the p
 ## Going further
 
 - **User guide** — task-oriented walkthroughs: first report, data inputs, sections, signing, hardening, CLI recipes, troubleshooting.
+- **Demo** — a runnable board pack in [`demo/`](https://github.com/thepaneb/isis-report-lib/tree/main/demo) (one payload, four outputs).
 - **Gallery** — real PDF/HTML/XLSX/CSV outputs, with the source payload.
 - **Comparison** — when to choose this library, WeasyPrint, ReportLab or fpdf2.
 - **API reference** — generated signatures and docstrings for the public surface.

@@ -105,8 +105,8 @@ playwright install chromium   # only for e2e tests / real PDF generation
 python -m pytest tests -q -m "not browser"   # without browser
 python -m pytest tests -q                    # full suite (needs Chromium)
 python -m pytest tests -q --cov=isis_report_lib  # 85% gate (enforced in CI e2e job)
-python -m ruff check src tests
-python -m ruff format --check src tests
+python -m ruff check src tests demo
+python -m ruff format --check src tests demo
 python -m mypy src
 python scripts/gen_api_docs.py --check      # docs/api.md is generated from docstrings
 ```

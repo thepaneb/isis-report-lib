@@ -17,10 +17,9 @@ API reference and the docs drift fixes (see [Done](#done-2026-11-25)); the 0.15
 visible features landed on 2026-11-26 (see [Done](#done-2026-11-26)).
 
 ### Adoption
-- **Demo and distribution** — publish a 5-minute demo repo and posts to
-  r/Python, Hacker News, Lobsters, Python Weekly and awesome lists. The GitHub
-  Action, Dockerfile, Discussions and starter issues are done (see
-  [Done](#done-2026-11-26)).
+- **Distribution** — announce the demo and post to r/Python, Hacker News,
+  Lobsters, Python Weekly and awesome lists. The GitHub Action, Dockerfile,
+  Discussions and starter issues are done (see [Done](#done-2026-11-26)).
 
 ### 1.0 — packaging and contract
 - **Playwright as an optional `[pdf]` extra** so HTML/XLSX/CSV users do not
@@ -51,6 +50,8 @@ extra only if demand appears; PAdES remains a non-goal.
 - **Distribution** — composite GitHub Action (`.github/actions/render`) and a
   Dockerfile with Chromium/fonts, including an example workflow; shipped in
   v0.15.1.
+- **Runnable demo** — `demo/` with a board-pack payload and a renderer for
+  PDF/HTML/XLSX/CSV, plus CLI, Docker and GitHub Action instructions.
 
 ## Done (2026-11-25)
 

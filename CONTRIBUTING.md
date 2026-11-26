@@ -41,8 +41,8 @@ Run the same checks as CI:
 python -m pytest tests -q -m "not browser"   # fast suite, no browser needed
 python -m pytest tests -q                    # full suite (needs Chromium)
 python -m pytest tests -q --cov=isis_report_lib  # coverage gate: 85%
-python -m ruff check src tests fuzz
-python -m ruff format --check src tests fuzz
+python -m ruff check src tests demo fuzz
+python -m ruff format --check src tests demo fuzz
 python -m mypy src
 python -m zensical build --strict             # only when docs change
 python scripts/gen_api_docs.py --check        # public API/docstring changes

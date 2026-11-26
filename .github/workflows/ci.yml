@@ -37,13 +37,13 @@ jobs:
           pip install --no-deps -e .
 
       - name: Lint
-        run: python -m ruff check src tests
+        run: python -m ruff check src tests demo
 
       - name: Type check
         run: python -m mypy src
 
       - name: Format
-        run: python -m ruff format --check src tests
+        run: python -m ruff format --check src tests demo
 
       - name: Unit tests (no browser)
         run: python -m pytest tests -q -m "not browser"
