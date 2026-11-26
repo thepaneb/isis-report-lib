@@ -225,7 +225,7 @@ makes it fail).
 
 Use the composite GitHub Action in `.github/actions/render` to render a report
 in a workflow (example:
-[`examples/github-action.yml`](https://github.com/thepaneb/isis-report-lib/blob/main/examples/github-action.yml)):
+[`examples/github-action.md`](https://github.com/thepaneb/isis-report-lib/blob/main/examples/github-action.md)):
 
 ```yaml
 - uses: thepaneb/isis-report-lib/.github/actions/render@v0.15.1
@@ -247,7 +247,9 @@ docker build -t isis-report .
 docker run --rm -v "$PWD:/work" isis-report generate examples/sales_order.toon -o report.pdf
 ```
 
-`--build-arg ISIS_REPORT_VERSION=<version>` pins another release.
+`--build-arg ISIS_REPORT_VERSION=<version>` pins another release. The image
+runs as UID 1000; on Linux, add `--user "$(id -u):$(id -g)"` if your host user
+has a different UID.
 
 ## Troubleshooting
 

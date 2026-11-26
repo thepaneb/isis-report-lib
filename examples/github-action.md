@@ -1,7 +1,12 @@
+# GitHub Action example
+
+Copy the workflow below to `.github/workflows/render.yml` in your repository.
+The action installs the pinned `isis-report-lib` release from PyPI and Chromium
+only for PDF.
+
+```yaml
 name: Render report
 
-# Copy this file to .github/workflows/ in your repository. The action installs
-# the pinned isis-report-lib release from PyPI and Chromium only for PDF.
 on:
   workflow_dispatch:
 
@@ -28,3 +33,7 @@ jobs:
         with:
           name: sales-order
           path: artifacts/sales-order.pdf
+```
+
+For production, pin the `uses:` reference to the 40-character commit SHA of the
+release (tags can be moved); Dependabot can keep it updated.
