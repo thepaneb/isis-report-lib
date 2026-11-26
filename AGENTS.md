@@ -84,6 +84,7 @@ saved/changed first. Close agent tabs when done.
   seals (warn, don't raise).
 
 ## Workflow (`main` is protected: branch → PR → CI → merge)
+
 ```bash
 git checkout -b feat/xyz
 # ... work ...
@@ -98,6 +99,11 @@ first if you want curated notes; the workflow reuses it. Do not publish the
 draft manually while the workflow runs. Release immutability is enabled on the
 repository, so every asset must be attached **before** the release is
 published — the workflow does that. Never add assets afterwards.
+
+Fork PRs that change code, tests, CI or dependencies: integrate from a branch in
+this repository, preserve the original author (`git cherry-pick` or
+`git commit --author=...`), open the internal PR as `Supersedes #N`, and merge
+with **rebase**, not squash. Never admin-bypass the code-scanning gate.
 
 ```bash
 pip install -e ".[dev]"
