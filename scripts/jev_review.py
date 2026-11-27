@@ -3,13 +3,16 @@
 
 The upstream Jev CLI lives in the ``vscode-utplsql`` repository and asks generic
 questions. This script keeps the useful parts (diff filtering, chunking, typed
-questions, advisory report) and adds checks that matter here:
+questions, advisory report) and adds checks that matter here. Questions are
+grouped into independent packs:
 
-- event loop / Playwright pool safety;
-- sync + async API parity;
-- docs/api.md + CHANGELOG drift;
-- tests and security review;
-- runtime dependency changes.
+- ``core``: event loop, sync/async parity, tests, docs, security, dependencies;
+- ``quality``: dead code, test hygiene, typing, resource cleanup, compat;
+- ``docs``: API reference, CHANGELOG, README/CLI, guides/nav.
+
+Profiles are aliases (``default``, ``strict``, ``docs``, ``all``); use
+``--pack`` to select a custom combination. Each pack runs as its own API pass,
+so extra questions do not dilute the calibrated core signals.
 
 It is intentionally local and advisory. It never runs in CI, never posts to a
 PR, and never replaces lint, tests, or human review.
@@ -18,7 +21,10 @@ Usage::
 
     python scripts/jev_review.py --base origin/main
     python scripts/jev_review.py --working-tree
+    python scripts/jev_review.py --diff-file pr.diff --profile docs
+    python scripts/jev_review.py --diff-file pr.diff --pack core --pack quality
     python scripts/jev_review.py --diff-file pr.diff --dry-run
+    python scripts/jev_review.py --list-packs
     python scripts/jev_review.py --self-test
 
 The API key is read from ``OPENCODE_API_KEY`` or ``--env-file``. Reports are
@@ -54,13 +60,14 @@ DEFAULT_OUTPUT = ROOT / ".jev" / "jev-review.md"
 DEFAULT_JSON_OUTPUT = ROOT / ".jev" / "jev-review.json"
 
 NOUL_KEYS = ("security", "correctness", "event_loop", "tests", "docs", "api_parity", "dependencies")
-STRICT_KEYS = ("dead_code", "test_hygiene", "type_safety", "resource_cleanup", "backward_compat")
-ALL_NOUL_KEYS = NOUL_KEYS + STRICT_KEYS
+QUALITY_KEYS = ("dead_code", "test_hygiene", "type_safety", "resource_cleanup", "backward_compat")
+DOCS_KEYS = ("docs_api", "docs_changelog", "docs_readme", "docs_guides")
+ALL_NOUL_KEYS = NOUL_KEYS + QUALITY_KEYS + DOCS_KEYS
 SEVERITY_LABELS = ("nenhuma", "baixa", "média", "alta", "crítica")
 RECOMMENDATION_RANK = {"approve": 0, "comment": 1, "block": 2}
 
 # Dimensions, thresholds, and the local action to take when one fires.
-DIMENSIONS: tuple[tuple[str, str, float, str], ...] = (
+CORE_DIMENSIONS: tuple[tuple[str, str, float, str], ...] = (
     (
         "security",
         "Segurança",
@@ -107,10 +114,10 @@ DIMENSIONS: tuple[tuple[str, str, float, str], ...] = (
         "Justifique o extra/opt-in e rode dependency-review/pip-audit no CI.",
     ),
 )
-# Extra dimensions for the opt-in "strict" profile. They target issues the
+# Extra dimensions for the opt-in "quality" pack. They target issues the
 # default questionnaire deliberately leaves to ruff/pytest: dead branches,
 # test hygiene, typing at public boundaries, resource cleanup, and API breaks.
-STRICT_DIMENSIONS: tuple[tuple[str, str, float, str], ...] = (
+QUALITY_DIMENSIONS: tuple[tuple[str, str, float, str], ...] = (
     (
         "dead_code",
         "Código morto/duplicado",
@@ -142,7 +149,33 @@ STRICT_DIMENSIONS: tuple[tuple[str, str, float, str], ...] = (
         "Deprecie/migre mudanças de API pública, defaults e formato de saída.",
     ),
 )
-ALL_DIMENSIONS = DIMENSIONS + STRICT_DIMENSIONS
+DOCS_DIMENSIONS: tuple[tuple[str, str, float, str], ...] = (
+    (
+        "docs_api",
+        "Docs da API",
+        0.55,
+        "Rode `python scripts/gen_api_docs.py` e inclua `docs/api.md`.",
+    ),
+    (
+        "docs_changelog",
+        "CHANGELOG",
+        0.55,
+        "Adicione a entrada correspondente em `CHANGELOG.md`.",
+    ),
+    (
+        "docs_readme",
+        "README/CLI",
+        0.50,
+        "Atualize `README.md` e o `--help` para parâmetros/CLI.",
+    ),
+    (
+        "docs_guides",
+        "Guias/nav",
+        0.50,
+        "Atualize `docs/` e a navegação quando o comportamento/feature muda.",
+    ),
+)
+ALL_DIMENSIONS = CORE_DIMENSIONS + QUALITY_DIMENSIONS + DOCS_DIMENSIONS
 ALL_DIMENSION_BY_KEY = {key: (label, threshold, hint) for key, label, threshold, hint in ALL_DIMENSIONS}
 
 QUESTIONS: dict[str, dict[str, Any]] = {
@@ -219,7 +252,7 @@ QUESTIONS: dict[str, dict[str, Any]] = {
     },
 }
 
-STRICT_ONLY_QUESTIONS: dict[str, dict[str, Any]] = {
+QUALITY_QUESTIONS: dict[str, dict[str, Any]] = {
     "dead_code": {
         "type": "noul",
         "instructions": ("O diff introduz código morto/inalcançável, branch/except duplicado, import não usado ou variável sem efeito?"),
@@ -248,40 +281,75 @@ STRICT_ONLY_QUESTIONS: dict[str, dict[str, Any]] = {
         "type": "noul",
         "instructions": ("O diff quebra API pública, default, formato de saída ou semântica sem depreciação/migração?"),
     },
-    "severity": QUESTIONS["severity"],
-    "recommendation": QUESTIONS["recommendation"],
 }
-STRICT_QUESTIONS: dict[str, dict[str, Any]] = {
-    **QUESTIONS,
-    **{key: STRICT_ONLY_QUESTIONS[key] for key in STRICT_KEYS},
-    "focus": {
-        "type": "choice",
-        "instructions": "Qual é a principal área de atenção?",
-        "criteria": {
-            "none": "Nenhuma",
-            "security": "Segurança",
-            "correctness": "Correção",
-            "event_loop": "Event loop/browser",
-            "tests": "Testes",
-            "docs": "Docs/CHANGELOG",
-            "api_parity": "Paridade sync/async",
-            "dependencies": "Dependências",
-            "dead_code": "Código morto/duplicado",
-            "test_hygiene": "Higiene dos testes",
-            "type_safety": "Tipagem",
-            "resource_cleanup": "Fechamento de recursos",
-            "backward_compat": "Compatibilidade",
-        },
+DOCS_QUESTIONS: dict[str, dict[str, Any]] = {
+    "docs_api": {
+        "type": "noul",
+        "instructions": (
+            "O diff muda assinatura pública, export, CLI ou comportamento documentado em `docs/api.md` "
+            "sem regenerar `docs/api.md` com `scripts/gen_api_docs.py`?"
+        ),
+    },
+    "docs_changelog": {
+        "type": "noul",
+        "instructions": (
+            "O diff muda comportamento público, corrige bug ou adiciona feature sem entrada correspondente em `CHANGELOG.md`?"
+        ),
+    },
+    "docs_readme": {
+        "type": "noul",
+        "instructions": ("O diff adiciona/muda parâmetro, CLI, exemplo ou quickstart sem atualizar o `README.md`?"),
+    },
+    "docs_guides": {
+        "type": "noul",
+        "instructions": (
+            "O diff muda comportamento/feature coberto por `docs/` (guia, segurança, roadmap) sem atualizar o texto ou a navegação?"
+        ),
     },
 }
-PROFILE_QUESTIONS = {"default": QUESTIONS, "strict": STRICT_QUESTIONS}
-# Strict runs two passes so the extra questions do not dilute the calibrated
-# base signals (docs dropped from 61-66% to 50% in the one-pass experiment).
-PROFILE_PASSES: dict[str, tuple[tuple[str, dict[str, dict[str, Any]]], ...]] = {
-    "default": (("base", QUESTIONS),),
-    "strict": (("base", QUESTIONS), ("strict", STRICT_ONLY_QUESTIONS)),
+
+
+@dataclass(frozen=True)
+class QuestionPack:
+    """A self-contained questionnaire, run as its own API pass."""
+
+    id: str
+    title: str
+    description: str
+    questions: dict[str, dict[str, Any]]
+    dimensions: tuple[tuple[str, str, float, str], ...]
+    supersedes: tuple[str, ...] = ()
+
+
+CORE_PACK = QuestionPack(
+    id="core",
+    title="Core",
+    description="Triagem padrão: segurança, correção, event loop, testes, docs, paridade e dependências.",
+    questions=QUESTIONS,
+    dimensions=CORE_DIMENSIONS,
+)
+QUALITY_PACK = QuestionPack(
+    id="quality",
+    title="Quality",
+    description="Revisão profunda de código: dead code, higiene de testes, tipagem, recursos e compatibilidade.",
+    questions=QUALITY_QUESTIONS,
+    dimensions=QUALITY_DIMENSIONS,
+)
+DOCS_PACK = QuestionPack(
+    id="docs",
+    title="Docs",
+    description="Drift detalhado de API, CHANGELOG, README/CLI e guias/nav.",
+    questions=DOCS_QUESTIONS,
+    dimensions=DOCS_DIMENSIONS,
+    supersedes=("docs",),
+)
+PACKS = {pack.id: pack for pack in (CORE_PACK, QUALITY_PACK, DOCS_PACK)}
+PROFILE_PACKS: dict[str, tuple[str, ...]] = {
+    "default": ("core",),
+    "strict": ("core", "quality"),
+    "docs": ("core", "docs"),
+    "all": ("core", "quality", "docs"),
 }
-PROFILE_DIMENSIONS = {"default": DIMENSIONS, "strict": ALL_DIMENSIONS}
 
 CONTEXT = """Contexto: isis-report-lib é uma biblioteca Python (src/isis_report_lib) que gera
 relatórios PDF tabulares com Jinja2 + Playwright, exporta XLSX/CSV/HTML e tem API sync e async.
@@ -406,6 +474,46 @@ class PreparedDiff:
 def _check(condition: bool, message: str) -> None:
     if not condition:
         raise AssertionError(message)
+
+
+def _pack_ids(args: argparse.Namespace) -> tuple[str, ...]:
+    if args.packs:
+        return tuple(dict.fromkeys(args.packs))
+    return PROFILE_PACKS[args.profile or "default"]
+
+
+def _profile_label(args: argparse.Namespace, pack_ids: tuple[str, ...]) -> str:
+    if args.packs:
+        return "custom:" + ",".join(pack_ids)
+    return args.profile or "default"
+
+
+def _resolve_packs(
+    pack_ids: tuple[str, ...],
+) -> tuple[list[tuple[str, dict[str, dict[str, Any]]]], tuple[tuple[str, str, float, str], ...]]:
+    selected: list[QuestionPack] = []
+    for pack_id in pack_ids:
+        pack = PACKS.get(pack_id)
+        if pack is None:
+            raise JevError(f"pack desconhecido: {pack_id}")
+        if pack not in selected:
+            selected.append(pack)
+    if not selected:
+        raise JevError("nenhum pack selecionado.")
+    superseded = {key for pack in selected for key in pack.supersedes}
+    passes: list[tuple[str, dict[str, dict[str, Any]]]] = []
+    dimensions: list[tuple[str, str, float, str]] = []
+    seen_dimensions: set[str] = set()
+    for pack in selected:
+        questions = {key: value for key, value in pack.questions.items() if key not in superseded}
+        if questions:
+            passes.append((pack.id, questions))
+        for dimension in pack.dimensions:
+            if dimension[0] in superseded or dimension[0] in seen_dimensions:
+                continue
+            dimensions.append(dimension)
+            seen_dimensions.add(dimension[0])
+    return passes, tuple(dimensions)
 
 
 def _pct(value: float | None) -> str:
@@ -684,7 +792,7 @@ def _merge_results(results: list[dict[str, Any]]) -> dict[str, Any]:
 
 def _findings(
     answers: dict[str, Any],
-    dimensions: tuple[tuple[str, str, float, str], ...] = DIMENSIONS,
+    dimensions: tuple[tuple[str, str, float, str], ...] = CORE_DIMENSIONS,
 ) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
     for key, label, threshold, hint in dimensions:
@@ -770,9 +878,9 @@ def _render_markdown(
         "## Jev review — advisory",
         "",
         f"**Veredito:** `{verdict}` · **Severidade:** {severity:.2f}/4 ({_severity_label(severity)}) · "
-        f"**Modelo:** `{args.model}` · **Perfil:** `{args.profile}`"
+        f"**Modelo:** `{args.model}` · **Perfil:** `{args.profile_label}`"
         if isinstance(severity, (int, float))
-        else f"**Veredito:** `{verdict}` · **Severidade:** n/d · **Modelo:** `{args.model}` · **Perfil:** `{args.profile}`",
+        else f"**Veredito:** `{verdict}` · **Severidade:** n/d · **Modelo:** `{args.model}` · **Perfil:** `{args.profile_label}`",
         "",
         "| Dimensão | Valor | Limiar | Leitura |",
         "|---|---:|---:|---|",
@@ -818,6 +926,14 @@ def _render_markdown(
         checks.append("Teste sync e async em loop novo; revise `pdf.py`/`_run` (sem policy global, sem await cross-loop).")
     if any(finding["dimension"] == "docs" for finding in findings):
         checks.append("Atualize `CHANGELOG.md` e `README.md`; rode `python scripts/gen_api_docs.py`.")
+    if any(finding["dimension"] == "docs_api" for finding in findings):
+        checks.append("Regenere `docs/api.md` com `python scripts/gen_api_docs.py`.")
+    if any(finding["dimension"] == "docs_changelog" for finding in findings):
+        checks.append("Adicione a entrada em `CHANGELOG.md` (seção `Unreleased` ou versão).")
+    if any(finding["dimension"] == "docs_readme" for finding in findings):
+        checks.append("Atualize `README.md` e o `--help` para o parâmetro/CLI novo.")
+    if any(finding["dimension"] == "docs_guides" for finding in findings):
+        checks.append("Atualize o guia/nav em `docs/` para o comportamento novo.")
     if any(finding["dimension"] == "api_parity" for finding in findings):
         checks.append("Adicione `a...` + wrapper `_run` e export em `__all__`.")
     if any(finding["dimension"] == "tests" for finding in findings):
@@ -879,7 +995,8 @@ def _render_json(
         "schema": "isis-report-lib.jev-review.v1",
         "generated_at": datetime.now(UTC).isoformat(),
         "model": args.model,
-        "profile": args.profile,
+        "profile": args.profile_label,
+        "packs": list(args.pack_ids),
         "endpoint": args.endpoint,
         "verdict": summary["verdict"],
         "critical": summary["critical"],
@@ -943,10 +1060,11 @@ def _load_diff(args: argparse.Namespace) -> str:
 def _print_dry_run(prepared: PreparedDiff, args: argparse.Namespace) -> None:
     print("Jev dry-run (nenhuma chamada de rede)")
     print(f"model={args.model}")
-    print(f"profile={args.profile}")
+    print(f"profile={args.profile_label}")
+    print(f"packs={','.join(args.pack_ids)}")
     print(f"endpoint={args.endpoint}")
-    passes = len(PROFILE_PASSES[args.profile])
-    print(f"passes={passes} calls={len(prepared.chunks) * passes}")
+    passes, _dimensions = _resolve_packs(args.pack_ids)
+    print(f"passes={len(passes)} calls={len(prepared.chunks) * len(passes)}")
     print(f"files={len(prepared.files)} chunks={len(prepared.chunks)} chars={prepared.chars}")
     print(
         f"skipped sensitive={prepared.skipped_sensitive} binary={prepared.skipped_binary} "
@@ -1060,6 +1178,20 @@ index 7777777..8888888 100644
     resource_bad = _findings({"resource_cleanup": 0.65}, ALL_DIMENSIONS)
     _check(any(finding["dimension"] == "resource_cleanup" for finding in resource_bad), "resource threshold regression")
 
+    core_passes, _core_dims = _resolve_packs(("core",))
+    _check(len(core_passes) == 1 and "docs" in core_passes[0][1], "core pack lost docs")
+    docs_passes, docs_dims = _resolve_packs(("core", "docs"))
+    _check(len(docs_passes) == 2, "docs profile should run two passes")
+    _check("docs" not in docs_passes[0][1], "docs pack did not supersede core docs")
+    docs_keys = {dimension[0] for dimension in docs_dims}
+    _check({"docs_api", "docs_changelog", "docs_readme", "docs_guides"} <= docs_keys, "docs dimensions missing")
+    _check("docs" not in docs_keys, "superseded docs dimension leaked")
+    all_passes, _all_dims = _resolve_packs(("core", "quality", "docs"))
+    _check(len(all_passes) == 3, "all profile should run three passes")
+
+    docs_api_edge = _findings({"docs_api": 0.55}, DOCS_DIMENSIONS)
+    _check(any(finding["dimension"] == "docs_api" for finding in docs_api_edge), "docs_api threshold regression")
+
     print("self-test OK")
     return 0
 
@@ -1085,10 +1217,18 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--model", default=DEFAULT_MODEL, help=f"Jev model (default: {DEFAULT_MODEL})")
     parser.add_argument(
         "--profile",
-        choices=tuple(PROFILE_QUESTIONS),
-        default="default",
-        help="questionnaire profile (default: default; strict adds dead-code/test-hygiene/type/resource/compat checks)",
+        choices=tuple(PROFILE_PACKS),
+        default=None,
+        help="questionnaire profile (default: default; strict adds quality; docs adds the docs pack; all runs everything)",
     )
+    parser.add_argument(
+        "--pack",
+        action="append",
+        choices=tuple(PACKS),
+        dest="packs",
+        help="questionnaire pack to run (repeatable; overrides --profile)",
+    )
+    parser.add_argument("--list-packs", action="store_true", help="print the available packs and exit")
     parser.add_argument("--list-questions", action="store_true", help="print the active questionnaire and exit")
     parser.add_argument("--endpoint", default=DEFAULT_ENDPOINT, help="System One endpoint")
     parser.add_argument(
@@ -1107,22 +1247,52 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--dry-run", action="store_true", help="show the filtered payload without calling the API")
     parser.add_argument("--fail-on", choices=("none", "comment", "block"), default="none", help="exit 1 at this verdict")
     parser.add_argument("--self-test", action="store_true", help="run local checks without network")
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.profile and args.packs:
+        parser.error("use --profile ou --pack, não ambos")
+    return args
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     _configure_stdio()
     args = _parse_args(argv)
+    pack_ids = _pack_ids(args)
+    passes, dimensions = _resolve_packs(pack_ids)
+    args.pack_ids = pack_ids
+    args.profile_label = _profile_label(args, pack_ids)
+    if args.list_packs:
+        print(
+            json.dumps(
+                {
+                    "packs": [
+                        {
+                            "id": pack.id,
+                            "title": pack.title,
+                            "description": pack.description,
+                            "supersedes": list(pack.supersedes),
+                            "questions": pack.questions,
+                            "dimensions": [
+                                {"dimension": key, "label": label, "threshold": threshold}
+                                for key, label, threshold, _hint in pack.dimensions
+                            ],
+                        }
+                        for pack in PACKS.values()
+                    ]
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0
     if args.list_questions:
         print(
             json.dumps(
                 {
-                    "profile": args.profile,
-                    "questions": PROFILE_QUESTIONS[args.profile],
-                    "passes": [{"name": name, "questions": questions} for name, questions in PROFILE_PASSES[args.profile]],
+                    "profile": args.profile_label,
+                    "packs": list(pack_ids),
+                    "passes": [{"name": name, "questions": questions} for name, questions in passes],
                     "thresholds": [
-                        {"dimension": key, "label": label, "threshold": threshold}
-                        for key, label, threshold, _hint in PROFILE_DIMENSIONS[args.profile]
+                        {"dimension": key, "label": label, "threshold": threshold} for key, label, threshold, _hint in dimensions
                     ],
                 },
                 ensure_ascii=False,
@@ -1142,8 +1312,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             _print_dry_run(prepared, args)
             return 0
         key = _load_key(args.env_file)
-        passes = PROFILE_PASSES[args.profile]
-        dimensions = PROFILE_DIMENSIONS[args.profile]
         results = []
         for index, chunk in enumerate(prepared.chunks, start=1):
             state = _build_state(chunk, index, len(prepared.chunks), prepared)

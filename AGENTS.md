@@ -136,17 +136,21 @@ python scripts/gen_api_docs.py --check      # docs/api.md is generated from docs
 
 `scripts/jev_review.py` adapts the Jev CLI from `vscode-utplsql` to this repo:
 it filters/redacts the diff, chunks large reviews, and asks repo-specific
-questions (event loop/browser pool, sync/async parity, docs/CHANGELOG, tests,
-security, dependencies). The default model is `jev-1.14` (paid, output free);
-`--model jev-1.13-free` uses the free route. `--profile strict` adds a second
-pass for dead code, test hygiene, typing, resource cleanup and backward
-compatibility; `--list-questions` prints the active set.
+questions. Packs are independent questionnaires: `core` (triage), `quality`
+(dead code/test hygiene/typing/resources/compat) and `docs` (API, CHANGELOG,
+README/CLI, guides). Profiles are aliases: `default` = core, `strict` =
+core+quality, `docs` = core+docs (docs supersedes core docs), `all` = everything.
+The default model is `jev-1.14` (paid, output free); `--model jev-1.13-free`
+uses the free route. `--list-packs` and `--list-questions` show the active set.
 
 ```bash
 python scripts/jev_review.py --base origin/main        # committed diff vs main
 python scripts/jev_review.py --working-tree            # uncommitted changes
 python scripts/jev_review.py --diff-file pr.diff       # saved diff
+python scripts/jev_review.py --diff-file pr.diff --profile docs
+python scripts/jev_review.py --diff-file pr.diff --pack core --pack quality
 python scripts/jev_review.py --diff-file pr.diff --dry-run   # no network/key
+python scripts/jev_review.py --list-packs
 python scripts/jev_review.py --self-test               # local checks only
 ```
 
