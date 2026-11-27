@@ -142,8 +142,9 @@ README/CLI, guides) and `security` (checklist §3.5: escaping, runtime/rede/
 browser, mídia, quotas, logs, contrato de confiança e supply chain). Profiles
 are aliases: `default` = core, `strict` = core+quality, `docs` = core+docs,
 `security` = core+security, `release` = core+docs+release, `all` = everything
-(deep packs supersede their core counterparts). The default model is `jev-1.14`
-(paid, output free); `--model jev-1.13-free` uses the free route.
+(deep packs supersede their core counterparts). The default model is
+`jev-1.13-free`; retryable failures (429, 404, 5xx, network) fall back to the
+paid `jev-1.14` (`--no-fallback` disables it, `--model jev-1.14` forces paid).
 `--list-packs` and `--list-questions` show the active set.
 
 ```bash

@@ -19,6 +19,10 @@ Profiles are aliases (``default``, ``strict``, ``docs``, ``security``,
 runs as its own API pass, so extra questions do not dilute the calibrated core
 signals.
 
+The default model is ``jev-1.13-free``. If it is unavailable (429, 404,
+5xx or network), the paid ``jev-1.14`` is used as a sticky fallback;
+``--no-fallback`` disables that, and ``--model jev-1.14`` forces the paid model.
+
 It is intentionally local and advisory. It never runs in CI, never posts to a
 PR, and never replaces lint, tests, or human review.
 
@@ -57,7 +61,8 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_ENDPOINT = "https://opencode.ai/inference/systemone/v1/systemone"
-DEFAULT_MODEL = "jev-1.14"
+DEFAULT_MODEL = "jev-1.13-free"
+DEFAULT_FALLBACK_MODEL = "jev-1.14"
 DEFAULT_MAX_DIFF_CHARS = 30_000
 DEFAULT_MAX_FILE_CHARS = 20_000
 DEFAULT_TIMEOUT = 120.0
@@ -639,6 +644,14 @@ class JevError(RuntimeError):
     """A user-facing review error."""
 
 
+class JevHttpError(JevError):
+    """An HTTP/network error with enough detail to decide on a fallback."""
+
+    def __init__(self, status: int, message: str) -> None:
+        super().__init__(message)
+        self.status = status
+
+
 @dataclass
 class DiffFile:
     path: str
@@ -895,13 +908,25 @@ def _api_error_message(body: str) -> str:
     return body.strip()[:300]
 
 
+def _fallback_allowed(exc: JevHttpError) -> bool:
+    """Whether a different model could plausibly fix this failure."""
+    if exc.status == 0:
+        return True
+    if exc.status in {403, 404, 408, 410, 425, 429, 451}:
+        return True
+    if 500 <= exc.status <= 599:
+        return True
+    return exc.status == 400 and "model" in str(exc).lower()
+
+
 def _call_jev(
     state: str,
     args: argparse.Namespace,
     key: str,
     questions: dict[str, dict[str, Any]],
+    model: str,
 ) -> dict[str, Any]:
-    payload = {"model": args.model, "state": state, "questions": questions}
+    payload = {"model": model, "state": state, "questions": questions}
     request = urllib.request.Request(  # noqa: S310
         args.endpoint,
         data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
@@ -919,14 +944,17 @@ def _call_jev(
         body = exc.read().decode("utf-8", "replace")
         message = _api_error_message(body)
         if exc.code == 401:
-            raise JevError("chave inválida ou expirada (HTTP 401).") from exc
+            raise JevHttpError(401, "chave inválida ou expirada (HTTP 401).") from exc
         if exc.code == 402:
-            raise JevError("saldo insuficiente no OpenCode Console (HTTP 402); recarregue e tente de novo.") from exc
+            raise JevHttpError(
+                402,
+                "saldo insuficiente no OpenCode Console (HTTP 402); recarregue e tente de novo.",
+            ) from exc
         if exc.code == 429:
-            raise JevError("rate limit da API (HTTP 429); tente novamente em alguns minutos.") from exc
-        raise JevError(f"HTTP {exc.code}: {message}") from exc
+            raise JevHttpError(429, "rate limit da API (HTTP 429); tente novamente em alguns minutos.") from exc
+        raise JevHttpError(exc.code, f"HTTP {exc.code}: {message}") from exc
     except urllib.error.URLError as exc:
-        raise JevError(f"falha de rede: {exc.reason}") from exc
+        raise JevHttpError(0, f"falha de rede: {exc.reason}") from exc
     try:
         payload = json.loads(body)
     except json.JSONDecodeError as exc:
@@ -936,7 +964,12 @@ def _call_jev(
     return payload
 
 
-def _parse_response(response: dict[str, Any], index: int, files: list[str]) -> dict[str, Any]:
+def _parse_response(
+    response: dict[str, Any],
+    index: int,
+    files: list[str],
+    requested_model: str,
+) -> dict[str, Any]:
     answers = response.get("answers")
     if not isinstance(answers, dict):
         raise JevError("resposta da API sem o campo 'answers'.")
@@ -953,7 +986,17 @@ def _parse_response(response: dict[str, Any], index: int, files: list[str]) -> d
         elif kind == "choice" and isinstance(answer.get("choice"), str):
             parsed[key] = answer["choice"]
     usage = response.get("usage") if isinstance(response.get("usage"), dict) else {}
-    return {"index": index, "files": files, "answers": parsed, "usage": usage}
+    model = response.get("model")
+    if not isinstance(model, str) or not model:
+        model = requested_model
+    return {
+        "index": index,
+        "files": files,
+        "answers": parsed,
+        "usage": usage,
+        "model": model,
+        "requested_model": requested_model,
+    }
 
 
 def _merge_results(results: list[dict[str, Any]]) -> dict[str, Any]:
@@ -976,7 +1019,21 @@ def _merge_results(results: list[dict[str, Any]]) -> dict[str, Any]:
         for key, value in result["usage"].items():
             if isinstance(value, (int, float)):
                 usage[key] = usage.get(key, 0) + value
-    return {"answers": merged, "usage": usage, "chunks": results}
+    models: list[str] = []
+    fallback_used = False
+    for result in results:
+        model = result.get("model")
+        if isinstance(model, str) and model and model not in models:
+            models.append(model)
+        if result.get("fallback"):
+            fallback_used = True
+    return {
+        "answers": merged,
+        "usage": usage,
+        "chunks": results,
+        "models": models,
+        "fallback_used": fallback_used,
+    }
 
 
 def _findings(
@@ -1063,13 +1120,15 @@ def _render_markdown(
         focus_value = answers.get(focus)
         if isinstance(focus_value, (int, float)) and focus_value >= threshold:
             focus_label = label
+    models = merged.get("models") or [args.model]
+    model_label = " → ".join(models)
     lines = [
         "## Jev review — advisory",
         "",
         f"**Veredito:** `{verdict}` · **Severidade:** {severity:.2f}/4 ({_severity_label(severity)}) · "
-        f"**Modelo:** `{args.model}` · **Perfil:** `{args.profile_label}`"
+        f"**Modelo:** `{model_label}` · **Perfil:** `{args.profile_label}`"
         if isinstance(severity, (int, float))
-        else f"**Veredito:** `{verdict}` · **Severidade:** n/d · **Modelo:** `{args.model}` · **Perfil:** `{args.profile_label}`",
+        else f"**Veredito:** `{verdict}` · **Severidade:** n/d · **Modelo:** `{model_label}` · **Perfil:** `{args.profile_label}`",
         "",
         "| Dimensão | Valor | Limiar | Leitura |",
         "|---|---:|---:|---|",
@@ -1087,6 +1146,8 @@ def _render_markdown(
         f"**Recomendação do modelo:** `{recommendation or 'n/d'}` · **Foco:** {focus_label}",
         "",
     ]
+    if merged.get("fallback_used"):
+        lines += [f"**Fallback:** ativado (`{args.model}` → `{model_label}`).", ""]
     if findings:
         lines += ["**Achados:**", ""]
         for finding in findings:
@@ -1210,6 +1271,10 @@ def _render_json(
         "schema": "isis-report-lib.jev-review.v1",
         "generated_at": datetime.now(UTC).isoformat(),
         "model": args.model,
+        "model_primary": args.model,
+        "models": merged.get("models", [args.model]),
+        "fallback_model": args.fallback_model,
+        "fallback_used": merged.get("fallback_used", False),
         "profile": args.profile_label,
         "packs": list(args.pack_ids),
         "endpoint": args.endpoint,
@@ -1275,6 +1340,8 @@ def _load_diff(args: argparse.Namespace) -> str:
 def _print_dry_run(prepared: PreparedDiff, args: argparse.Namespace) -> None:
     print("Jev dry-run (nenhuma chamada de rede)")
     print(f"model={args.model}")
+    fallback = "off" if args.no_fallback or not args.fallback_model or args.fallback_model == args.model else args.fallback_model
+    print(f"fallback={fallback}")
     print(f"profile={args.profile_label}")
     print(f"packs={','.join(args.pack_ids)}")
     print(f"endpoint={args.endpoint}")
@@ -1433,6 +1500,21 @@ index 7777777..8888888 100644
     rel_edge = _findings({"rel_version": 0.65}, RELEASE_DIMENSIONS)
     _check(any(finding["dimension"] == "rel_version" for finding in rel_edge), "release threshold regression")
 
+    _check(_fallback_allowed(JevHttpError(429, "rate limit")), "429 should fall back")
+    _check(_fallback_allowed(JevHttpError(503, "unavailable")), "5xx should fall back")
+    _check(_fallback_allowed(JevHttpError(0, "network")), "network should fall back")
+    _check(_fallback_allowed(JevHttpError(400, "model not found")), "model 400 should fall back")
+    _check(not _fallback_allowed(JevHttpError(401, "bad key")), "401 should not fall back")
+    _check(not _fallback_allowed(JevHttpError(402, "no balance")), "402 should not fall back")
+
+    parsed = _parse_response(
+        {"model": "jev-1.13-free", "answers": {"security": {"type": "noul", "noul": 0.1}}},
+        1,
+        ["x"],
+        "jev-1.13-free",
+    )
+    _check(parsed["model"] == "jev-1.13-free", "response model")
+
     print("self-test OK")
     return 0
 
@@ -1455,7 +1537,17 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     source = parser.add_mutually_exclusive_group()
     source.add_argument("--diff-file", type=Path, help="use a saved diff instead of running git")
     source.add_argument("--working-tree", action="store_true", help="diff the working tree against --base")
-    parser.add_argument("--model", default=DEFAULT_MODEL, help=f"Jev model (default: {DEFAULT_MODEL})")
+    parser.add_argument(
+        "--model",
+        default=DEFAULT_MODEL,
+        help=f"primary Jev model (default: free {DEFAULT_MODEL})",
+    )
+    parser.add_argument(
+        "--fallback-model",
+        default=DEFAULT_FALLBACK_MODEL,
+        help=f"paid fallback when the primary is unavailable (default: {DEFAULT_FALLBACK_MODEL})",
+    )
+    parser.add_argument("--no-fallback", action="store_true", help="disable the model fallback")
     parser.add_argument(
         "--profile",
         choices=tuple(PROFILE_PACKS),
@@ -1553,13 +1645,28 @@ def main(argv: Sequence[str] | None = None) -> int:
             _print_dry_run(prepared, args)
             return 0
         key = _load_key(args.env_file)
+        fallback_model = None if args.no_fallback or not args.fallback_model or args.fallback_model == args.model else args.fallback_model
+        active_model = args.model
+        fallback_used = False
         results = []
         for index, chunk in enumerate(prepared.chunks, start=1):
             state = _build_state(chunk, index, len(prepared.chunks), prepared)
             for pass_name, questions in passes:
-                response = _call_jev(state, args, key, questions)
-                parsed = _parse_response(response, index, prepared.chunk_files[index - 1])
+                try:
+                    response = _call_jev(state, args, key, questions, active_model)
+                except JevHttpError as exc:
+                    if fallback_model is None or active_model == fallback_model or not _fallback_allowed(exc):
+                        raise
+                    print(
+                        f"AVISO: modelo {active_model} falhou ({exc}); usando fallback {fallback_model}.",
+                        file=sys.stderr,
+                    )
+                    active_model = fallback_model
+                    fallback_used = True
+                    response = _call_jev(state, args, key, questions, active_model)
+                parsed = _parse_response(response, index, prepared.chunk_files[index - 1], active_model)
                 parsed["pass"] = pass_name
+                parsed["fallback"] = fallback_used
                 results.append(parsed)
         merged = _merge_results(results)
         markdown, summary = _render_markdown(merged, prepared, args, dimensions)
