@@ -163,6 +163,27 @@ The key comes from `OPENCODE_API_KEY` or `--env-file` (never commit it).
 Reports go to `.jev/` (gitignored). This is **advisory**: never a CI gate, never
 a PR comment, never a replacement for the human review.
 
+## Release preflight (local)
+
+`scripts/release_preflight.py` is the repo-state companion to the Jev `release`
+pack. The pack reviews a diff; the preflight checks the files that must agree
+before a tag is pushed: version/hatch-vcs, CHANGELOG heading/date/Unreleased,
+`release-notes/X.Y.Z.md`, Docker pins, `docs/api.md`, `security.txt` expiry,
+roadmap and git state. It is read-only, needs no API key and does not use the
+network.
+
+```bash
+python scripts/release_preflight.py --version 0.17.0
+python scripts/release_preflight.py --tag v0.17.0 --require-tag
+python scripts/release_preflight.py --version 0.18.0 --json
+python scripts/release_preflight.py --self-test
+```
+
+`--allow-dirty` downgrades a dirty tree to a warning; `--strict` turns warnings
+into failures. The script exits 1 on any `FAIL` (or on warnings with `--strict`).
+Use it before creating/pushing the release tag, then run the `release` profile
+on the release PR for the diff-level checks.
+
 ## Tests
 - Unit tests use mocks for `rendering.arender_report_html` and `pdf.get_pdf_from_html`
   (see `test_service.py`); never require a browser outside `test_pdf_e2e.py`.
