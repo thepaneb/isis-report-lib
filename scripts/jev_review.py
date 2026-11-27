@@ -530,7 +530,8 @@ def _call_jev(
     )
     try:
         # main() rejects non-HTTPS endpoints before this point; file:// is never accepted.
-        with urllib.request.urlopen(request, timeout=args.timeout) as response:  # noqa: S310  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+        with urllib.request.urlopen(request, timeout=args.timeout) as response:  # noqa: S310
             body = response.read().decode("utf-8", "replace")
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", "replace")

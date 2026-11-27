@@ -306,7 +306,8 @@ def _http_get(url: str, timeout: float) -> tuple[int, bytes]:
     )
     try:
         # URLs are fixed https:// constants or the validated version/slug.
-        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
             return getattr(response, "status", 200), response.read()
     except urllib.error.HTTPError as exc:
         return exc.code, exc.read()
