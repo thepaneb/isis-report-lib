@@ -42,3 +42,13 @@ Please include:
 - Error messages and package logs name fields/paths and expected types, never
   payload values. Do not enable verbose third-party logging of payloads or feed
   raw payloads into error trackers.
+
+## AI-assisted use and report ingestion
+
+The library does **not** call an LLM or AI service at runtime. Reports are data,
+not instructions. If a generated PDF/HTML/XLSX/CSV is fed to an LLM or agent,
+treat it as untrusted input: hidden or invisible text, template content and
+post-processing can carry instructions. Use a visible-text extractor, clear
+delimiters and a system prompt that treats the report as data; never let the
+document trigger tools or reveal secrets. AI-assisted contributions follow
+[`AI_USAGE.md`](AI_USAGE.md) and [`AGENTS.md`](AGENTS.md).

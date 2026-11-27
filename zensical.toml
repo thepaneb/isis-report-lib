@@ -22,7 +22,7 @@ nav = [
   { "Contributing" = "contributing.md" },
   { "Roadmap" = "ROADMAP.md" },
   { "Changelog" = "https://github.com/thepaneb/isis-report-lib/blob/main/CHANGELOG.md" },
-  { "Security policy" = "https://github.com/thepaneb/isis-report-lib/blob/main/SECURITY.md" },
+  { "Security policy" = "security.md" },
 ]
 
 # extra_css = ["stylesheets/extra.css"]

@@ -30,6 +30,11 @@ constraint and is tracked under Adoption below.
   The GitHub Action, Dockerfile, Discussions and starter issues are done (see
   [Done](#done-2026-11-26)).
 
+### Security & AI governance
+- **Visible-text export** — a visible-only, sanitized text export for AI/RAG
+  ingestion, with a prompt-injection and invisible-Unicode test corpus. The
+  library has no AI runtime; keep the disclosure/security pages current.
+
 ### 1.0 — packaging and contract
 - **Playwright as an optional `[pdf]` extra** so HTML/XLSX/CSV users do not
   download a browser. Breaking change; schedule it with 1.0.
@@ -53,6 +58,12 @@ extra only if demand appears; PAdES remains a non-goal.
   Console.dev beta pitch, Python Bytes news item, PyCoder's Weekly form and the
   0.16.0 LinkedIn posts in EN and PT-BR. HN and r/Python are scheduled; the
   remaining channels are tracked under Adoption.
+- **Security P0** — payload values are no longer included in validation errors
+  or logs; AI agents have explicit untrusted-content/prompt-injection/secrets
+  rules in `AGENTS.md`.
+- **AI governance** — `AI_USAGE.md`, CONTRIBUTING/PR-template disclosure, the
+  docs security page and `security.txt`; AI-ingestion and
+  prompt-injection guidance in `SECURITY.md`.
 
 ## Done (2026-11-26)
 

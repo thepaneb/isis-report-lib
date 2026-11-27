@@ -42,6 +42,16 @@ Pull requests against `main` are the contribution mechanism:
 > trusted); the maintainer integrates those from a same-repo branch. Open an
 > issue first for anything beyond docs/config.
 
+## AI-assisted contributions
+
+AI tools are allowed. Disclose the tool/model and scope in the pull request,
+review and test the output, and keep the final authorship human. Never paste
+tokens, `.env.local`, private keys, customer data or private URLs into a prompt.
+AI-assisted changes pass the same CI and review gates. See
+[`AI_USAGE.md`](https://github.com/thepaneb/isis-report-lib/blob/main/AI_USAGE.md)
+and the untrusted-content rules in
+[`AGENTS.md`](https://github.com/thepaneb/isis-report-lib/blob/main/AGENTS.md).
+
 ## Integrating fork PRs (maintainers)
 
 For a code/tests/CI/dependency fork PR, create an `integrate/pr-<N>` branch in

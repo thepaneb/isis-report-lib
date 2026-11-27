@@ -11,7 +11,9 @@
 - [ ] `CHANGELOG.md` updated under `[Unreleased]` for user-visible changes
 - [ ] `python scripts/gen_api_docs.py --check` passes (public API/docstrings)
 - [ ] `python -m zensical build --strict` passes when `docs/` changed
+- [ ] If AI-assisted, I disclosed the tool/scope and reviewed/tested every change
 
 ## Notes
 
 <!-- Breaking changes, migration steps, screenshots, or anything reviewers should know. -->
+<!-- If AI-assisted, name the tool/model and what it generated. -->

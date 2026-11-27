@@ -24,6 +24,16 @@ library, so the fastest path is a focused issue or a small pull request.
   [Report a vulnerability](https://github.com/thepaneb/isis-report-lib/security/advisories/new)
   flow.
 
+## AI-assisted contributions
+
+AI tools are allowed. If you use one, say so in the pull request (tool/model
+and what it helped with), review and test the output, and keep the final
+authorship human. Do not paste tokens, `.env.local`, private keys, customer data
+or private URLs into a prompt. AI-assisted changes pass the same CI and review
+gates; license/IP provenance remains your responsibility. See
+[`AI_USAGE.md`](AI_USAGE.md) and the untrusted-content rules in
+[`AGENTS.md`](AGENTS.md).
+
 ## Fork pull requests and code scanning
 
 Fork → branch → pull request is the normal path. One CI constraint is worth
