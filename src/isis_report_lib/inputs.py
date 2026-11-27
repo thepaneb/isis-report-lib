@@ -118,3 +118,45 @@ def _with_meta_layout(payload: dict[str, Any], meta: dict[str, Any] | None, layo
     if layout is not None:
         payload["layout"] = layout
     return payload
+
+
+def from_jsonl(
+    source: str | Path | Any,
+    meta: dict[str, Any] | None = None,
+    layout: dict[str, Any] | None = None,
+    encoding: str = "utf-8",
+) -> dict[str, Any]:
+    """Build a payload from JSON Lines: each line must be a JSON object.
+
+    - ``source`` can be a path, :class:`pathlib.Path`, or an opened file-like object.
+    - Blank or whitespace‑only lines are ignored.
+    - If a line cannot be parsed as JSON, or does not contain a JSON object, a
+      :class:`ValueError` is raised with the offending line number (1‑based).
+    - ``meta`` and ``layout`` are merged into the resulting payload the same way
+      :func:`from_json` does.
+    """
+    close = False
+    if isinstance(source, (str, Path)):
+        handle = open(source, encoding=encoding)
+        close = True
+    else:
+        handle = source
+    try:
+        records: list[dict[str, Any]] = []
+        for idx, raw in enumerate(handle, start=1):
+            line = raw.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+            except (json.JSONDecodeError, RecursionError) as e:
+                raise ValueError(f"Malformed JSON on line {idx}: {e}") from e
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Malformed JSON on line {idx}: {e.msg}") from e
+            if not isinstance(obj, dict):
+                raise ValueError(f"JSON value on line {idx} is not an object")
+            records.append(obj)
+    finally:
+        if close:
+            handle.close()
+    return _with_meta_layout({"data": records}, meta, layout)

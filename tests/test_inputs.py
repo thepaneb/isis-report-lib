@@ -98,7 +98,32 @@ def test_clean_value_edge_cases():
 
 def test_from_json_file_handle():
     import io
+    import pathlib, tempfile
+    import pytest
 
-    from isis_report_lib.inputs import from_json
+    from isis_report_lib.inputs import from_json, from_jsonl
 
     assert from_json(io.StringIO('[{"a": 1}]')) == {"data": [{"a": 1}]}
+
+    jsonl_content = """{\"a\": 1}\n\n{\"b\": 2}\n   \n{\"c\": 3}\n"""
+    handle = io.StringIO(jsonl_content)
+    payload = from_jsonl(handle)
+    assert payload["data"] == [{"a": 1}, {"b": 2}, {"c": 3}]
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8')
+    tmp.write('{"x": 10}\n{"y": 20}\n')
+    tmp.close()
+    p = pathlib.Path(tmp.name)
+    payload2 = from_jsonl(p, meta={"title": "T"}, layout={"x": {"label": "X"}})
+    assert payload2["meta"]["title"] == "T"
+    assert payload2["layout"]["x"]["label"] == "X"
+    assert payload2["data"] == [{"x": 10}, {"y": 20}]
+
+    bad_content = "{\"a\": 1}\n{invalid}\n"
+    bad_handle = io.StringIO(bad_content)
+    with pytest.raises(ValueError, match="Malformed JSON on line 2"):
+        from_jsonl(bad_handle)
+
+    nonobj = "[1,2]\n{\"a\": 3}\n"
+    with pytest.raises(ValueError, match="JSON value on line 1 is not an object"):
+        from_jsonl(io.StringIO(nonobj))

@@ -37,7 +37,7 @@ from isis_report_lib.formatting import (
     match_rule,
     sparkline_text,
 )
-from isis_report_lib.inputs import from_csv, from_dataframe, from_json, payload_schema
+from isis_report_lib.inputs import from_csv, from_dataframe, from_json, from_jsonl, payload_schema
 from isis_report_lib.layout import (
     build_report,
     convert_data,
@@ -78,6 +78,7 @@ __all__ = [
     "from_csv",
     "from_dataframe",
     "from_json",
+    "from_jsonl",
     "payload_schema",
     "SignatureInfo",
     "HMAC_MIN_KEY_BYTES",

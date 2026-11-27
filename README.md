@@ -192,11 +192,12 @@ A `%ISIS-SIGNATURE` block is appended after the PDF `%%EOF` (readers ignore it; 
 
 ```python
 from isis_report_lib import generate_pdf
-from isis_report_lib.inputs import from_csv, from_dataframe, from_json
+from isis_report_lib.inputs import from_csv, from_dataframe, from_json, from_jsonl
 
 generate_pdf(from_dataframe(df, meta={"title": "Sales", "locale": "en-US"}))
 generate_pdf(from_csv("sales.csv", delimiter=";"))   # light int/float/bool coercion
 generate_pdf(from_json("payload.json"))              # list -> data; full payload passes through
+generate_pdf(from_jsonl("data.jsonl"))            # newline‑delimited JSON objects
 ```
 
 `pandas` is optional: `pip install isis-report-lib[pandas]` (`NaN`/`NaT` become `None`, `Timestamp` becomes `datetime`).

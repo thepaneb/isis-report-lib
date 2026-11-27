@@ -1,6 +1,12 @@
 """Public API of the library (sync + async)."""
 
 import asyncio
+import platform
+
+# Use selector event loop on Windows to avoid socketpair issues
+if platform.system() == "Windows":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 from pathlib import Path
 from typing import Any
 
