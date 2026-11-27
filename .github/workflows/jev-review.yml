@@ -1,0 +1,125 @@
+name: Jev review (advisory)
+
+# Local-style Jev review in CI, but advisory only:
+# - same-repo PRs (forks do not receive secrets) or manual dispatch;
+# - uploads the Markdown/JSON report as an artifact and job summary;
+# - never comments on the PR, never gates the merge.
+#
+# Requires the OPENCODE_API_KEY repository secret. Without it the job warns and
+# skips the review instead of failing.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Questionnaire profile
+        type: choice
+        default: strict
+        options: [default, strict, docs, security, release, all]
+      base:
+        description: Base ref
+        default: origin/main
+      head:
+        description: Head ref
+        default: HEAD
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jev-review-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROFILE: ${{ github.event_name == 'pull_request' && 'strict' || github.event.inputs.profile || 'strict' }}
+
+jobs:
+  review:
+    # Drafts are reviewed on ready_for_review; forks never get the secret.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.draft == false &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.actor != 'dependabot[bot]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: "3.11"
+
+      - name: Check API key
+        id: key
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+        run: |
+          if [ -z "${OPENCODE_API_KEY:-}" ]; then
+            echo "::warning::OPENCODE_API_KEY is not configured; skipping the advisory Jev review."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build diff
+        id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ inputs.base }}
+          HEAD_REF: ${{ inputs.head }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin
+          if [ "$EVENT" = "pull_request" ]; then
+            BASE="$BASE_SHA"
+            HEAD="$HEAD_SHA"
+          else
+            BASE="$BASE_REF"
+            HEAD="$HEAD_REF"
+          fi
+          git diff --no-ext-diff --unified=3 "$BASE...$HEAD" > "$RUNNER_TEMP/jev.diff"
+          if [ -s "$RUNNER_TEMP/jev.diff" ]; then
+            echo "empty=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Empty diff; nothing to review."
+            echo "empty=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run Jev review
+        if: steps.diff.outputs.empty == 'false' && steps.key.outputs.present == 'true'
+        continue-on-error: true
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+        run: |
+          python scripts/jev_review.py \
+            --diff-file "$RUNNER_TEMP/jev.diff" \
+            --profile "$PROFILE" \
+            --output .jev/jev-review.md \
+            --json-output .jev/jev-review.json \
+            --quiet
+
+      - name: Add report to job summary
+        if: always()
+        run: |
+          if [ -f .jev/jev-review.md ]; then
+            cat .jev/jev-review.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload Jev report
+        if: always() && steps.key.outputs.present == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: jev-review-${{ github.event.pull_request.number || github.run_id }}
+          path: |
+            .jev/jev-review.md
+            .jev/jev-review.json
+          if-no-files-found: warn
+          retention-days: 14
