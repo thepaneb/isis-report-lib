@@ -132,6 +132,26 @@ python -m mypy src
 python scripts/gen_api_docs.py --check      # docs/api.md is generated from docstrings
 ```
 
+## Local Jev review (optional, advisory)
+
+`scripts/jev_review.py` adapts the Jev CLI from `vscode-utplsql` to this repo:
+it filters/redacts the diff, chunks large reviews, and asks repo-specific
+questions (event loop/browser pool, sync/async parity, docs/CHANGELOG, tests,
+security, dependencies). The default model is `jev-1.14` (paid, output free);
+`--model jev-1.13-free` uses the free route.
+
+```bash
+python scripts/jev_review.py --base origin/main        # committed diff vs main
+python scripts/jev_review.py --working-tree            # uncommitted changes
+python scripts/jev_review.py --diff-file pr.diff       # saved diff
+python scripts/jev_review.py --diff-file pr.diff --dry-run   # no network/key
+python scripts/jev_review.py --self-test               # local checks only
+```
+
+The key comes from `OPENCODE_API_KEY` or `--env-file` (never commit it).
+Reports go to `.jev/` (gitignored). This is **advisory**: never a CI gate, never
+a PR comment, never a replacement for the human review.
+
 ## Tests
 - Unit tests use mocks for `rendering.arender_report_html` and `pdf.get_pdf_from_html`
   (see `test_service.py`); never require a browser outside `test_pdf_e2e.py`.
