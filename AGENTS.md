@@ -156,10 +156,16 @@ python scripts/jev_review.py --diff-file pr.diff --profile docs
 python scripts/jev_review.py --diff-file pr.diff --profile security
 python scripts/jev_review.py --diff-file pr.diff --profile release
 python scripts/jev_review.py --diff-file pr.diff --pack core --pack quality
+python scripts/jev_review.py --diff-file pr.diff --auto-packs
 python scripts/jev_review.py --diff-file pr.diff --dry-run   # no network/key
 python scripts/jev_review.py --list-packs
 python scripts/jev_review.py --self-test               # local checks only
 ```
+
+`--auto-packs` selects `core` plus packs inferred from changed paths:
+`quality` for `src/`/`tests/`, `docs` for docs/README/CHANGELOG,
+`security` for media/rendering/templates/signing/inputs/export/service, and
+`release` for release-notes/docker/publish/pyproject.
 
 The key comes from `OPENCODE_API_KEY` or `--env-file` (never commit it).
 Reports go to `.jev/` (gitignored). This is **advisory**: never a CI gate, never

@@ -33,6 +33,7 @@ Usage::
     python scripts/jev_review.py --working-tree
     python scripts/jev_review.py --diff-file pr.diff --profile docs
     python scripts/jev_review.py --diff-file pr.diff --pack core --pack quality
+    python scripts/jev_review.py --diff-file pr.diff --auto-packs
     python scripts/jev_review.py --diff-file pr.diff --dry-run
     python scripts/jev_review.py --list-packs
     python scripts/jev_review.py --self-test
@@ -665,6 +666,25 @@ PROFILE_PACKS: dict[str, tuple[str, ...]] = {
     "release": ("core", "docs", "release"),
     "all": ("core", "quality", "docs", "security", "release"),
 }
+AUTO_PACK_RULES: dict[str, tuple[str, ...]] = {
+    "quality": ("src/", "tests/"),
+    "docs": ("docs/", "README.md", "CHANGELOG.md", "AGENTS.md", "release-notes/"),
+    "security": (
+        "src/isis_report_lib/media.py",
+        "src/isis_report_lib/rendering.py",
+        "src/isis_report_lib/templates/",
+        "src/isis_report_lib/signing.py",
+        "src/isis_report_lib/inputs.py",
+        "src/isis_report_lib/export.py",
+        "src/isis_report_lib/service.py",
+    ),
+    "release": (
+        "release-notes/",
+        "docker/",
+        ".github/workflows/publish.yml",
+        "pyproject.toml",
+    ),
+}
 
 CONTEXT = """Context: isis-report-lib is a Python library (src/isis_report_lib) that generates
 tabular PDF reports with Jinja2 + Playwright, exports XLSX/CSV/HTML, and has sync and async APIs.
@@ -805,7 +825,24 @@ def _pack_ids(args: argparse.Namespace) -> tuple[str, ...]:
     return PROFILE_PACKS[args.profile or "default"]
 
 
+def _path_matches(path: str, pattern: str) -> bool:
+    if pattern.endswith("/"):
+        return path == pattern[:-1] or path.startswith(pattern)
+    return path == pattern
+
+
+def _auto_pack_ids(paths: Sequence[str]) -> tuple[str, ...]:
+    selected = {"core"}
+    for path in paths:
+        for pack_id, patterns in AUTO_PACK_RULES.items():
+            if any(_path_matches(path, pattern) for pattern in patterns):
+                selected.add(pack_id)
+    return tuple(pack_id for pack_id in PACKS if pack_id in selected)
+
+
 def _profile_label(args: argparse.Namespace, pack_ids: tuple[str, ...]) -> str:
+    if args.auto_packs:
+        return "auto:" + ",".join(pack_ids)
     if args.packs:
         return "custom:" + ",".join(pack_ids)
     return args.profile or "default"
@@ -1709,6 +1746,15 @@ index 7777777..8888888 100644
     _check(set(EN_TEXT) == dimension_keys, "EN_TEXT does not cover every dimension")
     _check(all(label and hint for label, hint in EN_TEXT.values()), "EN_TEXT has an empty label or hint")
 
+    _check(_auto_pack_ids(["src/example.py", "tests/test_example.py"]) == ("core", "quality"), "auto quality")
+    _check(_auto_pack_ids(["README.md"]) == ("core", "docs"), "auto docs")
+    _check(
+        _auto_pack_ids(["src/isis_report_lib/media.py"]) == ("core", "quality", "security"),
+        "auto security",
+    )
+    _check(_auto_pack_ids(["release-notes/1.0.0.md"]) == ("core", "docs", "release"), "auto release")
+    _check(_auto_pack_ids([".gitignore"]) == ("core",), "auto core only")
+
     print("self-test OK")
     return 0
 
@@ -1763,6 +1809,11 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         dest="packs",
         help="questionnaire pack to run (repeatable; overrides --profile)",
     )
+    parser.add_argument(
+        "--auto-packs",
+        action="store_true",
+        help="select packs from the changed paths (core + matched packs)",
+    )
     parser.add_argument("--list-packs", action="store_true", help="print the available packs and exit")
     parser.add_argument("--list-questions", action="store_true", help="print the active questionnaire and exit")
     parser.add_argument("--endpoint", default=DEFAULT_ENDPOINT, help="System One endpoint")
@@ -1789,16 +1840,16 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         args.fallback_models = []
     if args.profile and args.packs:
         parser.error("use --profile or --pack, not both")
+    if args.auto_packs and (args.profile or args.packs):
+        parser.error("use --auto-packs or --profile/--pack, not both")
+    if args.auto_packs and args.list_questions:
+        parser.error("--auto-packs requires a diff; use --profile/--pack with --list-questions")
     return args
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     _configure_stdio()
     args = _parse_args(argv)
-    pack_ids = _pack_ids(args)
-    passes, dimensions = _resolve_packs(pack_ids)
-    args.pack_ids = pack_ids
-    args.profile_label = _profile_label(args, pack_ids)
     if args.list_packs:
         print(
             json.dumps(
@@ -1828,6 +1879,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 0
     if args.list_questions:
+        pack_ids = _pack_ids(args)
+        passes, dimensions = _resolve_packs(pack_ids)
+        args.pack_ids = pack_ids
+        args.profile_label = _profile_label(args, pack_ids)
         print(
             json.dumps(
                 {
@@ -1856,6 +1911,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         prepared = _prepare_diff(_load_diff(args), args.max_diff_chars, args.max_file_chars)
         if not prepared.chunks:
             raise JevError("no reviewable files in the diff (all skipped or empty diff).")
+        pack_ids = _auto_pack_ids([file.path for file in prepared.files]) if args.auto_packs else _pack_ids(args)
+        passes, dimensions = _resolve_packs(pack_ids)
+        args.pack_ids = pack_ids
+        args.profile_label = _profile_label(args, pack_ids)
         if args.dry_run:
             _print_dry_run(prepared, args)
             return 0
