@@ -46,6 +46,9 @@ Depois informe o **ID do post**, a **data** e o **URN/link** impressos.
 - Se o comando falhar com `pending`/`failed`, **não insista**: confira no
   LinkedIn e use `--mark <id>` (se saiu) ou `--unmark <id>` (se não saiu).
 - Post publicado manualmente: `--mark <id> [--at <data>] [--urn <urn>]`.
+- Post que **não** vai ser publicado (release antigo, feature descartada):
+  `--skip <id>` registra o estado `pulado`; a fila de features avança por cima
+  dos pulados e o `--list` mostra a data do skip.
 - Lançamento e releases ficam **fora da fila**: `--only launch/01-launch`,
   `--only releases/01-release-v0.13.0`.
 
@@ -72,7 +75,7 @@ post, adicione o card ao `CARDS` do `gen_cards.py` (variantes pt-br e en).
 1. **Gancho** — 1 linha, começa com emoji.
 2. **Imagem** — `![título](../assets/<id>.png)` logo após o gancho.
 3. **Contexto** — 1 parágrafo do problema.
-4. **Bullets** — 3–4 itens com `**negrito**` e marcador —emoji.
+4. **Bullets** — 3–4 itens com `**negrito**` e marcador emoji.
 5. **Fecho** — 1–2 frases de benefício.
 6. **CTA + links** — `👇` e os três links (site, GitHub, PyPI).
 7. **Hashtags** — última linha.
