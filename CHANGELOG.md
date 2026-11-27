@@ -14,6 +14,8 @@ release last.
 - Reusable isis-report-lib logo assets for the docs site, README and favicon, generated from the report template
 ### Changed
 - The Jev review CI workflow now uses `--auto-packs` for PRs and only comments when there are findings or a `comment`/`block` verdict
+### Fixed
+- The docs header revalidates the cached GitHub release tag hourly, so long-lived tabs no longer keep an old project version
 
 ## [0.17.0] - 2026-11-27
 ### Added
