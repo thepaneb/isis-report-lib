@@ -8,6 +8,8 @@ draft GitHub Release, uploads to PyPI via trusted publishing and publishes the
 release last.
 
 ## [Unreleased]
+
+## [0.17.0] - 2026-11-27
 ### Added
 - `AI_USAGE.md`, docs security page and `security.txt`; AI-assisted contribution disclosure in CONTRIBUTING and the PR template
 - `render_text`/`arender_text` (and `.toon` variants): visible-only, sanitized plain-text export with a `REPORT DATA` boundary for AI/RAG ingestion

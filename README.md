@@ -131,7 +131,7 @@ A composite GitHub Action is in `.github/actions/render` — copy
 [`examples/github-action.md`](examples/github-action.md) or use it directly:
 
 ```yaml
-- uses: thepaneb/isis-report-lib/.github/actions/render@v0.16.0
+- uses: thepaneb/isis-report-lib/.github/actions/render@v0.17.0
   with:
     input: examples/sales_order.toon
     output: artifacts/report.pdf
@@ -152,7 +152,7 @@ docker run --rm -v "$PWD:/work" isis-report generate examples/sales_order.toon -
 Or use the published GHCR image, built from the release wheel:
 
 ```bash
-docker run --rm -v "$PWD:/work" ghcr.io/thepaneb/isis-report-lib:0.16.0 generate examples/sales_order.toon -o report.pdf
+docker run --rm -v "$PWD:/work" ghcr.io/thepaneb/isis-report-lib:0.17.0 generate examples/sales_order.toon -o report.pdf
 ```
 
 The local `Dockerfile` uses the hash-pinned `docker/requirements.in`; after a
