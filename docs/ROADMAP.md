@@ -16,10 +16,19 @@ that. Completed in the same pass: output gallery, comparison page, generated
 API reference and the docs drift fixes (see [Done](#done-2026-11-25)); the 0.15
 visible features landed on 2026-11-26 (see [Done](#done-2026-11-26)).
 
+**Update (2026-11-27):** 0.16.0 shipped with the runnable demo, PT-BR quickstart
+and GHCR image (see [Done](#done-2026-11-27)); distribution is now the main
+constraint and is tracked under Adoption below.
+
 ### Adoption
-- **Distribution** — announce the demo and post to r/Python, Hacker News,
-  Lobsters, Python Weekly and awesome lists. The GitHub Action, Dockerfile,
-  Discussions and starter issues are done (see [Done](#done-2026-11-26)).
+- **Distribution (in progress)** — 0.16.0 is out. Published:
+  r/coolgithubprojects post + first comment, and the 0.16.0 LinkedIn posts in
+  EN and PT-BR. Submitted: PyCoder's Weekly, the Console.dev beta pitch and the
+  Python Bytes news item. Scheduled: Hacker News (2026-12-01) and the r/Python
+  Showcase Thread (2026-12-04). Pending: Python Weekly (curator contact),
+  Lobsters (invitation-only) and awesome lists (deferred until 1.0/traction).
+  The GitHub Action, Dockerfile, Discussions and starter issues are done (see
+  [Done](#done-2026-11-26)).
 
 ### 1.0 — packaging and contract
 - **Playwright as an optional `[pdf]` extra** so HTML/XLSX/CSV users do not
@@ -34,6 +43,17 @@ Hypothesis property tests + mutation testing; RTL (`meta.direction`);
 Arrow/Polars/DuckDB/DB-API adapters. PDF/A stays an optional
 extra only if demand appears; PAdES remains a non-goal.
 
+## Done (2026-11-27)
+
+- **0.16.0 release** — runnable demo, PT-BR quickstart, GHCR image
+  (`ghcr.io/thepaneb/isis-report-lib:0.16.0`), curated release notes and the
+  Docker runtime lock at 0.16.0; **387 tests**, **98.66%** coverage. The GitHub
+  release is immutable and attested; the GHCR image is public.
+- **Distribution kickoff** — r/coolgithubprojects post + first comment,
+  Console.dev beta pitch, Python Bytes news item, PyCoder's Weekly form and the
+  0.16.0 LinkedIn posts in EN and PT-BR. HN and r/Python are scheduled; the
+  remaining channels are tracked under Adoption.
+
 ## Done (2026-11-26)
 
 - **Media and contents** — `image` sections (data-URI PNG/JPEG/WebP/GIF with
@@ -46,7 +66,7 @@ extra only if demand appears; PAdES remains a non-goal.
   implies a tagged PDF and `pdf_options={"outline": False}` opts out.
 - **Adoption surface** — issue forms, pull-request template, Discussions and
   five starter issues (#89–#93: PT-BR quickstart, `--version`, `from_jsonl`,
-  Windows/macOS CI and RTL).
+  Windows/macOS CI and RTL); #89 is closed, #90–#93 remain open.
 - **PT-BR quickstart** — `docs/pt-br/quickstart.md`, scoped with a notice that
   the full documentation stays in English; the two-build foundation is tracked
   in #99.
@@ -77,7 +97,8 @@ extra only if demand appears; PAdES remains a non-goal.
 organization contributes; `Maintained` rises on its own 90 days after repo
 creation; `SAST` is 10. `CII-Best-Practices` is 5 (Passing); Silver (7) and Gold
 (10) are optional and Gold needs a second maintainer. `Signed-Releases` is **10**
-after v0.15.0: all five releases in the window are immutable and attested.
+after v0.16.0: the five releases in the window (v0.13.1–v0.16.0) are immutable
+and attested.
 
 `Branch-Protection` is 4. The remaining gaps — required approvers, stale-review
 dismissal, CODEOWNERS review and last-push approval — need a **second human
