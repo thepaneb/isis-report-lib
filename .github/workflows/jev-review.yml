@@ -3,7 +3,8 @@ name: Jev review (advisory)
 # Local-style Jev review in CI, but advisory only:
 # - same-repo PRs (forks do not receive secrets) or manual dispatch;
 # - uploads the Markdown/JSON report as an artifact and job summary;
-# - never comments on the PR, never gates the merge.
+# - creates/updates one sticky advisory comment on same-repo PRs;
+# - never gates the merge.
 #
 # Requires the OPENCODE_API_KEY repository secret. Without it the job warns and
 # skips the review instead of failing.
@@ -45,6 +46,9 @@ jobs:
        github.actor != 'dependabot[bot]')
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write # sticky advisory PR comment
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -102,6 +106,7 @@ jobs:
           python scripts/jev_review.py \
             --diff-file "$RUNNER_TEMP/jev.diff" \
             --profile "$PROFILE" \
+            --lang en \
             --output .jev/jev-review.md \
             --json-output .jev/jev-review.json \
             --quiet
@@ -111,6 +116,37 @@ jobs:
         run: |
           if [ -f .jev/jev-review.md ]; then
             cat .jev/jev-review.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upsert advisory PR comment
+        if: >-
+          github.event_name == 'pull_request' &&
+          steps.diff.outputs.empty == 'false' &&
+          steps.key.outputs.present == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          if [ ! -f .jev/jev-review.md ]; then
+            echo "No report generated; skipping comment."
+            exit 0
+          fi
+          {
+            echo '<!-- jev-review -->'
+            echo "_AI-generated advisory report. Not a substitute for human review._"
+            echo
+            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            cat .jev/jev-review.md
+          } > "$RUNNER_TEMP/jev-comment.md"
+          jq -n --rawfile body "$RUNNER_TEMP/jev-comment.md" '{body: $body}' > "$RUNNER_TEMP/jev-comment.json"
+          existing=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments?per_page=100" \
+            --jq '.[] | select(.body | contains("<!-- jev-review -->")) | .id' | head -n1 || true)
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$existing" --input "$RUNNER_TEMP/jev-comment.json" > /dev/null
+          else
+            gh pr comment "$PR" --body-file "$RUNNER_TEMP/jev-comment.md" > /dev/null
           fi
 
       - name: Upload Jev report
