@@ -178,12 +178,12 @@ def normalize_footnote(spec: Any, where: str) -> dict[str, Any]:
             raise ValueError(f"Invalid footnote keys {unknown!r} for {where}")
         text = spec.get("text")
         if not isinstance(text, str) or not text:
-            raise ValueError(f"Invalid footnote text for {where}: {spec!r}")
+            raise ValueError(f"Invalid footnote text for {where}")
         mark = spec.get("mark")
         if mark is not None and (not isinstance(mark, str) or not mark):
-            raise ValueError(f"Invalid footnote mark for {where}: {spec!r}")
+            raise ValueError(f"Invalid footnote mark for {where}")
         return {"mark": mark, "text": text}
-    raise ValueError(f"Invalid footnote for {where} (need text or {{mark, text}}): {spec!r}")
+    raise ValueError(f"Invalid footnote for {where} (need text or {{mark, text}})")
 
 
 def assign_footnote_marks(fields: list[dict[str, Any]], state: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -203,7 +203,7 @@ def assign_footnote_marks(fields: list[dict[str, Any]], state: dict[str, Any] | 
         if text in state["by_text"]:
             mark = state["by_text"][text]
             if note.get("mark") is not None and note["mark"] != mark:
-                raise ValueError(f"Conflicting footnote marks for the same note: {text!r}")
+                raise ValueError("Conflicting footnote marks for the same note")
         else:
             if mark is None:
                 while True:
@@ -214,7 +214,7 @@ def assign_footnote_marks(fields: list[dict[str, Any]], state: dict[str, Any] | 
                         mark = candidate
                         break
             elif mark in state["used"]:
-                raise ValueError(f"Duplicate footnote mark {mark!r} for different notes")
+                raise ValueError("Duplicate footnote mark for different notes")
             state["by_text"][text] = mark
         note["mark"] = mark
         state["used"].add(mark)

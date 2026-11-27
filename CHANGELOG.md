@@ -10,6 +10,8 @@ release last.
 ## [Unreleased]
 ### Changed
 - Docker runtime lock bumped to 0.16.0; the local image matches the published release
+### Security
+- Validation errors no longer include payload values; messages name the field/path and expected type, and the schema-validation cause is suppressed so Pydantic never logs input values
 
 ## [0.16.0] - 2026-11-26
 ### Added

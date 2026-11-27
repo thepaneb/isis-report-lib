@@ -39,3 +39,6 @@ Please include:
 - Report *data* is untrusted by design and is escaped, never executed;
   report *templates* are code — only load them from sources you trust
   (see `docs/STANDARDS.md` §3).
+- Error messages and package logs name fields/paths and expected types, never
+  payload values. Do not enable verbose third-party logging of payloads or feed
+  raw payloads into error trackers.

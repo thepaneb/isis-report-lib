@@ -2,12 +2,14 @@
 
 import asyncio
 import io
+import logging
 from typing import Any
 
 import pytest
 
 from isis_report_lib import generate_csv, generate_xlsx, render_html
 from isis_report_lib import pdf as pool
+from isis_report_lib.service import TabularReportService, prepare_report
 
 
 def test_html_escapes_untrusted_data():
@@ -242,3 +244,95 @@ def test_key_file_strict_permissions(tmp_path):
         _read_key_file(secret, require_permissions=True)
     secret.chmod(0o600)
     assert _read_key_file(secret, require_permissions=True) == b"x" * 32
+
+
+SENTINEL = "REDACT-ME-4f6b2c9d"
+PNG_1X1 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+
+REDACTION_CASES = [
+    ("source-note", {"meta": {"title": "T", "source_note": {"secret": SENTINEL}}, "data": []}),
+    (
+        "table-data",
+        {"meta": {"title": "T"}, "sections": [{"type": "table", "data": SENTINEL, "layout": {"a": {"label": "A"}}}]},
+    ),
+    ("kpi-item", {"meta": {"title": "T"}, "sections": [{"type": "kpi", "items": [{"secret": SENTINEL}]}]}),
+    (
+        "image-alt",
+        {"meta": {"title": "T"}, "sections": [{"type": "image", "src": PNG_1X1, "alt": {"secret": SENTINEL}}]},
+    ),
+    ("watermark", {"meta": {"title": "T", "watermark": {"text": {"secret": SENTINEL}}}, "data": []}),
+    ("logo-base64", {"meta": {"title": "T", "logo": "data:image/png;base64," + SENTINEL}, "data": []}),
+    (
+        "chart-values",
+        {
+            "meta": {"title": "T"},
+            "sections": [{"type": "chart", "chart": {"kind": "bar", "labels": ["A"], "values": [SENTINEL]}}],
+        },
+    ),
+    (
+        "crosstab-empty",
+        {
+            "meta": {"title": "T"},
+            "sections": [
+                {
+                    "type": "crosstab",
+                    "rows": "r",
+                    "columns": "c",
+                    "measure": "v",
+                    "function": "sum",
+                    "empty_text": {"secret": SENTINEL},
+                    "data": [{"r": "x", "c": "y", "v": 1}],
+                }
+            ],
+        },
+    ),
+    (
+        "footnote",
+        {
+            "meta": {"title": "T"},
+            "layout": {"a": {"label": "A", "format_mask": "str", "footnote": {"text": {"secret": SENTINEL}}}},
+            "data": [{"a": "x"}],
+        },
+    ),
+    (
+        "group-value",
+        {
+            "meta": {"title": "T"},
+            "layout": {
+                "group": {
+                    "field": {"label": "F", "format_mask": "str"},
+                    "details": {"sub": {"label": "S", "format_mask": "str"}},
+                }
+            },
+            "data": [{"group": {"secret": SENTINEL}}],
+        },
+    ),
+]
+
+
+@pytest.mark.parametrize(("label", "payload"), REDACTION_CASES)
+def test_errors_do_not_include_payload_values(label: str, payload: dict[str, Any]) -> None:
+    """Malformed payloads must name the field/contract, not echo the value."""
+    with pytest.raises(ValueError) as exc:
+        prepare_report(payload)
+    message = str(exc.value)
+    assert SENTINEL not in message, label
+    assert SENTINEL not in repr(exc.value), label
+    assert exc.value.__cause__ is None, label
+
+
+def test_layout_record_error_does_not_include_value() -> None:
+    from isis_report_lib.layout import build_report
+
+    with pytest.raises(ValueError) as exc:
+        build_report([SENTINEL], {"a": {"label": "A", "format_mask": "str"}})
+    assert SENTINEL not in str(exc.value)
+
+
+def test_service_logs_do_not_include_payload_values(caplog: pytest.LogCaptureFixture) -> None:
+    service = TabularReportService()
+    payload = {"meta": {"title": "T"}, "data": SENTINEL}
+    with caplog.at_level(logging.ERROR, logger="isis_report_lib"):
+        with pytest.raises(ValueError):
+            asyncio.run(service.execute(payload))
+    assert SENTINEL not in caplog.text
