@@ -158,8 +158,8 @@ QUALITY_DIMENSIONS: tuple[tuple[str, str, float, str], ...] = (
     (
         "type_safety",
         "Tipagem",
-        0.50,
-        "Evite `Any` em boundary público, casts inseguros e `type: ignore` novo.",
+        0.60,
+        "Evite `Any`/casts inseguros no boundary público; `dict[str, Any]` de payload é aceito.",
     ),
     (
         "resource_cleanup",
@@ -178,7 +178,7 @@ DOCS_DIMENSIONS: tuple[tuple[str, str, float, str], ...] = (
     (
         "docs_api",
         "Docs da API",
-        0.55,
+        0.70,
         "Rode `python scripts/gen_api_docs.py` e inclua `docs/api.md`.",
     ),
     (
@@ -298,7 +298,10 @@ EN_TEXT: dict[str, tuple[str, str]] = {
     "dependencies": ("Dependencies", "Justify the extra/opt-in and run dependency-review/pip-audit in CI."),
     "dead_code": ("Dead/duplicate code", "Remove duplicate branch/except, unreachable code or unused imports; run ruff."),
     "test_hygiene": ("Test hygiene", "Use tmp_path, close handles and isolate global state/order between tests."),
-    "type_safety": ("Typing", "Avoid Any at public boundaries, unsafe casts and new type: ignore."),
+    "type_safety": (
+        "Typing",
+        "Avoid `str | Path | Any`, unsafe casts and new type: ignore; `dict[str, Any]` payloads are fine.",
+    ),
     "resource_cleanup": ("Resource cleanup", "Ensure close/finally for files, browsers, contexts and temp dirs."),
     "backward_compat": ("Compatibility", "Deprecate/migrate public API, defaults and output format changes."),
     "docs_api": ("API docs", "Run python scripts/gen_api_docs.py and include docs/api.md."),
@@ -489,8 +492,8 @@ QUALITY_QUESTIONS: dict[str, dict[str, Any]] = {
     "type_safety": {
         "type": "noul",
         "instructions": (
-            "Does the diff use `Any`/`str | Path | Any` at a public boundary, an unsafe cast, a new `# type: ignore`, "
-            "or lose relevant typing?"
+            "Does the diff use `str | Path | Any`, an unsafe cast, a new `# type: ignore`, or lose relevant typing "
+            "at a public boundary (excluding the standard `dict[str, Any]` payload shape)?"
         ),
     },
     "resource_cleanup": {
@@ -506,8 +509,9 @@ DOCS_QUESTIONS: dict[str, dict[str, Any]] = {
     "docs_api": {
         "type": "noul",
         "instructions": (
-            "Does the diff change a public signature, export, CLI, or documented behavior without regenerating "
-            "`docs/api.md` with `scripts/gen_api_docs.py`?"
+            "Does the diff change a public Python signature, export, CLI, or documented API behavior (excluding "
+            "release notes, version bumps, roadmap or changelog text) without regenerating `docs/api.md` with "
+            "`scripts/gen_api_docs.py`?"
         ),
     },
     "docs_changelog": {
@@ -1665,7 +1669,7 @@ index 7777777..8888888 100644
     loop_findings = _findings(loop_answers)
     _check(any(finding["dimension"] == "event_loop" for finding in loop_findings), "event-loop threshold regression")
 
-    strict_answers = {"dead_code": 0.70, "test_hygiene": 0.70, "type_safety": 0.50}
+    strict_answers = {"dead_code": 0.70, "test_hygiene": 0.70, "type_safety": 0.60}
     strict_findings = _findings(strict_answers, ALL_DIMENSIONS)
     strict_keys = {finding["dimension"] for finding in strict_findings}
     _check({"dead_code", "test_hygiene", "type_safety"} <= strict_keys, "strict dimensions missing")
@@ -1711,7 +1715,7 @@ index 7777777..8888888 100644
     all_passes, _all_dims = _resolve_packs(("core", "quality", "docs", "security", "release"))
     _check(len(all_passes) == 5, "all profile should run five passes")
 
-    docs_api_edge = _findings({"docs_api": 0.55}, DOCS_DIMENSIONS)
+    docs_api_edge = _findings({"docs_api": 0.70}, DOCS_DIMENSIONS)
     _check(any(finding["dimension"] == "docs_api" for finding in docs_api_edge), "docs_api threshold regression")
     sec_edge = _findings({"sec_escaping": 0.65}, SECURITY_DIMENSIONS)
     _check(any(finding["dimension"] == "sec_escaping" for finding in sec_edge), "security threshold regression")
