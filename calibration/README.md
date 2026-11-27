@@ -35,3 +35,9 @@ Expected verdicts are intentionally coarse (`approve` / `comment` / `block`).
 If a case regresses, compare the Markdown report and the per-dimension
 probabilities before changing a threshold. Re-run this after a Jev model update
 or a significant change to a pack.
+
+## Cadence
+
+A monthly `Jev calibration reminder` workflow opens one issue when none is
+already open. Run the corpus, investigate any failures and close the issue;
+the reminder does not call the Jev API or need a secret.

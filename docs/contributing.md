@@ -52,6 +52,48 @@ AI-assisted changes pass the same CI and review gates. See
 and the untrusted-content rules in
 [`AGENTS.md`](https://github.com/thepaneb/isis-report-lib/blob/main/AGENTS.md).
 
+## Local advisory reviews (Jev)
+
+The repository ships a local, advisory diff review under `scripts/`:
+
+```bash
+python scripts/jev_review.py --diff-file pr.diff --auto-packs --lang en
+python scripts/jev_review.py --diff-file pr.diff --profile strict
+python scripts/jev_review.py --list-packs
+python scripts/jev_review.py --self-test
+```
+
+- `--auto-packs` selects `core` plus the packs implied by changed paths
+  (`quality`, `docs`, `security`, `release`).
+- The default model is `jev-1.13-free`, with a paid fallback chain.
+- The key comes from `OPENCODE_API_KEY` or `--env-file`; never commit it.
+- Reports are written to `.jev/` (gitignored).
+
+The **Jev review (advisory)** CI workflow runs on same-repo PRs and manual
+dispatch. It uploads `.jev/jev-review.md|json` as an artifact and job summary,
+and posts a compact sticky comment only when there are findings or a
+`comment`/`block` verdict. It is not a required check and does not replace
+tests, lint, mypy or human review. The filtered diff is sent to the OpenCode
+Console; see the data-egress note in `AGENTS.md`.
+
+Release maintainers can also run the repo-state preflight:
+
+```bash
+python scripts/release_preflight.py --version 0.17.0
+python scripts/release_preflight.py --version 0.17.0 --remote
+```
+
+`--remote` checks PyPI, the GitHub Release assets, docs/security.txt and GHCR.
+For calibration after a model or threshold change, use the local harness:
+
+```bash
+python scripts/jev_calibrate.py --config calibration/jev-cases.json --dry-run
+python scripts/jev_calibrate.py --config calibration/jev-cases.json
+```
+
+See [`calibration/README.md`](https://github.com/thepaneb/isis-report-lib/blob/main/calibration/README.md)
+for the corpus setup.
+
 ## Integrating fork PRs (maintainers)
 
 For a code/tests/CI/dependency fork PR, create an `integrate/pr-<N>` branch in
