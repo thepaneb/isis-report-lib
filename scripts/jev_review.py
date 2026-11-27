@@ -74,7 +74,10 @@ DIMENSIONS: tuple[tuple[str, str, float, str], ...] = (
     (
         "event_loop",
         "Event loop / browser",
-        0.70,
+        # A missed cross-loop bug is catastrophic; the free model lands around
+        # 0.68 on the Windows policy regression while the clean control stays
+        # near 0.07, so 0.65 keeps the signal without flagging the control.
+        0.65,
         "Revise pdf.py e _run: nada de policy global, await cross-loop ou close de outro loop.",
     ),
     (
@@ -912,6 +915,10 @@ index 7777777..8888888 100644
     strong_comment = {"recommendation": "comment", "severity": 2.1}
     strong_verdict, _ = _decide_verdict(strong_comment, _findings(strong_comment))
     _check(strong_verdict == "comment", "comment with severity >= 2 should stand")
+
+    loop_answers = {"event_loop": 0.68}
+    loop_findings = _findings(loop_answers)
+    _check(any(finding["dimension"] == "event_loop" for finding in loop_findings), "event-loop threshold regression")
 
     print("self-test OK")
     return 0
