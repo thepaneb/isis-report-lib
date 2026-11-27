@@ -420,6 +420,10 @@ runs, coding standards and the commit convention are in
 [`CONTRIBUTING.md`](CONTRIBUTING.md). Security reports must go through the
 private advisory flow in [`SECURITY.md`](SECURITY.md), never a public issue.
 
+**AI usage:** no AI at runtime; development and promotion may be AI-assisted and
+are human-reviewed. See
+[`AI_USAGE.md`](https://github.com/thepaneb/isis-report-lib/blob/main/AI_USAGE.md).
+
 ## License
 
 MIT — see `LICENSE`.
