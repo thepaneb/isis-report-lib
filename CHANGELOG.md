@@ -11,6 +11,7 @@ release last.
 ### Added
 - Local Jev review tooling: English reports/questions, path-based auto-packs, calibration harness, release preflight (local and `--remote`) and advisory CI artifacts with compact sticky comments
 - Monthly Jev calibration reminder workflow (no API call or secret)
+- Reusable isis-report-lib logo assets for the docs site, README and favicon, generated from the report template
 ### Changed
 - The Jev review CI workflow now uses `--auto-packs` for PRs and only comments when there are findings or a `comment`/`block` verdict
 
