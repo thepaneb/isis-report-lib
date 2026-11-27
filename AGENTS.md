@@ -205,13 +205,16 @@ network.
 
 ```bash
 python scripts/release_preflight.py --version 0.17.0
+python scripts/release_preflight.py --version 0.17.0 --remote
 python scripts/release_preflight.py --tag v0.17.0 --require-tag
 python scripts/release_preflight.py --version 0.18.0 --json
 python scripts/release_preflight.py --self-test
 ```
 
 `--allow-dirty` downgrades a dirty tree to a warning; `--strict` turns warnings
-into failures. The script exits 1 on any `FAIL` (or on warnings with `--strict`).
+into failures. `--remote` adds PyPI, GitHub Release (assets), docs/security.txt
+and GHCR manifest checks (Docker when available); it is the only mode that uses
+the network. The script exits 1 on any `FAIL` (or warnings with `--strict`).
 Use it before creating/pushing the release tag, then run the `release` profile
 on the release PR for the diff-level checks.
 
