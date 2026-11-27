@@ -1,0 +1,46 @@
+{
+  "cases": [
+    {
+      "name": "pr98",
+      "diff": "pr98.diff",
+      "expected": "comment",
+      "profile": "strict"
+    },
+    {
+      "name": "pr110",
+      "diff": "pr110.diff",
+      "expected": "approve",
+      "profile": "security"
+    },
+    {
+      "name": "pr111",
+      "diff": "pr111.diff",
+      "expected": "approve",
+      "profile": "docs"
+    },
+    {
+      "name": "pr112",
+      "diff": "pr112.diff",
+      "expected": "approve",
+      "profile": "strict"
+    },
+    {
+      "name": "pr113",
+      "diff": "pr113.diff",
+      "expected": "approve",
+      "profile": "release"
+    },
+    {
+      "name": "security-bad",
+      "diff": "security-bad.diff",
+      "expected": "block",
+      "profile": "security"
+    },
+    {
+      "name": "release-bad",
+      "diff": "release-bad.diff",
+      "expected": "block",
+      "profile": "release"
+    }
+  ]
+}

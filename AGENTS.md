@@ -136,7 +136,9 @@ python scripts/gen_api_docs.py --check      # docs/api.md is generated from docs
 
 `scripts/jev_review.py` adapts the Jev CLI from `vscode-utplsql` to this repo:
 it filters/redacts the diff, chunks large reviews, and asks repo-specific
-questions. Packs are independent questionnaires: `core` (triage), `quality`
+questions. Packs, questions and English report text live in
+`scripts/jev_packs.py`; the CLI/orchestration stays in `jev_review.py`.
+Packs are independent questionnaires: `core` (triage), `quality`
 (dead code/test hygiene/typing/resources/compat), `docs` (API, CHANGELOG,
 README/CLI, guides) and `security` (checklist §3.5: escaping, runtime/rede/
 browser, mídia, quotas, logs, contrato de confiança e supply chain). Profiles
@@ -156,15 +158,21 @@ python scripts/jev_review.py --diff-file pr.diff --profile docs
 python scripts/jev_review.py --diff-file pr.diff --profile security
 python scripts/jev_review.py --diff-file pr.diff --profile release
 python scripts/jev_review.py --diff-file pr.diff --pack core --pack quality
+python scripts/jev_review.py --diff-file pr.diff --auto-packs
 python scripts/jev_review.py --diff-file pr.diff --dry-run   # no network/key
 python scripts/jev_review.py --list-packs
 python scripts/jev_review.py --self-test               # local checks only
 ```
 
+`--auto-packs` selects `core` plus packs inferred from changed paths:
+`quality` for `src/`/`tests/`, `docs` for docs/README/CHANGELOG,
+`security` for media/rendering/templates/signing/inputs/export/service, and
+`release` for release-notes/docker/publish/pyproject.
+
 The key comes from `OPENCODE_API_KEY` or `--env-file` (never commit it).
 Reports go to `.jev/` (gitignored). This is **advisory**: never a CI gate, never
 a PR comment, never a replacement for the human review. CI does run
-`--self-test` plus `ruff`/`mypy`/format on both local tools in the `tooling`
+`--self-test` plus `ruff`/`mypy`/format on all local tools in the `tooling`
 job (no key, no network). A separate **Jev review (advisory)** workflow runs on
 same-repo PRs and manual dispatch when the `OPENCODE_API_KEY` secret is set;
 it uploads `.jev/jev-review.md|json` as an artifact and job summary, and
@@ -172,6 +180,21 @@ creates/updates one sticky advisory PR comment on same-repo PRs. It never
 gates the merge. Forks, drafts and Dependabot PRs are skipped; without the
 secret the job warns and skips. Local reports default to `pt-BR`; pass
 `--lang en` (the CI workflow does) for English reports/comments.
+
+### Calibration corpus (local, optional)
+
+`scripts/jev_calibrate.py` runs a saved-diff corpus and compares the coarse
+verdict with expectations. It is not in CI (it calls the API and may use paid
+fallback credits). Keep `.diff` files in `calibration/` (gitignored) and use
+`calibration/jev-cases.example.json` as the template:
+
+```bash
+python scripts/jev_calibrate.py --config calibration/jev-cases.json --dry-run
+python scripts/jev_calibrate.py --config calibration/jev-cases.json
+```
+
+Re-run it after a model update or a significant pack/threshold change; see
+`calibration/README.md`.
 
 ## Release preflight (local)
 
@@ -184,13 +207,16 @@ network.
 
 ```bash
 python scripts/release_preflight.py --version 0.17.0
+python scripts/release_preflight.py --version 0.17.0 --remote
 python scripts/release_preflight.py --tag v0.17.0 --require-tag
 python scripts/release_preflight.py --version 0.18.0 --json
 python scripts/release_preflight.py --self-test
 ```
 
 `--allow-dirty` downgrades a dirty tree to a warning; `--strict` turns warnings
-into failures. The script exits 1 on any `FAIL` (or on warnings with `--strict`).
+into failures. `--remote` adds PyPI, GitHub Release (assets), docs/security.txt
+and GHCR manifest checks (Docker when available); it is the only mode that uses
+the network. The script exits 1 on any `FAIL` (or warnings with `--strict`).
 Use it before creating/pushing the release tag, then run the `release` profile
 on the release PR for the diff-level checks.
 

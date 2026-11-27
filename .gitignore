@@ -31,3 +31,6 @@ coverage.json
 
 # Local Jev review reports (advisory, never committed)
 .jev/
+
+# Local Jev calibration diffs (use calibration/jev-cases.example.json)
+calibration/*.diff

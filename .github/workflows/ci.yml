@@ -70,18 +70,19 @@ jobs:
           pip install --no-deps -e .
 
       - name: Lint tooling scripts
-        run: python -m ruff check scripts/jev_review.py scripts/release_preflight.py
+        run: python -m ruff check scripts/jev_review.py scripts/jev_packs.py scripts/release_preflight.py scripts/jev_calibrate.py
 
       - name: Type check tooling scripts
-        run: python -m mypy scripts/jev_review.py scripts/release_preflight.py
+        run: python -m mypy scripts/jev_review.py scripts/jev_packs.py scripts/release_preflight.py scripts/jev_calibrate.py
 
       - name: Format tooling scripts
-        run: python -m ruff format --check scripts/jev_review.py scripts/release_preflight.py
+        run: python -m ruff format --check scripts/jev_review.py scripts/jev_packs.py scripts/release_preflight.py scripts/jev_calibrate.py
 
       - name: Self-test tooling scripts
         run: |
           python scripts/jev_review.py --self-test
           python scripts/release_preflight.py --self-test
+          python scripts/jev_calibrate.py --self-test
 
   e2e:
     runs-on: ubuntu-24.04

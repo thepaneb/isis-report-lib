@@ -12,13 +12,15 @@ diff; this script checks the files that must agree before a tag is pushed:
 - ``docs/security.txt`` expiry;
 - roadmap mention and git state.
 
-It is local and read-only. It does not call the network, does not need an API
-key, and does not create tags, releases or images.
+It is local and read-only. By default it does not call the network or need an
+API key; ``--remote`` adds post-release checks for PyPI, the GitHub Release,
+the docs site and GHCR (when Docker is available).
 
 Usage::
 
     python scripts/release_preflight.py --version 0.17.0
     python scripts/release_preflight.py --tag v0.17.0 --require-tag
+    python scripts/release_preflight.py --version 0.17.0 --remote
     python scripts/release_preflight.py --version 0.18.0 --allow-dirty
     python scripts/release_preflight.py --self-test
 """
@@ -32,6 +34,8 @@ import shutil
 import subprocess
 import sys
 import tomllib
+import urllib.error
+import urllib.request
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from datetime import date
@@ -43,6 +47,9 @@ EXPIRES_RE = re.compile(r"(?m)^Expires:\s*(\d{4}-\d{2}-\d{2})(?:[T ][0-9:.]+Z?)?
 CHANGELOG_HEADING_RE = re.compile(r"(?m)^## \[(?P<version>[^\]]+)\] - (?P<date>\d{4}-\d{2}-\d{2})\s*$")
 UNRELEASED_RE = re.compile(r"(?ms)^## \[Unreleased\]\s*(.*?)(?=^## \[|\Z)")
 PIN_RE = re.compile(r"(?m)^\s*isis-report-lib==(?P<version>[^\s\\]+)")
+DEFAULT_GITHUB_REPO = "thepaneb/isis-report-lib"
+DOCS_URL = "https://thepaneb.github.io/isis-report-lib"
+GHCR_IMAGE = "ghcr.io/thepaneb/isis-report-lib"
 PLACEHOLDER_RE = re.compile(r"\b(TODO|TBD|notes not ready|placeholder)\b", re.IGNORECASE)
 
 
@@ -68,14 +75,14 @@ def _normalize_version(raw: str) -> str:
     if value.startswith("v"):
         value = value[1:]
     if not VERSION_RE.fullmatch(value):
-        raise PreflightError(f"versão inválida: {raw!r} (use X.Y.Z ou X.Y.ZrcN)")
+        raise PreflightError(f"invalid version: {raw!r} (use X.Y.Z or X.Y.ZrcN)")
     return value
 
 
 def _run_git(repo: Path, *args: str) -> str:
     git = shutil.which("git")
     if git is None:
-        raise PreflightError("git não encontrado no PATH.")
+        raise PreflightError("git not found on PATH.")
     completed = subprocess.run(  # noqa: S603
         [git, "-C", str(repo), *args],
         capture_output=True,
@@ -121,27 +128,27 @@ def _parse_expires(text: str) -> date | None:
 
 def _expiry_status(expires: date | None, today: date) -> tuple[str, str]:
     if expires is None:
-        return "fail", "Expires ausente"
+        return "fail", "Expires missing"
     days = (expires - today).days
     if days < 0:
-        return "fail", f"expirado em {expires.isoformat()}"
+        return "fail", f"expired on {expires.isoformat()}"
     if days < 30:
-        return "warn", f"expira em {expires.isoformat()} ({days} dias)"
-    return "pass", f"Expires {expires.isoformat()} ({days} dias)"
+        return "warn", f"expires on {expires.isoformat()} ({days} days)"
+    return "pass", f"Expires {expires.isoformat()} ({days} days)"
 
 
 def _check_version(version: str) -> Check:
-    return Check("version", "pass", f"versão {version}")
+    return Check("version", "pass", f"version {version}")
 
 
 def _check_pyproject(repo: Path, version: str) -> Check:
     path = repo / "pyproject.toml"
     if not path.exists():
-        return Check("pyproject", "fail", "pyproject.toml ausente")
+        return Check("pyproject", "fail", "pyproject.toml missing")
     data = tomllib.loads(path.read_text(encoding="utf-8"))
     project = data.get("project")
     if not isinstance(project, dict):
-        return Check("pyproject", "fail", "seção [project] ausente")
+        return Check("pyproject", "fail", "[project] section missing")
     dynamic = project.get("dynamic", [])
     if isinstance(dynamic, list) and "version" in dynamic:
         return Check("pyproject", "pass", "version via hatch-vcs (dynamic)")
@@ -149,45 +156,45 @@ def _check_pyproject(repo: Path, version: str) -> Check:
     if isinstance(hardcoded, str):
         if hardcoded == version:
             return Check("pyproject", "pass", f"version = {version}")
-        return Check("pyproject", "fail", f"version = {hardcoded}, esperado {version}")
-    return Check("pyproject", "fail", "sem version nem dynamic version")
+        return Check("pyproject", "fail", f"version = {hardcoded}, expected {version}")
+    return Check("pyproject", "fail", "no version or dynamic version")
 
 
 def _check_changelog(repo: Path, version: str, today: date) -> list[Check]:
     path = repo / "CHANGELOG.md"
     if not path.exists():
-        return [Check("changelog", "fail", "CHANGELOG.md ausente")]
+        return [Check("changelog", "fail", "CHANGELOG.md missing")]
     text = path.read_text(encoding="utf-8")
     date_text, unreleased = _parse_changelog(text, version)
     if date_text is None:
-        return [Check("changelog", "fail", f"falta '## [{version}] - YYYY-MM-DD'")]
+        return [Check("changelog", "fail", f"missing '## [{version}] - YYYY-MM-DD'")]
     checks = [Check("changelog", "pass", f"[{version}] - {date_text}")]
     try:
         released_on = date.fromisoformat(date_text)
     except ValueError:
-        checks.append(Check("changelog_date", "fail", f"data inválida: {date_text}"))
+        checks.append(Check("changelog_date", "fail", f"invalid date: {date_text}"))
         return checks
     if released_on > today:
-        checks.append(Check("changelog_date", "warn", f"data futura: {date_text}"))
+        checks.append(Check("changelog_date", "warn", f"future date: {date_text}"))
     else:
         checks.append(Check("changelog_date", "pass", date_text))
     meaningful = [line for line in (unreleased or "").splitlines() if line.strip() and not line.strip().startswith("###")]
     if meaningful:
-        checks.append(Check("unreleased", "warn", "Unreleased ainda tem conteúdo; mova para a versão"))
+        checks.append(Check("unreleased", "warn", "Unreleased still has content; move it into the version"))
     else:
-        checks.append(Check("unreleased", "pass", "Unreleased vazio"))
+        checks.append(Check("unreleased", "pass", "Unreleased empty"))
     return checks
 
 
 def _check_release_notes(repo: Path, version: str) -> Check:
     path = repo / "release-notes" / f"{version}.md"
     if not path.exists():
-        return Check("release_notes", "fail", f"release-notes/{version}.md ausente")
+        return Check("release_notes", "fail", f"release-notes/{version}.md missing")
     text = path.read_text(encoding="utf-8").strip()
     if len(text) < 80:
-        return Check("release_notes", "warn", f"release-notes/{version}.md muito curto")
+        return Check("release_notes", "warn", f"release-notes/{version}.md is very short")
     if PLACEHOLDER_RE.search(text):
-        return Check("release_notes", "fail", f"release-notes/{version}.md contém TODO/TBD")
+        return Check("release_notes", "fail", f"release-notes/{version}.md contains TODO/TBD")
     return Check("release_notes", "pass", f"release-notes/{version}.md")
 
 
@@ -196,14 +203,14 @@ def _check_docker(repo: Path, version: str) -> list[Check]:
     for relative in ("docker/requirements.in", "docker/requirements.txt"):
         path = repo / relative
         if not path.exists():
-            checks.append(Check("docker_pin", "fail", f"{relative} ausente"))
+            checks.append(Check("docker_pin", "fail", f"{relative} missing"))
             continue
         pins = _parse_pins(path.read_text(encoding="utf-8"))
         if not pins:
-            checks.append(Check("docker_pin", "fail", f"{relative} sem pin de isis-report-lib"))
+            checks.append(Check("docker_pin", "fail", f"{relative} has no isis-report-lib pin"))
         elif any(pin != version for pin in pins):
             bad = ", ".join(sorted(set(pins)))
-            checks.append(Check("docker_pin", "fail", f"{relative}: {bad}, esperado {version}"))
+            checks.append(Check("docker_pin", "fail", f"{relative}: {bad}, expected {version}"))
         else:
             checks.append(Check("docker_pin", "pass", f"{relative}: {version}"))
     return checks
@@ -212,7 +219,7 @@ def _check_docker(repo: Path, version: str) -> list[Check]:
 def _check_docs_api(repo: Path) -> Check:
     script = repo / "scripts" / "gen_api_docs.py"
     if not script.exists():
-        return Check("docs_api", "warn", "scripts/gen_api_docs.py ausente")
+        return Check("docs_api", "warn", "scripts/gen_api_docs.py missing")
     completed = subprocess.run(  # noqa: S603
         [sys.executable, str(script), "--check"],
         cwd=repo,
@@ -224,14 +231,14 @@ def _check_docs_api(repo: Path) -> Check:
     )
     output = (completed.stdout + completed.stderr).strip()
     if completed.returncode == 0:
-        return Check("docs_api", "pass", "docs/api.md atualizado")
-    return Check("docs_api", "fail", output[:300] or "docs/api.md desatualizado")
+        return Check("docs_api", "pass", "docs/api.md is up to date")
+    return Check("docs_api", "fail", output[:300] or "docs/api.md is out of date")
 
 
 def _check_security_txt(repo: Path, today: date) -> Check:
     path = repo / "docs" / "security.txt"
     if not path.exists():
-        return Check("security_txt", "fail", "docs/security.txt ausente")
+        return Check("security_txt", "fail", "docs/security.txt missing")
     status, message = _expiry_status(_parse_expires(path.read_text(encoding="utf-8")), today)
     return Check("security_txt", status, message)
 
@@ -239,10 +246,10 @@ def _check_security_txt(repo: Path, today: date) -> Check:
 def _check_roadmap(repo: Path, version: str) -> Check:
     path = repo / "docs" / "ROADMAP.md"
     if not path.exists():
-        return Check("roadmap", "warn", "docs/ROADMAP.md ausente")
+        return Check("roadmap", "warn", "docs/ROADMAP.md missing")
     if version in path.read_text(encoding="utf-8"):
-        return Check("roadmap", "pass", f"roadmap menciona {version}")
-    return Check("roadmap", "warn", f"roadmap não menciona {version}")
+        return Check("roadmap", "pass", f"roadmap mentions {version}")
+    return Check("roadmap", "warn", f"roadmap does not mention {version}")
 
 
 def _check_git(repo: Path, allow_dirty: bool) -> list[Check]:
@@ -252,13 +259,13 @@ def _check_git(repo: Path, allow_dirty: bool) -> list[Check]:
     except PreflightError as exc:
         return [Check("git", "fail", str(exc))]
     if status:
-        checks.append(Check("worktree", "warn" if allow_dirty else "fail", "working tree sujo"))
+        checks.append(Check("worktree", "warn" if allow_dirty else "fail", "working tree is dirty"))
     else:
-        checks.append(Check("worktree", "pass", "working tree limpo"))
+        checks.append(Check("worktree", "pass", "working tree is clean"))
     try:
         branch = _run_git(repo, "branch", "--show-current") or "(detached)"
     except PreflightError:
-        branch = "(desconhecida)"
+        branch = "(unknown)"
     checks.append(Check("branch", "pass" if branch == "main" else "warn", f"branch: {branch}"))
     try:
         upstream = _run_git(repo, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
@@ -268,27 +275,144 @@ def _check_git(repo: Path, allow_dirty: bool) -> list[Check]:
             if ahead or behind:
                 checks.append(Check("upstream", "warn", f"{ahead} ahead / {behind} behind {upstream}"))
             else:
-                checks.append(Check("upstream", "pass", f"em dia com {upstream}"))
+                checks.append(Check("upstream", "pass", f"up to date with {upstream}"))
     except PreflightError:
-        checks.append(Check("upstream", "warn", "branch sem upstream; não foi possível comparar"))
+        checks.append(Check("upstream", "warn", "branch has no upstream; could not compare"))
     return checks
 
 
 def _check_tag(repo: Path, version: str, tag_arg: str | None, require_tag: bool) -> Check:
     tag = tag_arg or f"v{version}"
     if tag_arg is not None and _normalize_version(tag_arg) != version:
-        return Check("tag", "fail", f"tag {tag_arg} não corresponde a {version}")
+        return Check("tag", "fail", f"tag {tag_arg} does not match {version}")
     try:
         tag_commit = _run_git(repo, "rev-list", "-n", "1", tag)
     except PreflightError:
-        return Check("tag", "fail" if require_tag else "warn", f"tag {tag} ainda não existe")
+        return Check("tag", "fail" if require_tag else "warn", f"tag {tag} does not exist yet")
     try:
         head = _run_git(repo, "rev-parse", "HEAD")
     except PreflightError:
-        return Check("tag", "warn", f"tag {tag} existe; HEAD desconhecido")
+        return Check("tag", "warn", f"tag {tag} exists; HEAD unknown")
     if tag_commit == head:
-        return Check("tag", "pass", f"tag {tag} aponta para HEAD")
-    return Check("tag", "warn", f"tag {tag} existe, mas não aponta para HEAD")
+        return Check("tag", "pass", f"tag {tag} points to HEAD")
+    return Check("tag", "warn", f"tag {tag} exists but does not point to HEAD")
+
+
+def _http_get(url: str, timeout: float) -> tuple[int, bytes]:
+    if not url.startswith("https://"):
+        raise PreflightError(f"remote check requires https://: {url}")
+    request = urllib.request.Request(  # noqa: S310  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+        url, headers={"User-Agent": "isis-report-lib-preflight/1.0"}
+    )
+    try:
+        # URLs are fixed https:// constants or the validated version/slug.
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
+            return getattr(response, "status", 200), response.read()
+    except urllib.error.HTTPError as exc:
+        return exc.code, exc.read()
+    except urllib.error.URLError as exc:
+        return 0, str(exc.reason).encode("utf-8", "replace")
+
+
+def _repo_slug(repo: Path) -> str:
+    try:
+        remote = _run_git(repo, "remote", "get-url", "origin")
+    except PreflightError:
+        return DEFAULT_GITHUB_REPO
+    match = re.search(r"github\.com[:/](?P<slug>[^/]+/[^/]+?)(?:\.git)?$", remote)
+    return match.group("slug") if match else DEFAULT_GITHUB_REPO
+
+
+def _missing_release_assets(names: Sequence[str]) -> list[str]:
+    missing: list[str] = []
+    if not any(name.endswith(".whl") for name in names):
+        missing.append("*.whl")
+    if not any(name.endswith(".tar.gz") for name in names):
+        missing.append("*.tar.gz")
+    for required in ("sbom.json", "provenance.intoto.jsonl"):
+        if required not in names:
+            missing.append(required)
+    return missing
+
+
+def _remote_pypi(version: str, timeout: float) -> Check:
+    status, body = _http_get(f"https://pypi.org/pypi/isis-report-lib/{version}/json", timeout)
+    if status != 200:
+        return Check("remote_pypi", "fail", f"PyPI {version}: HTTP {status}")
+    try:
+        data = json.loads(body)
+    except json.JSONDecodeError:
+        return Check("remote_pypi", "fail", "PyPI response is not JSON")
+    info = data.get("info") if isinstance(data, dict) else None
+    published = info.get("version") if isinstance(info, dict) else None
+    if published != version:
+        return Check("remote_pypi", "fail", f"PyPI has {published!r}, expected {version}")
+    return Check("remote_pypi", "pass", f"PyPI {version}")
+
+
+def _remote_github(repo: Path, version: str, timeout: float, github_repo: str | None) -> Check:
+    slug = github_repo or _repo_slug(repo)
+    status, body = _http_get(f"https://api.github.com/repos/{slug}/releases/tags/v{version}", timeout)
+    if status != 200:
+        return Check("remote_github", "fail", f"GitHub release v{version}: HTTP {status}")
+    try:
+        data = json.loads(body)
+    except json.JSONDecodeError:
+        return Check("remote_github", "fail", "GitHub release response is not JSON")
+    if not isinstance(data, dict):
+        return Check("remote_github", "fail", "GitHub release response is not an object")
+    if data.get("draft"):
+        return Check("remote_github", "fail", f"GitHub release v{version} is still a draft")
+    assets = [asset.get("name") for asset in data.get("assets", []) if isinstance(asset, dict)]
+    names = [name for name in assets if isinstance(name, str)]
+    missing = _missing_release_assets(names)
+    if missing:
+        return Check("remote_github", "fail", f"GitHub release v{version} missing: {', '.join(missing)}")
+    return Check("remote_github", "pass", f"GitHub release v{version} with assets")
+
+
+def _remote_docs(timeout: float) -> list[Check]:
+    checks: list[Check] = []
+    for name, url in (("remote_docs", DOCS_URL + "/"), ("remote_security_txt", DOCS_URL + "/security.txt")):
+        status, _body = _http_get(url, timeout)
+        checks.append(Check(name, "pass" if status == 200 else "fail", f"{url}: HTTP {status}"))
+    return checks
+
+
+def _remote_ghcr(version: str, timeout: float) -> Check:
+    docker = shutil.which("docker")
+    if docker is None:
+        return Check("remote_ghcr", "warn", "docker not found; GHCR manifest not checked")
+    try:
+        completed = subprocess.run(  # noqa: S603
+            [docker, "manifest", "inspect", f"{GHCR_IMAGE}:{version}"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return Check("remote_ghcr", "warn", f"docker manifest inspect failed: {exc}")
+    if completed.returncode == 0:
+        return Check("remote_ghcr", "pass", f"GHCR {GHCR_IMAGE}:{version}")
+    message = (completed.stderr or completed.stdout).strip()
+    lowered = message.lower()
+    if "manifest unknown" in lowered or "no such manifest" in lowered or "not found" in lowered:
+        return Check("remote_ghcr", "fail", f"GHCR {version}: {message[:200]}")
+    return Check("remote_ghcr", "warn", f"docker/daemon issue: {message[:200]}")
+
+
+def _remote_checks(repo: Path, version: str, timeout: float, github_repo: str | None) -> list[Check]:
+    checks = [
+        _remote_pypi(version, timeout),
+        _remote_github(repo, version, timeout, github_repo),
+        _remote_ghcr(version, timeout),
+    ]
+    checks += _remote_docs(timeout)
+    return checks
 
 
 def _checks(repo: Path, version: str, tag: str | None, allow_dirty: bool, require_tag: bool, today: date) -> list[Check]:
@@ -319,7 +443,7 @@ def _render_text(version: str, repo: Path, checks: list[Check], summary: dict[st
         lines.append(f"[{marker}] {check.name}: {check.message}")
         if check.hint:
             lines.append(f"       {check.hint}")
-    lines += ["", f"Resumo: {summary['pass']} pass, {summary['warn']} warn, {summary['fail']} fail"]
+    lines += ["", f"Summary: {summary['pass']} pass, {summary['warn']} warn, {summary['fail']} fail"]
     return "\n".join(lines) + "\n"
 
 
@@ -331,7 +455,7 @@ def _resolve_version(args: argparse.Namespace, repo: Path) -> str:
     try:
         latest = _run_git(repo, "describe", "--tags", "--abbrev=0")
     except PreflightError as exc:
-        raise PreflightError("sem tags; informe --version X.Y.Z") from exc
+        raise PreflightError("no tags; pass --version X.Y.Z") from exc
     return _normalize_version(latest)
 
 
@@ -346,6 +470,9 @@ def _run_self_test() -> int:
     _check(_parse_expires("Contact: x\nExpires: 2027-11-27\n") == date(2027, 11, 27), "expires")
     _check(_expiry_status(date(2027, 11, 27), date(2026, 11, 27))[0] == "pass", "expiry pass")
     _check(_expiry_status(date(2026, 1, 1), date(2026, 11, 27))[0] == "fail", "expiry fail")
+    complete = ["x.whl", "x.tar.gz", "sbom.json", "provenance.intoto.jsonl"]
+    _check(_missing_release_assets(complete) == [], "release assets complete")
+    _check("sbom.json" in _missing_release_assets(["x.whl", "x.tar.gz"]), "release assets missing")
     print("self-test OK")
     return 0
 
@@ -367,6 +494,13 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--tag", help="tag to check (default: vVERSION)")
     parser.add_argument("--allow-dirty", action="store_true", help="warn instead of failing on a dirty tree")
     parser.add_argument("--require-tag", action="store_true", help="fail when the tag does not exist")
+    parser.add_argument(
+        "--remote",
+        action="store_true",
+        help="also check PyPI, GitHub Release, docs and GHCR (network)",
+    )
+    parser.add_argument("--timeout", type=float, default=15.0, help="remote HTTP/docker timeout in seconds")
+    parser.add_argument("--github-repo", help="owner/repo for the GitHub Release check")
     parser.add_argument("--strict", action="store_true", help="treat warnings as failures")
     parser.add_argument("--json", action="store_true", help="print JSON instead of text")
     parser.add_argument("--self-test", action="store_true", help="run local parser checks")
@@ -381,9 +515,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         repo = args.repo.resolve()
         if not (repo / "pyproject.toml").exists():
-            raise PreflightError(f"não parece um repositório do projeto: {repo}")
+            raise PreflightError(f"does not look like the project repository: {repo}")
         version = _resolve_version(args, repo)
         checks = _checks(repo, version, args.tag, args.allow_dirty, args.require_tag, date.today())
+        if args.remote:
+            checks += _remote_checks(repo, version, args.timeout, args.github_repo)
         summary = _summary(checks)
         if args.json:
             print(
