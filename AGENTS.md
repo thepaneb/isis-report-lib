@@ -136,7 +136,9 @@ python scripts/gen_api_docs.py --check      # docs/api.md is generated from docs
 
 `scripts/jev_review.py` adapts the Jev CLI from `vscode-utplsql` to this repo:
 it filters/redacts the diff, chunks large reviews, and asks repo-specific
-questions. Packs are independent questionnaires: `core` (triage), `quality`
+questions. Packs, questions and English report text live in
+`scripts/jev_packs.py`; the CLI/orchestration stays in `jev_review.py`.
+Packs are independent questionnaires: `core` (triage), `quality`
 (dead code/test hygiene/typing/resources/compat), `docs` (API, CHANGELOG,
 README/CLI, guides) and `security` (checklist §3.5: escaping, runtime/rede/
 browser, mídia, quotas, logs, contrato de confiança e supply chain). Profiles
