@@ -8,6 +8,11 @@ draft GitHub Release, uploads to PyPI via trusted publishing and publishes the
 release last.
 
 ## [Unreleased]
+### Added
+- Local Jev review tooling: English reports/questions, path-based auto-packs, calibration harness, release preflight (local and `--remote`) and advisory CI artifacts with compact sticky comments
+- Monthly Jev calibration reminder workflow (no API call or secret)
+### Changed
+- The Jev review CI workflow now uses `--auto-packs` for PRs and only comments when there are findings or a `comment`/`block` verdict
 
 ## [0.17.0] - 2026-11-27
 ### Added
