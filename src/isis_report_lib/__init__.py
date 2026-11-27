@@ -12,6 +12,8 @@ from isis_report_lib.api import (
     agenerate_xlsx,
     agenerate_xlsx_from_toon,
     arender_html,
+    arender_text,
+    arender_text_from_toon,
     generate_csv,
     generate_csv_from_toon,
     generate_many,
@@ -21,6 +23,8 @@ from isis_report_lib.api import (
     generate_xlsx_from_toon,
     render_html,
     render_html_from_toon,
+    render_text,
+    render_text_from_toon,
 )
 from isis_report_lib.crosstab import Crosstab, build_crosstab
 from isis_report_lib.export import collect_tables
@@ -110,5 +114,9 @@ __all__ = [
     "arender_html",
     "render_html",
     "render_html_from_toon",
+    "arender_text",
+    "render_text",
+    "arender_text_from_toon",
+    "render_text_from_toon",
     "__version__",
 ]

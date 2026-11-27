@@ -155,6 +155,46 @@ def render_html_from_toon(text: str, template_dir: str | pathlib.Path | None = N
 
 Render HTML (sync) from `.toon` text.
 
+### `arender_text`
+
+```python
+async def arender_text(payload: dict[str, Any] | isis_report_lib.models.ReportPayload, *, sanitize: bool = True, limits: dict[str, int] | None = None) -> str
+```
+
+Render a visible-only, sanitized plain-text export (async, no browser).
+
+Intended for LLM/RAG ingestion. Only fields visible in the report are
+included (`visible: false` is dropped by the normal layout builder); the
+text starts with a `REPORT DATA` preamble and end delimiter, and control,
+format, surrogate and private-use characters are stripped by default.
+Set `sanitize=False` only for exact debugging output.
+
+### `render_text`
+
+```python
+def render_text(payload: dict[str, Any] | isis_report_lib.models.ReportPayload, *, sanitize: bool = True, limits: dict[str, int] | None = None) -> str
+```
+
+Render a visible-only, sanitized plain-text export (sync, no browser).
+
+See `arender_text` for the safety properties and the data boundary.
+
+### `arender_text_from_toon`
+
+```python
+async def arender_text_from_toon(text: str, *, sanitize: bool = True, limits: dict[str, int] | None = None) -> str
+```
+
+Render a visible-only, sanitized plain-text export (async) from `.toon`.
+
+### `render_text_from_toon`
+
+```python
+def render_text_from_toon(text: str, *, sanitize: bool = True, limits: dict[str, int] | None = None) -> str
+```
+
+Render a visible-only, sanitized plain-text export (sync) from `.toon`.
+
 ## Payload models
 
 ### `MetaInfo`

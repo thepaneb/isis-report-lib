@@ -252,3 +252,56 @@ async def agenerate_csv_from_toon(text: str, delimiter: str = ",", bom: bool = F
 def generate_csv_from_toon(text: str, delimiter: str = ",", bom: bool = False, limits: dict[str, int] | None = None) -> str:
     """Generate CSV text (sync) from `.toon` text."""
     return _run(agenerate_csv_from_toon(text, delimiter, bom, limits))
+
+
+async def arender_text(
+    payload: dict[str, Any] | ReportPayload,
+    *,
+    sanitize: bool = True,
+    limits: dict[str, int] | None = None,
+) -> str:
+    """Render a visible-only, sanitized plain-text export (async, no browser).
+
+    Intended for LLM/RAG ingestion. Only fields visible in the report are
+    included (``visible: false`` is dropped by the normal layout builder); the
+    text starts with a ``REPORT DATA`` preamble and end delimiter, and control,
+    format, surrogate and private-use characters are stripped by default.
+    Set ``sanitize=False`` only for exact debugging output.
+    """
+    from isis_report_lib.text import sanitize_text, wrap_report_text
+
+    text = await agenerate_csv(payload, limits=limits)
+    return wrap_report_text(sanitize_text(text) if sanitize else text)
+
+
+def render_text(
+    payload: dict[str, Any] | ReportPayload,
+    *,
+    sanitize: bool = True,
+    limits: dict[str, int] | None = None,
+) -> str:
+    """Render a visible-only, sanitized plain-text export (sync, no browser).
+
+    See :func:`arender_text` for the safety properties and the data boundary.
+    """
+    return _run(arender_text(payload, sanitize=sanitize, limits=limits))
+
+
+async def arender_text_from_toon(
+    text: str,
+    *,
+    sanitize: bool = True,
+    limits: dict[str, int] | None = None,
+) -> str:
+    """Render a visible-only, sanitized plain-text export (async) from `.toon`."""
+    return await arender_text(parse_toon(text), sanitize=sanitize, limits=limits)
+
+
+def render_text_from_toon(
+    text: str,
+    *,
+    sanitize: bool = True,
+    limits: dict[str, int] | None = None,
+) -> str:
+    """Render a visible-only, sanitized plain-text export (sync) from `.toon`."""
+    return _run(arender_text_from_toon(text, sanitize=sanitize, limits=limits))
