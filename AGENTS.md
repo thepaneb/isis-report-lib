@@ -130,6 +130,7 @@ python -m ruff check src tests demo
 python -m ruff format --check src tests demo
 python -m mypy src
 python scripts/gen_api_docs.py --check      # docs/api.md is generated from docstrings
+python scripts/gen_logo_assets.py --check   # docs logo assets are generated from base.jinja
 ```
 
 ## Local Jev review (optional, advisory)

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://thepaneb.github.io/isis-report-lib/assets/logo-tile.svg" alt="isis-report-lib logo" width="96">
+</p>
+
 # isis-report-lib
 
 [![CI](https://github.com/thepaneb/isis-report-lib/actions/workflows/ci.yml/badge.svg)](https://github.com/thepaneb/isis-report-lib/actions/workflows/ci.yml)

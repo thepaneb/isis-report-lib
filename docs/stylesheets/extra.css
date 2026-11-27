@@ -1,0 +1,4 @@
+/* The report mark is navy (#0A2F46); keep it readable on the slate header. */
+[data-md-color-scheme="slate"] .md-logo img {
+  filter: brightness(0) invert(1);
+}
