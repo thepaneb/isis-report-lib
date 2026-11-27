@@ -22,7 +22,7 @@ jobs:
           persist-credentials: false
 
       - name: Render PDF
-        uses: thepaneb/isis-report-lib/.github/actions/render@v0.16.0
+        uses: thepaneb/isis-report-lib/.github/actions/render@v0.17.0
         with:
           input: examples/sales_order.toon
           output: artifacts/sales-order.pdf

@@ -17,16 +17,18 @@ API reference and the docs drift fixes (see [Done](#done-2026-11-25)); the 0.15
 visible features landed on 2026-11-26 (see [Done](#done-2026-11-26)).
 
 **Update (2026-11-27):** 0.16.0 shipped with the runnable demo, PT-BR quickstart
-and GHCR image (see [Done](#done-2026-11-27)); distribution is now the main
-constraint and is tracked under Adoption below.
+and GHCR image, followed by 0.17.0 with the security redaction, AI governance
+and safe text export (see [Done](#done-2026-11-27)); distribution is now the
+main constraint and is tracked under Adoption below.
 
 ### Adoption
-- **Distribution (in progress)** — 0.16.0 is out. Published:
-  r/coolgithubprojects post + first comment, and the 0.16.0 LinkedIn posts in
-  EN and PT-BR. Submitted: PyCoder's Weekly, the Console.dev beta pitch and the
-  Python Bytes news item. Scheduled: Hacker News (2026-12-01) and the r/Python
-  Showcase Thread (2026-12-04). Pending: Python Weekly (curator contact),
-  Lobsters (invitation-only) and awesome lists (deferred until 1.0/traction).
+- **Distribution (in progress)** — 0.17.0 is out; the distribution kickoff used
+  0.16.0. Published: r/coolgithubprojects post + first comment, and the 0.16.0
+  LinkedIn posts in EN and PT-BR. Submitted: PyCoder's Weekly, the Console.dev
+  beta pitch and the Python Bytes news item. Scheduled: Hacker News
+  (2026-12-01) and the r/Python Showcase Thread (2026-12-04), both citing
+  0.17.0. Pending: Python Weekly (curator contact), Lobsters (invitation-only)
+  and awesome lists (deferred until 1.0/traction).
   The GitHub Action, Dockerfile, Discussions and starter issues are done (see
   [Done](#done-2026-11-26)).
 
@@ -49,6 +51,8 @@ extra only if demand appears; PAdES remains a non-goal.
 
 ## Done (2026-11-27)
 
+- **0.17.0 release** — security redaction, AI usage/security disclosure, safe
+  visible-only text export and GHCR image `:0.17.0`; **404 tests**, **98.66%**.
 - **0.16.0 release** — runnable demo, PT-BR quickstart, GHCR image
   (`ghcr.io/thepaneb/isis-report-lib:0.16.0`), curated release notes and the
   Docker runtime lock at 0.16.0; **387 tests**, **98.66%** coverage. The GitHub
@@ -110,7 +114,7 @@ extra only if demand appears; PAdES remains a non-goal.
 organization contributes; `Maintained` rises on its own 90 days after repo
 creation; `SAST` is 10. `CII-Best-Practices` is 5 (Passing); Silver (7) and Gold
 (10) are optional and Gold needs a second maintainer. `Signed-Releases` is **10**
-after v0.16.0: the five releases in the window (v0.13.1–v0.16.0) are immutable
+after v0.17.0: the five releases in the window (v0.14.0–v0.17.0) are immutable
 and attested.
 
 `Branch-Protection` is 4. The remaining gaps — required approvers, stale-review
