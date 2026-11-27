@@ -31,9 +31,8 @@ constraint and is tracked under Adoption below.
   [Done](#done-2026-11-26)).
 
 ### Security & AI governance
-- **Visible-text export** — a visible-only, sanitized text export for AI/RAG
-  ingestion, with a prompt-injection and invisible-Unicode test corpus. The
-  library has no AI runtime; keep the disclosure/security pages current.
+- **Ongoing** — keep the AI-disclosure and security pages current; revisit
+  formal AI BOM/OWASP LLM controls only if the library adds an AI runtime.
 
 ### 1.0 — packaging and contract
 - **Playwright as an optional `[pdf]` extra** so HTML/XLSX/CSV users do not
@@ -64,6 +63,9 @@ extra only if demand appears; PAdES remains a non-goal.
 - **AI governance** — `AI_USAGE.md`, CONTRIBUTING/PR-template disclosure, the
   docs security page and `security.txt`; AI-ingestion and
   prompt-injection guidance in `SECURITY.md`.
+- **Visible-text export** — `render_text`/`arender_text` (and `.toon` variants)
+  return a visible-only, sanitized text export with a `REPORT DATA` boundary;
+  prompt-injection and invisible-Unicode regression tests.
 
 ## Done (2026-11-26)
 

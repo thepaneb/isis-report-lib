@@ -115,6 +115,16 @@ isis-report generate input.toon --format xlsx   # or csv | html | pdf
 isis-report render examples/sales_order.toon -o report.html
 ```
 
+## Plain text for AI/RAG
+
+`render_text(payload)` returns a visible-only plain-text export for LLM/RAG
+ingestion: fields with `visible: false` are dropped by the layout builder,
+control/format/private-use characters are stripped, and the text is wrapped in
+`REPORT DATA` delimiters. `render_text_from_toon` accepts `.toon`; the async
+versions are `arender_text` and `arender_text_from_toon`. No browser is needed.
+Treat the text as data, not instructions — see
+[`SECURITY.md`](SECURITY.md).
+
 ## CI and Docker
 
 A composite GitHub Action is in `.github/actions/render` — copy

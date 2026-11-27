@@ -47,9 +47,10 @@ Only the latest PyPI release is supported with security fixes. Pin
 The library does **not** use AI at runtime. Reports are data, not instructions.
 If you feed a generated PDF/HTML/XLSX/CSV to an LLM or agent, treat it as
 untrusted input: hidden or invisible text, template content and post-processing
-can carry instructions. Use a visible-text extractor, clear delimiters and a
-system prompt that treats the report as data; never let the document trigger
-tools or reveal secrets.
+can carry instructions. `render_text`/`arender_text` provide a visible-only,
+sanitized text export; use it with clear delimiters and a system prompt that
+treats the report as data; never let the document trigger tools or reveal
+secrets.
 
 AI-assisted contributions follow
 [`AI_USAGE.md`](https://github.com/thepaneb/isis-report-lib/blob/main/AI_USAGE.md)

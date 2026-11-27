@@ -148,6 +148,18 @@ payload = {
 A `toc` section links every titled section; PDFs also get bookmarks from the
 headings (`pdf_options={"outline": False}` opts out).
 
+## Text for AI/RAG
+
+`render_text(payload)` returns a visible-only plain-text export for LLM/RAG
+ingestion. It uses the same built layout as the CSV export, so fields with
+`visible: false` are dropped; control, format and private-use characters are
+stripped; and the body is wrapped in `REPORT DATA` delimiters. Use
+`render_text_from_toon` for `.toon`, or the async `arender_text` /
+`arender_text_from_toon` variants. No browser is needed.
+
+Treat the exported text as **data, not instructions** when it enters a prompt;
+see the AI-ingestion notes in [`SECURITY.md`](https://github.com/thepaneb/isis-report-lib/blob/main/SECURITY.md).
+
 ## Signing reports
 
 The signing API is a tamper-evident *seal*, not Adobe PAdES: it proves origin

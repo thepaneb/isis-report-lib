@@ -10,6 +10,7 @@ release last.
 ## [Unreleased]
 ### Added
 - `AI_USAGE.md`, docs security page and `security.txt`; AI-assisted contribution disclosure in CONTRIBUTING and the PR template
+- `render_text`/`arender_text` (and `.toon` variants): visible-only, sanitized plain-text export with a `REPORT DATA` boundary for AI/RAG ingestion
 ### Changed
 - Docker runtime lock bumped to 0.16.0; the local image matches the published release
 ### Security

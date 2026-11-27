@@ -48,7 +48,8 @@ Please include:
 The library does **not** call an LLM or AI service at runtime. Reports are data,
 not instructions. If a generated PDF/HTML/XLSX/CSV is fed to an LLM or agent,
 treat it as untrusted input: hidden or invisible text, template content and
-post-processing can carry instructions. Use a visible-text extractor, clear
-delimiters and a system prompt that treats the report as data; never let the
-document trigger tools or reveal secrets. AI-assisted contributions follow
+post-processing can carry instructions. The library provides
+`render_text`/`arender_text` for a visible-only, sanitized text export; use it
+with clear delimiters and a system prompt that treats the report as data; never
+let the document trigger tools or reveal secrets. AI-assisted contributions follow
 [`AI_USAGE.md`](AI_USAGE.md) and [`AGENTS.md`](AGENTS.md).
