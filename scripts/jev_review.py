@@ -8,11 +8,13 @@ grouped into independent packs:
 
 - ``core``: event loop, sync/async parity, tests, docs, security, dependencies;
 - ``quality``: dead code, test hygiene, typing, resource cleanup, compat;
-- ``docs``: API reference, CHANGELOG, README/CLI, guides/nav.
+- ``docs``: API reference, CHANGELOG, README/CLI, guides/nav;
+- ``security``: escaping, runtime/rede/browser, media, quotas, logs, trust,
+  supply chain (supersedes core security/dependencies).
 
-Profiles are aliases (``default``, ``strict``, ``docs``, ``all``); use
-``--pack`` to select a custom combination. Each pack runs as its own API pass,
-so extra questions do not dilute the calibrated core signals.
+Profiles are aliases (``default``, ``strict``, ``docs``, ``security``, ``all``);
+use ``--pack`` to select a custom combination. Each pack runs as its own API
+pass, so extra questions do not dilute the calibrated core signals.
 
 It is intentionally local and advisory. It never runs in CI, never posts to a
 PR, and never replaces lint, tests, or human review.
@@ -62,7 +64,16 @@ DEFAULT_JSON_OUTPUT = ROOT / ".jev" / "jev-review.json"
 NOUL_KEYS = ("security", "correctness", "event_loop", "tests", "docs", "api_parity", "dependencies")
 QUALITY_KEYS = ("dead_code", "test_hygiene", "type_safety", "resource_cleanup", "backward_compat")
 DOCS_KEYS = ("docs_api", "docs_changelog", "docs_readme", "docs_guides")
-ALL_NOUL_KEYS = NOUL_KEYS + QUALITY_KEYS + DOCS_KEYS
+SECURITY_KEYS = (
+    "sec_escaping",
+    "sec_runtime",
+    "sec_media",
+    "sec_quota",
+    "sec_log_leak",
+    "sec_trust_contract",
+    "sec_supply_chain",
+)
+ALL_NOUL_KEYS = NOUL_KEYS + QUALITY_KEYS + DOCS_KEYS + SECURITY_KEYS
 SEVERITY_LABELS = ("nenhuma", "baixa", "média", "alta", "crítica")
 RECOMMENDATION_RANK = {"approve": 0, "comment": 1, "block": 2}
 
@@ -175,7 +186,51 @@ DOCS_DIMENSIONS: tuple[tuple[str, str, float, str], ...] = (
         "Atualize `docs/` e a navegação quando o comportamento/feature muda.",
     ),
 )
-ALL_DIMENSIONS = CORE_DIMENSIONS + QUALITY_DIMENSIONS + DOCS_DIMENSIONS
+SECURITY_DIMENSIONS: tuple[tuple[str, str, float, str], ...] = (
+    (
+        "sec_escaping",
+        "Escaping/HTML",
+        0.65,
+        "Revise autoescape/escape e export de strings não confiáveis (§3.2).",
+    ),
+    (
+        "sec_runtime",
+        "Runtime/rede/browser",
+        0.70,
+        "Nenhum fetch de rede no render; JS/plugins/downloads desabilitados.",
+    ),
+    (
+        "sec_media",
+        "Imagens/data URI",
+        0.70,
+        "Aceite apenas data URI raster; rejeite paths/URLs/SVG e limite o tamanho.",
+    ),
+    (
+        "sec_quota",
+        "Quotas/limites",
+        0.65,
+        "Quotas são do operador; payload só pode apertar. Evite recurso sem limite.",
+    ),
+    (
+        "sec_log_leak",
+        "Logs/erros",
+        0.65,
+        "Use `log_value`/redaction; não ecoe payload, segredo, token ou PII.",
+    ),
+    (
+        "sec_trust_contract",
+        "Contrato de confiança",
+        0.70,
+        "`verify_*` retorna veredito; parser falha com ValueError; chaves >=32 bytes.",
+    ),
+    (
+        "sec_supply_chain",
+        "Supply chain",
+        0.65,
+        "Justifique dependência/system package e evite ampliar a instalação padrão.",
+    ),
+)
+ALL_DIMENSIONS = CORE_DIMENSIONS + QUALITY_DIMENSIONS + DOCS_DIMENSIONS + SECURITY_DIMENSIONS
 ALL_DIMENSION_BY_KEY = {key: (label, threshold, hint) for key, label, threshold, hint in ALL_DIMENSIONS}
 
 QUESTIONS: dict[str, dict[str, Any]] = {
@@ -307,6 +362,42 @@ DOCS_QUESTIONS: dict[str, dict[str, Any]] = {
         ),
     },
 }
+SECURITY_QUESTIONS: dict[str, dict[str, Any]] = {
+    "sec_escaping": {
+        "type": "noul",
+        "instructions": (
+            "O diff compila texto não confiável em template (`Template(...)`, `render_template_string`) ou "
+            "interpola dado não confiável em HTML/CSV/XLSX/email sem escape/autoescape (XSS/injeção)?"
+        ),
+    },
+    "sec_runtime": {
+        "type": "noul",
+        "instructions": ("O diff introduz fetch de rede/SSRF em render/generate ou habilita JavaScript, plugins ou downloads no browser?"),
+    },
+    "sec_media": {
+        "type": "noul",
+        "instructions": ("O diff permite path/URL/SVG ou contorna o gate de data URI raster e o limite de 2 MiB?"),
+    },
+    "sec_quota": {
+        "type": "noul",
+        "instructions": ("O diff aceita quota/limite vindo do payload ou remove limite de linhas, imagens, páginas ou chars?"),
+    },
+    "sec_log_leak": {
+        "type": "noul",
+        "instructions": ("O diff faz erro/log ecoar payload, segredo, token ou PII sem `log_value`/redaction?"),
+    },
+    "sec_trust_contract": {
+        "type": "noul",
+        "instructions": (
+            "O diff quebra contrato de confiança (`verify_*` levanta em vez de veredito, parser engole erro, "
+            "HMAC <32 bytes, algoritmo fraco)?"
+        ),
+    },
+    "sec_supply_chain": {
+        "type": "noul",
+        "instructions": ("O diff adiciona dependência de runtime/system package ou amplia a instalação padrão sem justificativa/revisão?"),
+    },
+}
 
 
 @dataclass(frozen=True)
@@ -343,12 +434,21 @@ DOCS_PACK = QuestionPack(
     dimensions=DOCS_DIMENSIONS,
     supersedes=("docs",),
 )
-PACKS = {pack.id: pack for pack in (CORE_PACK, QUALITY_PACK, DOCS_PACK)}
+SECURITY_PACK = QuestionPack(
+    id="security",
+    title="Security",
+    description="Checklist §3.5: escaping, runtime/rede/browser, mídia, quotas, logs, confiança e supply chain.",
+    questions=SECURITY_QUESTIONS,
+    dimensions=SECURITY_DIMENSIONS,
+    supersedes=("security", "dependencies"),
+)
+PACKS = {pack.id: pack for pack in (CORE_PACK, QUALITY_PACK, DOCS_PACK, SECURITY_PACK)}
 PROFILE_PACKS: dict[str, tuple[str, ...]] = {
     "default": ("core",),
     "strict": ("core", "quality"),
     "docs": ("core", "docs"),
-    "all": ("core", "quality", "docs"),
+    "security": ("core", "security"),
+    "all": ("core", "quality", "docs", "security"),
 }
 
 CONTEXT = """Contexto: isis-report-lib é uma biblioteca Python (src/isis_report_lib) que gera
@@ -940,6 +1040,20 @@ def _render_markdown(
         checks.append("Adicione teste/regressão no arquivo correspondente.")
     if any(finding["dimension"] == "security" for finding in findings):
         checks.append("Passe pelo checklist de `docs/STANDARDS.md` §3.5.")
+    if any(finding["dimension"] == "sec_escaping" for finding in findings):
+        checks.append("Revise autoescape/escape em HTML/CSV/XLSX/email; veja `docs/STANDARDS.md` §3.2.")
+    if any(finding["dimension"] == "sec_runtime" for finding in findings):
+        checks.append("Nenhum fetch de rede no render; mantenha JS/plugins/downloads desabilitados.")
+    if any(finding["dimension"] == "sec_media" for finding in findings):
+        checks.append("Valide data URI raster; rejeite path/URL/SVG e o limite de 2 MiB.")
+    if any(finding["dimension"] == "sec_quota" for finding in findings):
+        checks.append("Quotas do operador; payload só aperta; limite linhas/imagens/páginas/chars.")
+    if any(finding["dimension"] == "sec_log_leak" for finding in findings):
+        checks.append("Use `log_value`/redaction; não ecoe payload, segredo, token ou PII.")
+    if any(finding["dimension"] == "sec_trust_contract" for finding in findings):
+        checks.append("Revise `verify_*` (veredito, não raise), parsers (ValueError) e HMAC >=32 bytes.")
+    if any(finding["dimension"] == "sec_supply_chain" for finding in findings):
+        checks.append("Justifique a dependência/system package e valide `dependency-review`/`pip-audit`.")
     if any(finding["dimension"] == "dependencies" for finding in findings):
         checks.append("Justifique a dependência e valide `dependency-review`/`pip-audit` no CI.")
     if any(finding["dimension"] == "dead_code" for finding in findings):
@@ -1187,10 +1301,24 @@ index 7777777..8888888 100644
     _check({"docs_api", "docs_changelog", "docs_readme", "docs_guides"} <= docs_keys, "docs dimensions missing")
     _check("docs" not in docs_keys, "superseded docs dimension leaked")
     all_passes, _all_dims = _resolve_packs(("core", "quality", "docs"))
-    _check(len(all_passes) == 3, "all profile should run three passes")
+    _check(len(all_passes) == 3, "docs+quality profile should run three passes")
+
+    security_passes, security_dims = _resolve_packs(("core", "security"))
+    _check(len(security_passes) == 2, "security profile should run two passes")
+    _check("security" not in security_passes[0][1], "security pack did not supersede core security")
+    _check("dependencies" not in security_passes[0][1], "security pack did not supersede core dependencies")
+    security_keys = {dimension[0] for dimension in security_dims}
+    _check({"sec_escaping", "sec_runtime", "sec_media", "sec_quota"} <= security_keys, "security dimensions missing")
+    _check("security" not in security_keys, "superseded security dimension leaked")
+    _check("dependencies" not in security_keys, "superseded dependencies dimension leaked")
+
+    all_passes, _all_dims = _resolve_packs(("core", "quality", "docs", "security"))
+    _check(len(all_passes) == 4, "all profile should run four passes")
 
     docs_api_edge = _findings({"docs_api": 0.55}, DOCS_DIMENSIONS)
     _check(any(finding["dimension"] == "docs_api" for finding in docs_api_edge), "docs_api threshold regression")
+    sec_edge = _findings({"sec_escaping": 0.65}, SECURITY_DIMENSIONS)
+    _check(any(finding["dimension"] == "sec_escaping" for finding in sec_edge), "security threshold regression")
 
     print("self-test OK")
     return 0
