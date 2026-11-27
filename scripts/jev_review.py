@@ -132,7 +132,7 @@ STRICT_DIMENSIONS: tuple[tuple[str, str, float, str], ...] = (
     (
         "resource_cleanup",
         "Fechamento de recursos",
-        0.60,
+        0.65,
         "Garanta close/finally em arquivos, browsers, contextos e diretórios temporários.",
     ),
     (
@@ -1054,6 +1054,11 @@ index 7777777..8888888 100644
 
     docs_edge = {"docs": 0.50}
     _check(any(finding["dimension"] == "docs" for finding in _findings(docs_edge)), "docs threshold regression")
+
+    resource_ok = _findings({"resource_cleanup": 0.61}, ALL_DIMENSIONS)
+    _check(not any(finding["dimension"] == "resource_cleanup" for finding in resource_ok), "resource false positive")
+    resource_bad = _findings({"resource_cleanup": 0.65}, ALL_DIMENSIONS)
+    _check(any(finding["dimension"] == "resource_cleanup" for finding in resource_bad), "resource threshold regression")
 
     print("self-test OK")
     return 0
