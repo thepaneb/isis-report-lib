@@ -95,8 +95,8 @@ payload (dict | ReportPayload | .toon)
   system boundaries (`prepare_report` enforces the `ReportPayload` envelope
   fail-closed, plus `with_meta_defaults`/field normalizers), not in hot
   per-cell loops.
-- **MUST**: fail closed with `ValueError` naming the offending value and the
-  expected set (`f"...: {x!r} (expected ...)"`). Verdict-style APIs
+- **MUST**: fail closed with `ValueError` naming the offending field/path and
+  the expected contract; **never echo payload values**. Verdict-style APIs
   (`verify_pdf`) return result objects and never raise on input.
 - Recursion is bounded: parsers and builders convert `RecursionError` into
   `ValueError` (see `toon`, `inputs.from_json`, `prepare_report`).
@@ -187,8 +187,8 @@ keys: accepted from API/CLI arguments only, never from the payload.
 - Logs are single-line: caller-controlled fields go through
   `logging_utils.log_value`, and the package logger installs
   `LogEncodingFilter` so CR/LF, ANSI/control characters and Unicode line
-  separators cannot forge log entries. Never log keys, payload bodies or
-  secrets.
+  separators cannot forge log entries. Never log keys, payload bodies, payload
+  values or secrets; validation errors name fields/types, not values.
 - Rotation runbook (no flag days): sign new reports with the new key under a
   new `key_id`; configure verifiers with the keyring (`{key_id: key}` mapping
   or ordered key list — the envelope `key_id` selects first, the rest are

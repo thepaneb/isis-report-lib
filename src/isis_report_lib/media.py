@@ -42,15 +42,15 @@ def normalize_image_src(value: Any, field: str = "image") -> str:
     ``meta.logo`` or ``image section src``).
     """
     if not isinstance(value, str) or not value.startswith("data:"):
-        raise ValueError(f"Invalid {field} (must be a data:image/...;base64 URI): {value!r}")
+        raise ValueError(f"Invalid {field} (must be a data:image/...;base64 URI)")
     match = _IMAGE_RE.match(value)
     if not match:
-        raise ValueError(f"Invalid {field} (expected data:image/png|jpeg|webp|gif;base64,...): {value[:48]!r}")
+        raise ValueError(f"Invalid {field} (expected data:image/png|jpeg|webp|gif;base64,...)")
     mime, payload = match.group(1), match.group(2)
     try:
         raw = base64.b64decode(payload, validate=True)
-    except (binascii.Error, ValueError) as e:
-        raise ValueError(f"Invalid {field} (base64 payload is malformed): {e}") from e
+    except (binascii.Error, ValueError):
+        raise ValueError(f"Invalid {field} (base64 payload is malformed)") from None
     if len(raw) > MAX_IMAGE_BYTES:
         raise ValueError(f"Invalid {field} ({len(raw)} decoded bytes; max {MAX_IMAGE_BYTES})")
     if not _magic_ok(mime, raw):
@@ -60,10 +60,10 @@ def normalize_image_src(value: Any, field: str = "image") -> str:
 
 def _number(value: Any, field: str, *, minimum: float, maximum: float) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise ValueError(f"Invalid {field} (must be a number between {minimum} and {maximum}): {value!r}")
+        raise ValueError(f"Invalid {field} (must be a number between {minimum} and {maximum})")
     number = float(value)
     if not minimum <= number <= maximum:
-        raise ValueError(f"Invalid {field} (must be between {minimum} and {maximum}): {value!r}")
+        raise ValueError(f"Invalid {field} (must be between {minimum} and {maximum})")
     return number
 
 
@@ -80,18 +80,18 @@ def normalize_watermark(value: Any) -> dict[str, Any] | None:
     if isinstance(value, str):
         value = {"text": value}
     if not isinstance(value, dict):
-        raise ValueError(f"Invalid meta.watermark (must be a string or object): {value!r}")
+        raise ValueError("Invalid meta.watermark (must be a string or object)")
     unknown = sorted(set(value) - set(_WATERMARK_KEYS))
     if unknown:
-        raise ValueError(f"Unknown meta.watermark key: {unknown[0]!r} (expected {'|'.join(_WATERMARK_KEYS)})")
+        raise ValueError(f"Unknown meta.watermark key (expected {'|'.join(_WATERMARK_KEYS)})")
     text = value.get("text")
     if not isinstance(text, str) or not text.strip():
-        raise ValueError(f"Invalid meta.watermark.text (must be a non-empty string): {text!r}")
+        raise ValueError("Invalid meta.watermark.text (must be a non-empty string)")
     if len(text) > MAX_WATERMARK_LENGTH:
         raise ValueError(f"Invalid meta.watermark.text (max {MAX_WATERMARK_LENGTH} characters): {len(text)}")
     color = value.get("color", "#000000")
     if not isinstance(color, str) or not _HEX_COLOR_RE.match(color):
-        raise ValueError(f"Invalid meta.watermark.color (expected #rgb or #rrggbb): {color!r}")
+        raise ValueError("Invalid meta.watermark.color (expected #rgb or #rrggbb)")
     return {
         "text": text,
         "opacity": _number(value.get("opacity", 0.08), "meta.watermark.opacity", minimum=0.0, maximum=1.0),

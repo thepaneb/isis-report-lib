@@ -26,8 +26,8 @@ def _check_series(labels: list[str], values: list[float]) -> list[float]:
         raise ValueError(f"Chart labels ({len(labels)}) and values ({len(values)}) must match in length.")
     try:
         return [float(v) for v in values]
-    except (TypeError, ValueError) as e:
-        raise ValueError(f"Chart values must be numeric: {e}") from e
+    except (TypeError, ValueError):
+        raise ValueError("Chart values must be numeric") from None
 
 
 def bar_chart(

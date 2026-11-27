@@ -134,7 +134,7 @@ def build_crosstab(data: list[Any], spec: dict[str, Any]) -> Crosstab:
 
     empty_text = spec.get("empty_text", "")
     if empty_text is not None and not isinstance(empty_text, str):
-        raise ValueError(f"Invalid crosstab empty_text (must be a string): {empty_text!r}")
+        raise ValueError("Invalid crosstab empty_text (must be a string)")
 
     return Crosstab(
         row_headers=row_values,

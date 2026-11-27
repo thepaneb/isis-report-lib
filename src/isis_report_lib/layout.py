@@ -313,7 +313,7 @@ def _child_records(record: dict[str, Any], key: str) -> list[dict[str, Any]]:
     if value is None:
         return []
     if isinstance(value, dict) or not isinstance(value, (list, tuple)):
-        raise ValueError(f"Group field {key!r} must be a list of records, got {type(value).__name__}: {value!r}")
+        raise ValueError(f"Group field {key!r} must be a list of records, got {type(value).__name__}")
     return [child for child in value if isinstance(child, dict)]
 
 
@@ -465,7 +465,7 @@ def build_report(data_raw: list[dict[str, Any]], layout_raw: dict[str, Any]) -> 
     """
     for index, record in enumerate(data_raw):
         if not isinstance(record, dict):
-            raise ValueError(f"Invalid data record at index {index} (must be an object): {record!r}")
+            raise ValueError(f"Invalid data record at index {index} (must be an object)")
     rows = sort_rows(filter_rows(data_raw, layout_raw.get("$print_when")), layout_raw.get("$order_by"))
     items = [_convert_item(record, layout_raw) for record in rows]
     inner = _build_layout(layout_raw, rows)

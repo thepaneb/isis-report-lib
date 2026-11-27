@@ -23,9 +23,9 @@ def with_meta_defaults(meta: dict[str, Any]) -> dict[str, Any]:
     if not meta.get("printed_at"):
         meta["printed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     if meta.get("source_note") is not None and (not isinstance(meta["source_note"], str) or not meta["source_note"]):
-        raise ValueError(f"Invalid meta.source_note (must be a non-empty string): {meta['source_note']!r}")
+        raise ValueError("Invalid meta.source_note (must be a non-empty string)")
     if meta.get("summary_side") is not None and meta["summary_side"] not in ("top", "bottom"):
-        raise ValueError(f"Invalid meta.summary_side (expected top|bottom): {meta['summary_side']!r}")
+        raise ValueError("Invalid meta.summary_side (expected top|bottom)")
     if meta.get("logo") is not None:
         from isis_report_lib.media import normalize_image_src
 
@@ -42,17 +42,17 @@ def with_meta_defaults(meta: dict[str, Any]) -> dict[str, Any]:
 def _normalize_limits(limits: Any) -> dict[str, int]:
     """Validate ``meta.limits`` (fail closed: unknown keys and non-positive ints raise)."""
     if not isinstance(limits, dict):
-        raise ValueError(f"Invalid meta.limits (must be an object): {limits!r}")
+        raise ValueError("Invalid meta.limits (must be an object)")
     for key in limits:
         if key not in _LIMIT_KEYS:
-            raise ValueError(f"Unknown meta.limits key: {key!r} (expected max_rows|max_bytes)")
+            raise ValueError("Unknown meta.limits key (expected max_rows|max_bytes)")
     out: dict[str, int] = {}
     for key in _LIMIT_KEYS:
         value = limits.get(key)
         if value is None:
             continue
         if isinstance(value, bool) or not isinstance(value, int) or value < 1:
-            raise ValueError(f"Invalid meta.limits.{key} (must be a positive integer): {value!r}")
+            raise ValueError(f"Invalid meta.limits.{key} (must be a positive integer)")
         out[key] = value
     return out
 
@@ -142,7 +142,7 @@ def _validate_payload_shape(payload: Any) -> None:
         )
         more = f" (+{e.error_count() - 3} more)" if e.error_count() > 3 else ""
         problems = "problem" if e.error_count() == 1 else "problems"
-        raise ValueError(f"Invalid payload ({e.error_count()} {problems}): {log_value(details, max_length=800)}{more}") from e
+        raise ValueError(f"Invalid payload ({e.error_count()} {problems}): {log_value(details, max_length=800)}{more}") from None
 
 
 def prepare_report(payload: dict[str, Any], limits: dict[str, int] | None = None) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
@@ -229,7 +229,7 @@ def _section_source(section: dict[str, Any]) -> str:
     if source is None or source == "":
         return ""
     if not isinstance(source, str):
-        raise ValueError(f"Invalid section source (must be a string): {source!r}")
+        raise ValueError("Invalid section source (must be a string)")
     return source
 
 
@@ -240,20 +240,20 @@ def _prepare_sections(sections: list[dict[str, Any]], meta: dict[str, Any]) -> t
     built: list[dict[str, Any]] = []
     for section in sections:
         if not isinstance(section, dict):
-            raise ValueError(f"Invalid section (must be an object): {section!r}")
+            raise ValueError("Invalid section (must be an object)")
         stype = section.get("type", "table")
         if stype in ("table", "crosstab"):
             data = section.get("data", [])
             if data is None:
                 data = []
             if isinstance(data, dict) or not isinstance(data, (list, tuple)):
-                raise ValueError(f"Invalid {stype} section data (must be a list of records): {section.get('data')!r}")
+                raise ValueError(f"Invalid {stype} section data (must be a list of records)")
         if stype == "table":
             layout_raw = section.get("layout", {})
             if layout_raw is None:
                 layout_raw = {}
             if not isinstance(layout_raw, dict):
-                raise ValueError(f"Invalid table section layout (must be an object): {layout_raw!r}")
+                raise ValueError("Invalid table section layout (must be an object)")
             dataset, layout = build_report(list(data), layout_raw)
             entry: dict[str, Any] = {"type": "table", "title": section.get("title"), "dataset": dataset, "layout": layout}
             if isinstance(section.get("empty_text"), str) and section["empty_text"]:
@@ -262,21 +262,21 @@ def _prepare_sections(sections: list[dict[str, Any]], meta: dict[str, Any]) -> t
         elif stype == "text":
             paragraphs = section.get("paragraphs", [section["body"]] if "body" in section else [])
             if not isinstance(paragraphs, list) or not all(isinstance(p, str) for p in paragraphs):
-                raise ValueError(f"Invalid text section (need paragraphs: [...]): {section!r}")
+                raise ValueError("Invalid text section (need paragraphs: [...])")
             built.append({"type": "text", "title": section.get("title"), "paragraphs": paragraphs})
         elif stype == "kpi":
             from isis_report_lib.formatting import normalize_footnote
 
             raw_items = section.get("items", [])
             if not isinstance(raw_items, list):
-                raise ValueError(f"Invalid kpi section (need items: [...]): {section!r}")
+                raise ValueError("Invalid kpi section (need items: [...])")
             items = []
-            for raw in raw_items:
+            for index, raw in enumerate(raw_items, start=1):
                 if not isinstance(raw, dict) or "label" not in raw:
-                    raise ValueError(f"Invalid kpi item (need at least a label): {raw!r}")
+                    raise ValueError("Invalid kpi item (need at least a label)")
                 item = dict(raw)
                 if "footnote" in item:
-                    item["footnote"] = normalize_footnote(item["footnote"], f"kpi item {raw.get('label')!r}")
+                    item["footnote"] = normalize_footnote(item["footnote"], f"kpi item {index}")
                 items.append(item)
             built.append({"type": "kpi", "title": section.get("title"), "items": items})
         elif stype == "chart":
@@ -309,15 +309,15 @@ def _prepare_sections(sections: list[dict[str, Any]], meta: dict[str, Any]) -> t
             if caption is None:
                 caption = ""
             if not isinstance(alt, str):
-                raise ValueError(f"Invalid image section alt (must be a string): {alt!r}")
+                raise ValueError("Invalid image section alt (must be a string)")
             if not isinstance(caption, str):
-                raise ValueError(f"Invalid image section caption (must be a string): {caption!r}")
+                raise ValueError("Invalid image section caption (must be a string)")
             width = section.get("width")
             if width is not None and (isinstance(width, bool) or not isinstance(width, int) or not 16 <= width <= 1600):
-                raise ValueError(f"Invalid image section width (must be an integer 16..1600): {width!r}")
+                raise ValueError("Invalid image section width (must be an integer 16..1600)")
             align = section.get("align", "center")
             if align not in ("left", "center", "right"):
-                raise ValueError(f"Invalid image section align (expected left|center|right): {align!r}")
+                raise ValueError("Invalid image section align (expected left|center|right)")
             built.append(
                 {
                     "type": "image",
@@ -332,7 +332,7 @@ def _prepare_sections(sections: list[dict[str, Any]], meta: dict[str, Any]) -> t
         elif stype == "toc":
             built.append({"type": "toc", "title": section.get("title"), "items": []})
         else:
-            raise ValueError(f"Unknown section type: {stype!r} (expected table|text|kpi|chart|crosstab|image|toc)")
+            raise ValueError("Unknown section type (expected table|text|kpi|chart|crosstab|image|toc)")
     anchors: list[dict[str, str]] = []
     anchor_index = 0
     for entry in built:
@@ -453,7 +453,7 @@ class TabularReportService(BaseReportService):
         if page.get("orientation") == "landscape":
             options["landscape"] = True
         elif page.get("orientation") not in (None, "portrait"):
-            raise ValueError(f"Invalid page orientation: {page.get('orientation')!r}")
+            raise ValueError("Invalid page orientation (expected portrait|landscape)")
         margins = page.get("margins") or {}
         options["margin"] = {key: margins.get(key, DEFAULT_MARGIN[key]) for key in ("top", "bottom", "left", "right")}
         # PDF bookmarks from the document headings. Explicit pdf_options win,
