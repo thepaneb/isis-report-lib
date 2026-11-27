@@ -2,8 +2,10 @@ name: Jev review (advisory)
 
 # Local-style Jev review in CI, but advisory only:
 # - same-repo PRs (forks do not receive secrets) or manual dispatch;
+# - PRs use --auto-packs; manual dispatch chooses a profile;
 # - uploads the Markdown/JSON report as an artifact and job summary;
-# - creates/updates one sticky advisory comment on same-repo PRs;
+# - creates/updates one compact sticky comment when there are findings or a
+#   comment/block verdict; an approve with no previous comment stays silent;
 # - never gates the merge.
 #
 # Requires the OPENCODE_API_KEY repository secret. Without it the job warns and
@@ -103,13 +105,20 @@ jobs:
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
         run: |
-          python scripts/jev_review.py \
-            --diff-file "$RUNNER_TEMP/jev.diff" \
-            --profile "$PROFILE" \
-            --lang en \
-            --output .jev/jev-review.md \
-            --json-output .jev/jev-review.json \
+          set -euo pipefail
+          args=(
+            --diff-file "$RUNNER_TEMP/jev.diff"
+            --lang en
+            --output .jev/jev-review.md
+            --json-output .jev/jev-review.json
             --quiet
+          )
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            args+=(--auto-packs)
+          else
+            args+=(--profile "$PROFILE")
+          fi
+          python scripts/jev_review.py "${args[@]}"
 
       - name: Add report to job summary
         if: always()
@@ -128,21 +137,42 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          if [ ! -f .jev/jev-review.md ]; then
-            echo "No report generated; skipping comment."
+          if [ ! -f .jev/jev-review.json ]; then
+            echo "No JSON report generated; skipping comment."
             exit 0
+          fi
+          report=".jev/jev-review.json"
+          verdict=$(jq -r '.verdict // "unknown"' "$report")
+          severity=$(jq -r '.severity // empty' "$report")
+          models=$(jq -r '.models // [] | join(" -> ")' "$report")
+          profile=$(jq -r '.profile // "unknown"' "$report")
+          findings=$(jq -r '.findings[]? | "- **\(.label)** - \(.message)"' "$report")
+          existing=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments?per_page=100" \
+            --jq '.[] | select(.body | contains("<!-- jev-review -->")) | .id' | head -n1 || true)
+          if [ "$verdict" = "approve" ] && [ -z "$existing" ]; then
+            echo "No findings and no previous comment; skipping comment."
+            exit 0
+          fi
+          severity_text="$severity/4"
+          if [ -z "$severity" ]; then
+            severity_text="n/a"
           fi
           {
             echo '<!-- jev-review -->'
-            echo "_AI-generated advisory report. Not a substitute for human review._"
+            echo "**Jev review:** \`$verdict\` · **Severity:** $severity_text · **Model:** \`$models\` · **Profile:** \`$profile\`"
             echo
-            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            if [ -n "$findings" ]; then
+              echo "**Findings:**"
+              echo "$findings"
+            else
+              echo "_No threshold reached._"
+            fi
             echo
-            cat .jev/jev-review.md
+            echo "Full report: [workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID) · artifact \`jev-review-$PR\` / job summary."
+            echo
+            echo "_AI-generated advisory; not a substitute for human review._"
           } > "$RUNNER_TEMP/jev-comment.md"
           jq -n --rawfile body "$RUNNER_TEMP/jev-comment.md" '{body: $body}' > "$RUNNER_TEMP/jev-comment.json"
-          existing=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments?per_page=100" \
-            --jq '.[] | select(.body | contains("<!-- jev-review -->")) | .id' | head -n1 || true)
           if [ -n "$existing" ]; then
             gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$existing" --input "$RUNNER_TEMP/jev-comment.json" > /dev/null
           else

@@ -175,11 +175,13 @@ a PR comment, never a replacement for the human review. CI does run
 `--self-test` plus `ruff`/`mypy`/format on all local tools in the `tooling`
 job (no key, no network). A separate **Jev review (advisory)** workflow runs on
 same-repo PRs and manual dispatch when the `OPENCODE_API_KEY` secret is set;
-it uploads `.jev/jev-review.md|json` as an artifact and job summary, and
-creates/updates one sticky advisory PR comment on same-repo PRs. It never
-gates the merge. Forks, drafts and Dependabot PRs are skipped; without the
-secret the job warns and skips. Local reports default to `pt-BR`; pass
-`--lang en` (the CI workflow does) for English reports/comments.
+PRs use `--auto-packs` (manual dispatch chooses a profile). It uploads
+`.jev/jev-review.md|json` as an artifact and job summary, and posts a compact
+sticky comment only when there are findings or a `comment`/`block` verdict;
+an `approve` with no previous comment stays silent. It never gates the merge.
+Forks, drafts and Dependabot PRs are skipped; without the secret the job warns
+and skips. Local reports default to `pt-BR`; pass `--lang en` (the CI workflow
+does) for English reports/comments.
 
 ### Calibration corpus (local, optional)
 
@@ -194,7 +196,8 @@ python scripts/jev_calibrate.py --config calibration/jev-cases.json
 ```
 
 Re-run it after a model update or a significant pack/threshold change; see
-`calibration/README.md`.
+`calibration/README.md`. A monthly `Jev calibration reminder` workflow opens
+one issue when none is open; it does not call the API.
 
 ## Release preflight (local)
 
