@@ -54,6 +54,8 @@ DEFAULT_OUTPUT = ROOT / ".jev" / "jev-review.md"
 DEFAULT_JSON_OUTPUT = ROOT / ".jev" / "jev-review.json"
 
 NOUL_KEYS = ("security", "correctness", "event_loop", "tests", "docs", "api_parity", "dependencies")
+STRICT_KEYS = ("dead_code", "test_hygiene", "type_safety", "resource_cleanup", "backward_compat")
+ALL_NOUL_KEYS = NOUL_KEYS + STRICT_KEYS
 SEVERITY_LABELS = ("nenhuma", "baixa", "média", "alta", "crítica")
 RECOMMENDATION_RANK = {"approve": 0, "comment": 1, "block": 2}
 
@@ -89,7 +91,7 @@ DIMENSIONS: tuple[tuple[str, str, float, str], ...] = (
     (
         "docs",
         "Docs / CHANGELOG",
-        0.60,
+        0.50,
         "Rode scripts/gen_api_docs.py --check e atualize CHANGELOG/README no mesmo PR.",
     ),
     (
@@ -105,7 +107,43 @@ DIMENSIONS: tuple[tuple[str, str, float, str], ...] = (
         "Justifique o extra/opt-in e rode dependency-review/pip-audit no CI.",
     ),
 )
-DIMENSION_BY_KEY = {key: (label, threshold, hint) for key, label, threshold, hint in DIMENSIONS}
+# Extra dimensions for the opt-in "strict" profile. They target issues the
+# default questionnaire deliberately leaves to ruff/pytest: dead branches,
+# test hygiene, typing at public boundaries, resource cleanup, and API breaks.
+STRICT_DIMENSIONS: tuple[tuple[str, str, float, str], ...] = (
+    (
+        "dead_code",
+        "Código morto/duplicado",
+        0.60,
+        "Remova branch/except duplicado, código inalcançável ou import sem uso; rode ruff.",
+    ),
+    (
+        "test_hygiene",
+        "Higiene dos testes",
+        0.60,
+        "Use tmp_path, feche handles e isole estado global/ordem entre testes.",
+    ),
+    (
+        "type_safety",
+        "Tipagem",
+        0.50,
+        "Evite `Any` em boundary público, casts inseguros e `type: ignore` novo.",
+    ),
+    (
+        "resource_cleanup",
+        "Fechamento de recursos",
+        0.60,
+        "Garanta close/finally em arquivos, browsers, contextos e diretórios temporários.",
+    ),
+    (
+        "backward_compat",
+        "Compatibilidade",
+        0.70,
+        "Deprecie/migre mudanças de API pública, defaults e formato de saída.",
+    ),
+)
+ALL_DIMENSIONS = DIMENSIONS + STRICT_DIMENSIONS
+ALL_DIMENSION_BY_KEY = {key: (label, threshold, hint) for key, label, threshold, hint in ALL_DIMENSIONS}
 
 QUESTIONS: dict[str, dict[str, Any]] = {
     "security": {
@@ -180,6 +218,70 @@ QUESTIONS: dict[str, dict[str, Any]] = {
         },
     },
 }
+
+STRICT_ONLY_QUESTIONS: dict[str, dict[str, Any]] = {
+    "dead_code": {
+        "type": "noul",
+        "instructions": ("O diff introduz código morto/inalcançável, branch/except duplicado, import não usado ou variável sem efeito?"),
+    },
+    "test_hygiene": {
+        "type": "noul",
+        "instructions": (
+            "Os testes do diff vazam arquivos/handles temporários, dependem de ordem/estado global, "
+            "não usam tmp_path ou não isolam efeitos?"
+        ),
+    },
+    "type_safety": {
+        "type": "noul",
+        "instructions": (
+            "O diff usa `Any`/`str | Path | Any` em boundary público, cast inseguro, `# type: ignore` novo ou perde tipagem relevante?"
+        ),
+    },
+    "resource_cleanup": {
+        "type": "noul",
+        "instructions": (
+            "Arquivos, handles, browsers, contextos ou diretórios temporários são fechados em todos os "
+            "caminhos, inclusive quando ocorre exceção?"
+        ),
+    },
+    "backward_compat": {
+        "type": "noul",
+        "instructions": ("O diff quebra API pública, default, formato de saída ou semântica sem depreciação/migração?"),
+    },
+    "severity": QUESTIONS["severity"],
+    "recommendation": QUESTIONS["recommendation"],
+}
+STRICT_QUESTIONS: dict[str, dict[str, Any]] = {
+    **QUESTIONS,
+    **{key: STRICT_ONLY_QUESTIONS[key] for key in STRICT_KEYS},
+    "focus": {
+        "type": "choice",
+        "instructions": "Qual é a principal área de atenção?",
+        "criteria": {
+            "none": "Nenhuma",
+            "security": "Segurança",
+            "correctness": "Correção",
+            "event_loop": "Event loop/browser",
+            "tests": "Testes",
+            "docs": "Docs/CHANGELOG",
+            "api_parity": "Paridade sync/async",
+            "dependencies": "Dependências",
+            "dead_code": "Código morto/duplicado",
+            "test_hygiene": "Higiene dos testes",
+            "type_safety": "Tipagem",
+            "resource_cleanup": "Fechamento de recursos",
+            "backward_compat": "Compatibilidade",
+        },
+    },
+}
+PROFILE_QUESTIONS = {"default": QUESTIONS, "strict": STRICT_QUESTIONS}
+# Strict runs two passes so the extra questions do not dilute the calibrated
+# base signals (docs dropped from 61-66% to 50% in the one-pass experiment).
+PROFILE_PASSES: dict[str, tuple[tuple[str, dict[str, dict[str, Any]]], ...]] = {
+    "default": (("base", QUESTIONS),),
+    "strict": (("base", QUESTIONS), ("strict", STRICT_ONLY_QUESTIONS)),
+}
+PROFILE_DIMENSIONS = {"default": DIMENSIONS, "strict": ALL_DIMENSIONS}
 
 CONTEXT = """Contexto: isis-report-lib é uma biblioteca Python (src/isis_report_lib) que gera
 relatórios PDF tabulares com Jinja2 + Playwright, exporta XLSX/CSV/HTML e tem API sync e async.
@@ -496,8 +598,13 @@ def _api_error_message(body: str) -> str:
     return body.strip()[:300]
 
 
-def _call_jev(state: str, args: argparse.Namespace, key: str) -> dict[str, Any]:
-    payload = {"model": args.model, "state": state, "questions": QUESTIONS}
+def _call_jev(
+    state: str,
+    args: argparse.Namespace,
+    key: str,
+    questions: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    payload = {"model": args.model, "state": state, "questions": questions}
     request = urllib.request.Request(  # noqa: S310
         args.endpoint,
         data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
@@ -537,7 +644,7 @@ def _parse_response(response: dict[str, Any], index: int, files: list[str]) -> d
     if not isinstance(answers, dict):
         raise JevError("resposta da API sem o campo 'answers'.")
     parsed: dict[str, Any] = {}
-    for key in (*NOUL_KEYS, "severity", "recommendation", "focus"):
+    for key in (*ALL_NOUL_KEYS, "severity", "recommendation", "focus"):
         answer = answers.get(key)
         if not isinstance(answer, dict):
             continue
@@ -554,7 +661,7 @@ def _parse_response(response: dict[str, Any], index: int, files: list[str]) -> d
 
 def _merge_results(results: list[dict[str, Any]]) -> dict[str, Any]:
     merged: dict[str, Any] = {}
-    for key in NOUL_KEYS:
+    for key in ALL_NOUL_KEYS:
         values = [result["answers"][key] for result in results if key in result["answers"]]
         if values:
             merged[key] = max(values)
@@ -575,9 +682,12 @@ def _merge_results(results: list[dict[str, Any]]) -> dict[str, Any]:
     return {"answers": merged, "usage": usage, "chunks": results}
 
 
-def _findings(answers: dict[str, Any]) -> list[dict[str, Any]]:
+def _findings(
+    answers: dict[str, Any],
+    dimensions: tuple[tuple[str, str, float, str], ...] = DIMENSIONS,
+) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
-    for key, label, threshold, hint in DIMENSIONS:
+    for key, label, threshold, hint in dimensions:
         value = answers.get(key)
         if isinstance(value, (int, float)) and value >= threshold:
             findings.append(
@@ -626,7 +736,7 @@ def _decide_verdict(answers: dict[str, Any], findings: list[dict[str, Any]]) -> 
 
 def _typed_answers(answers: dict[str, Any]) -> dict[str, Any]:
     typed: dict[str, Any] = {}
-    for key in NOUL_KEYS:
+    for key in ALL_NOUL_KEYS:
         if key in answers:
             typed[key] = {"type": "noul", "noul": answers[key]}
     if "severity" in answers:
@@ -642,30 +752,32 @@ def _render_markdown(
     merged: dict[str, Any],
     prepared: PreparedDiff,
     args: argparse.Namespace,
+    dimensions: tuple[tuple[str, str, float, str], ...],
 ) -> tuple[str, dict[str, Any]]:
     answers = merged["answers"]
-    findings = _findings(answers)
+    findings = _findings(answers, dimensions)
     verdict, critical = _decide_verdict(answers, findings)
     severity = answers.get("severity")
     recommendation = answers.get("recommendation")
     focus = answers.get("focus")
     focus_label = "sem foco relevante"
     if focus and focus != "none":
-        label, threshold, _hint = DIMENSION_BY_KEY.get(focus, (focus, 0.0, ""))
+        label, threshold, _hint = ALL_DIMENSION_BY_KEY.get(focus, (focus, 0.0, ""))
         focus_value = answers.get(focus)
         if isinstance(focus_value, (int, float)) and focus_value >= threshold:
             focus_label = label
     lines = [
         "## Jev review — advisory",
         "",
-        f"**Veredito:** `{verdict}` · **Severidade:** {severity:.2f}/4 ({_severity_label(severity)}) · **Modelo:** `{args.model}`"
+        f"**Veredito:** `{verdict}` · **Severidade:** {severity:.2f}/4 ({_severity_label(severity)}) · "
+        f"**Modelo:** `{args.model}` · **Perfil:** `{args.profile}`"
         if isinstance(severity, (int, float))
-        else f"**Veredito:** `{verdict}` · **Severidade:** n/d · **Modelo:** `{args.model}`",
+        else f"**Veredito:** `{verdict}` · **Severidade:** n/d · **Modelo:** `{args.model}` · **Perfil:** `{args.profile}`",
         "",
         "| Dimensão | Valor | Limiar | Leitura |",
         "|---|---:|---:|---|",
     ]
-    for key, label, threshold, _hint in DIMENSIONS:
+    for key, label, threshold, _hint in dimensions:
         value = answers.get(key)
         status = "ok"
         if isinstance(value, (int, float)) and value >= threshold:
@@ -714,6 +826,16 @@ def _render_markdown(
         checks.append("Passe pelo checklist de `docs/STANDARDS.md` §3.5.")
     if any(finding["dimension"] == "dependencies" for finding in findings):
         checks.append("Justifique a dependência e valide `dependency-review`/`pip-audit` no CI.")
+    if any(finding["dimension"] == "dead_code" for finding in findings):
+        checks.append("Rode `ruff check` e remova branch/except/import sem uso.")
+    if any(finding["dimension"] == "test_hygiene" for finding in findings):
+        checks.append("Use `tmp_path`, feche handles e isole estado global/ordem entre testes.")
+    if any(finding["dimension"] == "type_safety" for finding in findings):
+        checks.append("Remova `Any`/casts inseguros do boundary público; rode `mypy`.")
+    if any(finding["dimension"] == "resource_cleanup" for finding in findings):
+        checks.append("Garanta `finally`/`close` em arquivos, browsers, contextos e diretórios temporários.")
+    if any(finding["dimension"] == "backward_compat" for finding in findings):
+        checks.append("Deprecie/migre a mudança de API/default antes de remover o comportamento antigo.")
     lines += ["**Checklist local:**", ""] + [f"- [ ] {check}" for check in checks]
     lines += [
         "",
@@ -757,6 +879,7 @@ def _render_json(
         "schema": "isis-report-lib.jev-review.v1",
         "generated_at": datetime.now(UTC).isoformat(),
         "model": args.model,
+        "profile": args.profile,
         "endpoint": args.endpoint,
         "verdict": summary["verdict"],
         "critical": summary["critical"],
@@ -781,6 +904,7 @@ def _render_json(
         "chunks": [
             {
                 "index": chunk["index"],
+                "pass": chunk.get("pass", "base"),
                 "files": chunk["files"],
                 "answers": _typed_answers(chunk["answers"]),
                 "usage": chunk["usage"],
@@ -819,7 +943,10 @@ def _load_diff(args: argparse.Namespace) -> str:
 def _print_dry_run(prepared: PreparedDiff, args: argparse.Namespace) -> None:
     print("Jev dry-run (nenhuma chamada de rede)")
     print(f"model={args.model}")
+    print(f"profile={args.profile}")
     print(f"endpoint={args.endpoint}")
+    passes = len(PROFILE_PASSES[args.profile])
+    print(f"passes={passes} calls={len(prepared.chunks) * passes}")
     print(f"files={len(prepared.files)} chunks={len(prepared.chunks)} chars={prepared.chars}")
     print(
         f"skipped sensitive={prepared.skipped_sensitive} binary={prepared.skipped_binary} "
@@ -920,6 +1047,14 @@ index 7777777..8888888 100644
     loop_findings = _findings(loop_answers)
     _check(any(finding["dimension"] == "event_loop" for finding in loop_findings), "event-loop threshold regression")
 
+    strict_answers = {"dead_code": 0.70, "test_hygiene": 0.70, "type_safety": 0.50}
+    strict_findings = _findings(strict_answers, ALL_DIMENSIONS)
+    strict_keys = {finding["dimension"] for finding in strict_findings}
+    _check({"dead_code", "test_hygiene", "type_safety"} <= strict_keys, "strict dimensions missing")
+
+    docs_edge = {"docs": 0.50}
+    _check(any(finding["dimension"] == "docs" for finding in _findings(docs_edge)), "docs threshold regression")
+
     print("self-test OK")
     return 0
 
@@ -943,6 +1078,13 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     source.add_argument("--diff-file", type=Path, help="use a saved diff instead of running git")
     source.add_argument("--working-tree", action="store_true", help="diff the working tree against --base")
     parser.add_argument("--model", default=DEFAULT_MODEL, help=f"Jev model (default: {DEFAULT_MODEL})")
+    parser.add_argument(
+        "--profile",
+        choices=tuple(PROFILE_QUESTIONS),
+        default="default",
+        help="questionnaire profile (default: default; strict adds dead-code/test-hygiene/type/resource/compat checks)",
+    )
+    parser.add_argument("--list-questions", action="store_true", help="print the active questionnaire and exit")
     parser.add_argument("--endpoint", default=DEFAULT_ENDPOINT, help="System One endpoint")
     parser.add_argument(
         "--allow-insecure-endpoint",
@@ -966,6 +1108,23 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 def main(argv: Sequence[str] | None = None) -> int:
     _configure_stdio()
     args = _parse_args(argv)
+    if args.list_questions:
+        print(
+            json.dumps(
+                {
+                    "profile": args.profile,
+                    "questions": PROFILE_QUESTIONS[args.profile],
+                    "passes": [{"name": name, "questions": questions} for name, questions in PROFILE_PASSES[args.profile]],
+                    "thresholds": [
+                        {"dimension": key, "label": label, "threshold": threshold}
+                        for key, label, threshold, _hint in PROFILE_DIMENSIONS[args.profile]
+                    ],
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0
     if args.self_test:
         return _run_self_test()
     try:
@@ -978,13 +1137,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             _print_dry_run(prepared, args)
             return 0
         key = _load_key(args.env_file)
+        passes = PROFILE_PASSES[args.profile]
+        dimensions = PROFILE_DIMENSIONS[args.profile]
         results = []
         for index, chunk in enumerate(prepared.chunks, start=1):
             state = _build_state(chunk, index, len(prepared.chunks), prepared)
-            response = _call_jev(state, args, key)
-            results.append(_parse_response(response, index, prepared.chunk_files[index - 1]))
+            for pass_name, questions in passes:
+                response = _call_jev(state, args, key, questions)
+                parsed = _parse_response(response, index, prepared.chunk_files[index - 1])
+                parsed["pass"] = pass_name
+                results.append(parsed)
         merged = _merge_results(results)
-        markdown, summary = _render_markdown(merged, prepared, args)
+        markdown, summary = _render_markdown(merged, prepared, args, dimensions)
         payload = _render_json(merged, prepared, args, summary)
         if not args.no_write:
             _write(args.output, markdown)

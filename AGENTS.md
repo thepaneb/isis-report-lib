@@ -138,7 +138,9 @@ python scripts/gen_api_docs.py --check      # docs/api.md is generated from docs
 it filters/redacts the diff, chunks large reviews, and asks repo-specific
 questions (event loop/browser pool, sync/async parity, docs/CHANGELOG, tests,
 security, dependencies). The default model is `jev-1.14` (paid, output free);
-`--model jev-1.13-free` uses the free route.
+`--model jev-1.13-free` uses the free route. `--profile strict` adds a second
+pass for dead code, test hygiene, typing, resource cleanup and backward
+compatibility; `--list-questions` prints the active set.
 
 ```bash
 python scripts/jev_review.py --base origin/main        # committed diff vs main
