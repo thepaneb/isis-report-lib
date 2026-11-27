@@ -1705,6 +1705,10 @@ index 7777777..8888888 100644
     )
     _check(parsed["model"] == "jev-1.13-free", "response model")
 
+    dimension_keys = {dimension[0] for dimension in ALL_DIMENSIONS}
+    _check(set(EN_TEXT) == dimension_keys, "EN_TEXT does not cover every dimension")
+    _check(all(label and hint for label, hint in EN_TEXT.values()), "EN_TEXT has an empty label or hint")
+
     print("self-test OK")
     return 0
 
