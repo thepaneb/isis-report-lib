@@ -10,11 +10,14 @@ grouped into independent packs:
 - ``quality``: dead code, test hygiene, typing, resource cleanup, compat;
 - ``docs``: API reference, CHANGELOG, README/CLI, guides/nav;
 - ``security``: escaping, runtime/rede/browser, media, quotas, logs, trust,
-  supply chain (supersedes core security/dependencies).
+  supply chain (supersedes core security/dependencies);
+- ``release``: version/tag, changelog, release notes, publish/artifacts,
+  Docker/GHCR, post-release (supersedes docs_changelog).
 
-Profiles are aliases (``default``, ``strict``, ``docs``, ``security``, ``all``);
-use ``--pack`` to select a custom combination. Each pack runs as its own API
-pass, so extra questions do not dilute the calibrated core signals.
+Profiles are aliases (``default``, ``strict``, ``docs``, ``security``,
+``release``, ``all``); use ``--pack`` to select a custom combination. Each pack
+runs as its own API pass, so extra questions do not dilute the calibrated core
+signals.
 
 It is intentionally local and advisory. It never runs in CI, never posts to a
 PR, and never replaces lint, tests, or human review.
@@ -73,7 +76,8 @@ SECURITY_KEYS = (
     "sec_trust_contract",
     "sec_supply_chain",
 )
-ALL_NOUL_KEYS = NOUL_KEYS + QUALITY_KEYS + DOCS_KEYS + SECURITY_KEYS
+RELEASE_KEYS = ("rel_version", "rel_changelog", "rel_notes", "rel_publish", "rel_docker", "rel_post")
+ALL_NOUL_KEYS = NOUL_KEYS + QUALITY_KEYS + DOCS_KEYS + SECURITY_KEYS + RELEASE_KEYS
 SEVERITY_LABELS = ("nenhuma", "baixa", "média", "alta", "crítica")
 RECOMMENDATION_RANK = {"approve": 0, "comment": 1, "block": 2}
 
@@ -230,7 +234,45 @@ SECURITY_DIMENSIONS: tuple[tuple[str, str, float, str], ...] = (
         "Justifique dependência/system package e evite ampliar a instalação padrão.",
     ),
 )
-ALL_DIMENSIONS = CORE_DIMENSIONS + QUALITY_DIMENSIONS + DOCS_DIMENSIONS + SECURITY_DIMENSIONS
+RELEASE_DIMENSIONS: tuple[tuple[str, str, float, str], ...] = (
+    (
+        "rel_version",
+        "Versão/tag",
+        0.65,
+        "Confirme tag/hatch-vcs; `rc` vai para TestPyPI.",
+    ),
+    (
+        "rel_changelog",
+        "CHANGELOG de release",
+        0.65,
+        "Feche `Unreleased` e adicione `[X.Y.Z] - data`.",
+    ),
+    (
+        "rel_notes",
+        "Release notes",
+        0.60,
+        "Crie `release-notes/X.Y.Z.md`; anexe assets antes de publicar.",
+    ),
+    (
+        "rel_publish",
+        "Publicação/artefatos",
+        0.65,
+        "Revise `publish.yml`: Trusted Publishing, TestPyPI rc, SBOM/provenance e assets antes de publicar.",
+    ),
+    (
+        "rel_docker",
+        "Docker/GHCR",
+        0.60,
+        "Compare o pin `docker/requirements.in/.txt` e as tags GHCR/`latest` com a versão/tag do release.",
+    ),
+    (
+        "rel_post",
+        "Pós-release",
+        0.65,
+        "Verifique PyPI/GHCR/docs/Release e atualize roadmap/promo/`security.txt`.",
+    ),
+)
+ALL_DIMENSIONS = CORE_DIMENSIONS + QUALITY_DIMENSIONS + DOCS_DIMENSIONS + SECURITY_DIMENSIONS + RELEASE_DIMENSIONS
 ALL_DIMENSION_BY_KEY = {key: (label, threshold, hint) for key, label, threshold, hint in ALL_DIMENSIONS}
 
 QUESTIONS: dict[str, dict[str, Any]] = {
@@ -398,6 +440,44 @@ SECURITY_QUESTIONS: dict[str, dict[str, Any]] = {
         "instructions": ("O diff adiciona dependência de runtime/system package ou amplia a instalação padrão sem justificativa/revisão?"),
     },
 }
+RELEASE_QUESTIONS: dict[str, dict[str, Any]] = {
+    "rel_version": {
+        "type": "noul",
+        "instructions": (
+            "O diff de release introduz versão/tag inconsistente (hatch-vcs, `rc` vs final, tag sem commit) "
+            "ou publica versão sem changelog?"
+        ),
+    },
+    "rel_changelog": {
+        "type": "noul",
+        "instructions": ("O diff de release deixa `Unreleased` aberto, falta `[X.Y.Z] - data` ou a versão não corresponde ao tag?"),
+    },
+    "rel_notes": {
+        "type": "noul",
+        "instructions": (
+            "O diff de release não tem release notes curadas (`release-notes/X.Y.Z.md`), reaproveita draft "
+            "errado ou permite publicar antes dos assets?"
+        ),
+    },
+    "rel_publish": {
+        "type": "noul",
+        "instructions": (
+            "O diff de release muda `publish.yml` de forma a quebrar Trusted Publishing, TestPyPI para `rc`, "
+            "anexação de wheel/sdist/SBOM/provenance ou a imutabilidade (assets antes de publicar)?"
+        ),
+    },
+    "rel_docker": {
+        "type": "noul",
+        "instructions": (
+            "O diff de release deixa o pin `docker/requirements(.in/.txt)` ou as tags GHCR/`latest` em versão "
+            "diferente da versão/tag do release, ou não os atualiza para `X.Y.Z`?"
+        ),
+    },
+    "rel_post": {
+        "type": "noul",
+        "instructions": ("O diff de release não verifica PyPI/GHCR/docs/Release publicado nem atualiza roadmap/promo/`security.txt`?"),
+    },
+}
 
 
 @dataclass(frozen=True)
@@ -442,13 +522,22 @@ SECURITY_PACK = QuestionPack(
     dimensions=SECURITY_DIMENSIONS,
     supersedes=("security", "dependencies"),
 )
-PACKS = {pack.id: pack for pack in (CORE_PACK, QUALITY_PACK, DOCS_PACK, SECURITY_PACK)}
+RELEASE_PACK = QuestionPack(
+    id="release",
+    title="Release",
+    description="Release flow: versão/tag, CHANGELOG, notes, Trusted Publishing/artefatos, Docker/GHCR e pós-release.",
+    questions=RELEASE_QUESTIONS,
+    dimensions=RELEASE_DIMENSIONS,
+    supersedes=("docs_changelog",),
+)
+PACKS = {pack.id: pack for pack in (CORE_PACK, QUALITY_PACK, DOCS_PACK, SECURITY_PACK, RELEASE_PACK)}
 PROFILE_PACKS: dict[str, tuple[str, ...]] = {
     "default": ("core",),
     "strict": ("core", "quality"),
     "docs": ("core", "docs"),
     "security": ("core", "security"),
-    "all": ("core", "quality", "docs", "security"),
+    "release": ("core", "docs", "release"),
+    "all": ("core", "quality", "docs", "security", "release"),
 }
 
 CONTEXT = """Contexto: isis-report-lib é uma biblioteca Python (src/isis_report_lib) que gera
@@ -1054,6 +1143,18 @@ def _render_markdown(
         checks.append("Revise `verify_*` (veredito, não raise), parsers (ValueError) e HMAC >=32 bytes.")
     if any(finding["dimension"] == "sec_supply_chain" for finding in findings):
         checks.append("Justifique a dependência/system package e valide `dependency-review`/`pip-audit`.")
+    if any(finding["dimension"] == "rel_version" for finding in findings):
+        checks.append("Confirme tag `vX.Y.Z` + hatch-vcs; `rc` vai para TestPyPI.")
+    if any(finding["dimension"] == "rel_changelog" for finding in findings):
+        checks.append("Feche `Unreleased` e adicione `[X.Y.Z] - data` no `CHANGELOG.md`.")
+    if any(finding["dimension"] == "rel_notes" for finding in findings):
+        checks.append("Crie/atualize `release-notes/X.Y.Z.md` e reuse o draft release.")
+    if any(finding["dimension"] == "rel_publish" for finding in findings):
+        checks.append("Revise `publish.yml`: Trusted Publishing, TestPyPI rc, SBOM/provenance e assets antes de publicar.")
+    if any(finding["dimension"] == "rel_docker" for finding in findings):
+        checks.append("Atualize `docker/requirements.in/.txt` e as tags GHCR/`latest`.")
+    if any(finding["dimension"] == "rel_post" for finding in findings):
+        checks.append("Verifique PyPI/GHCR/docs/Release e atualize roadmap/promo/`security.txt`.")
     if any(finding["dimension"] == "dependencies" for finding in findings):
         checks.append("Justifique a dependência e valide `dependency-review`/`pip-audit` no CI.")
     if any(finding["dimension"] == "dead_code" for finding in findings):
@@ -1312,13 +1413,25 @@ index 7777777..8888888 100644
     _check("security" not in security_keys, "superseded security dimension leaked")
     _check("dependencies" not in security_keys, "superseded dependencies dimension leaked")
 
-    all_passes, _all_dims = _resolve_packs(("core", "quality", "docs", "security"))
-    _check(len(all_passes) == 4, "all profile should run four passes")
+    release_passes, release_dims = _resolve_packs(("core", "docs", "release"))
+    _check(len(release_passes) == 3, "release profile should run three passes")
+    docs_pass = next(questions for name, questions in release_passes if name == "docs")
+    _check("docs_changelog" not in docs_pass, "release pack did not supersede docs_changelog")
+    release_keys = {dimension[0] for dimension in release_dims}
+    _check(
+        {"rel_version", "rel_changelog", "rel_notes", "rel_publish", "rel_docker", "rel_post"} <= release_keys,
+        "release dimensions missing",
+    )
+
+    all_passes, _all_dims = _resolve_packs(("core", "quality", "docs", "security", "release"))
+    _check(len(all_passes) == 5, "all profile should run five passes")
 
     docs_api_edge = _findings({"docs_api": 0.55}, DOCS_DIMENSIONS)
     _check(any(finding["dimension"] == "docs_api" for finding in docs_api_edge), "docs_api threshold regression")
     sec_edge = _findings({"sec_escaping": 0.65}, SECURITY_DIMENSIONS)
     _check(any(finding["dimension"] == "sec_escaping" for finding in sec_edge), "security threshold regression")
+    rel_edge = _findings({"rel_version": 0.65}, RELEASE_DIMENSIONS)
+    _check(any(finding["dimension"] == "rel_version" for finding in rel_edge), "release threshold regression")
 
     print("self-test OK")
     return 0
