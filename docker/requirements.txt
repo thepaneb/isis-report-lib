@@ -87,9 +87,9 @@ greenlet==3.5.6 \
     --hash=sha256:fe3170a69fe039b18ad18171e66faa9a75f6fe9d78f968fd9b54e09fbd714d81 \
     --hash=sha256:fea4427d1ffdb3b523d7daa6712038428a4c16c450b9777bdd1221cfee0eab49
     # via playwright
-isis-report-lib==0.16.0 \
-    --hash=sha256:309fce60567bb77f736e774e17a06e34b77b776b5e86959d5eaaa4376aaa3ebc \
-    --hash=sha256:0e96d440daeec84db7df0dbd793f7e6b677a00aec09c7ede44d6baee3123cc89
+isis-report-lib==0.17.0 \
+    --hash=sha256:011976c0041eef2342a085ccb2b94008934bb697f43f745601c8292a6813176f \
+    --hash=sha256:1e790fa90575c27180b10e4f0b2d8d7e1b521311d23ccdc5a8dd26ab8ceb64f9
     # via -r docker/requirements.in
 jinja2==3.1.6 \
     --hash=sha256:0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d \

@@ -132,6 +132,62 @@ python -m mypy src
 python scripts/gen_api_docs.py --check      # docs/api.md is generated from docstrings
 ```
 
+## Local Jev review (optional, advisory)
+
+`scripts/jev_review.py` adapts the Jev CLI from `vscode-utplsql` to this repo:
+it filters/redacts the diff, chunks large reviews, and asks repo-specific
+questions. Packs are independent questionnaires: `core` (triage), `quality`
+(dead code/test hygiene/typing/resources/compat), `docs` (API, CHANGELOG,
+README/CLI, guides) and `security` (checklist §3.5: escaping, runtime/rede/
+browser, mídia, quotas, logs, contrato de confiança e supply chain). Profiles
+are aliases: `default` = core, `strict` = core+quality, `docs` = core+docs,
+`security` = core+security, `release` = core+docs+release, `all` = everything
+(deep packs supersede their core counterparts). The default model is
+`jev-1.13-free`; retryable failures (429, 404, 5xx, network) fall through the
+paid `jev-1.14` and `jev-1.13` as a sticky chain (`--fallback-model` is
+repeatable, `--no-fallback` disables it, `--model` forces the primary).
+`--list-packs` and `--list-questions` show the active set.
+
+```bash
+python scripts/jev_review.py --base origin/main        # committed diff vs main
+python scripts/jev_review.py --working-tree            # uncommitted changes
+python scripts/jev_review.py --diff-file pr.diff       # saved diff
+python scripts/jev_review.py --diff-file pr.diff --profile docs
+python scripts/jev_review.py --diff-file pr.diff --profile security
+python scripts/jev_review.py --diff-file pr.diff --profile release
+python scripts/jev_review.py --diff-file pr.diff --pack core --pack quality
+python scripts/jev_review.py --diff-file pr.diff --dry-run   # no network/key
+python scripts/jev_review.py --list-packs
+python scripts/jev_review.py --self-test               # local checks only
+```
+
+The key comes from `OPENCODE_API_KEY` or `--env-file` (never commit it).
+Reports go to `.jev/` (gitignored). This is **advisory**: never a CI gate, never
+a PR comment, never a replacement for the human review. CI does run
+`--self-test` plus `ruff`/`mypy`/format on both local tools in the `tooling`
+job (no key, no network).
+
+## Release preflight (local)
+
+`scripts/release_preflight.py` is the repo-state companion to the Jev `release`
+pack. The pack reviews a diff; the preflight checks the files that must agree
+before a tag is pushed: version/hatch-vcs, CHANGELOG heading/date/Unreleased,
+`release-notes/X.Y.Z.md`, Docker pins, `docs/api.md`, `security.txt` expiry,
+roadmap and git state. It is read-only, needs no API key and does not use the
+network.
+
+```bash
+python scripts/release_preflight.py --version 0.17.0
+python scripts/release_preflight.py --tag v0.17.0 --require-tag
+python scripts/release_preflight.py --version 0.18.0 --json
+python scripts/release_preflight.py --self-test
+```
+
+`--allow-dirty` downgrades a dirty tree to a warning; `--strict` turns warnings
+into failures. The script exits 1 on any `FAIL` (or on warnings with `--strict`).
+Use it before creating/pushing the release tag, then run the `release` profile
+on the release PR for the diff-level checks.
+
 ## Tests
 - Unit tests use mocks for `rendering.arender_report_html` and `pdf.get_pdf_from_html`
   (see `test_service.py`); never require a browser outside `test_pdf_e2e.py`.

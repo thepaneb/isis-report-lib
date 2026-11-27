@@ -28,3 +28,6 @@ fuzz/corpus/*/*
 # LinkedIn curation is local (posts, cards, queue state and credentials)
 linkedin/
 coverage.json
+
+# Local Jev review reports (advisory, never committed)
+.jev/
