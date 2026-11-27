@@ -143,8 +143,9 @@ browser, mídia, quotas, logs, contrato de confiança e supply chain). Profiles
 are aliases: `default` = core, `strict` = core+quality, `docs` = core+docs,
 `security` = core+security, `release` = core+docs+release, `all` = everything
 (deep packs supersede their core counterparts). The default model is
-`jev-1.13-free`; retryable failures (429, 404, 5xx, network) fall back to the
-paid `jev-1.14` (`--no-fallback` disables it, `--model jev-1.14` forces paid).
+`jev-1.13-free`; retryable failures (429, 404, 5xx, network) fall through the
+paid `jev-1.14` and `jev-1.13` as a sticky chain (`--fallback-model` is
+repeatable, `--no-fallback` disables it, `--model` forces the primary).
 `--list-packs` and `--list-questions` show the active set.
 
 ```bash

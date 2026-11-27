@@ -19,9 +19,10 @@ Profiles are aliases (``default``, ``strict``, ``docs``, ``security``,
 runs as its own API pass, so extra questions do not dilute the calibrated core
 signals.
 
-The default model is ``jev-1.13-free``. If it is unavailable (429, 404,
-5xx or network), the paid ``jev-1.14`` is used as a sticky fallback;
-``--no-fallback`` disables that, and ``--model jev-1.14`` forces the paid model.
+The default model is ``jev-1.13-free``. Retryable failures (429, 404, 5xx,
+network) fall through the paid ``jev-1.14`` and ``jev-1.13`` models as a
+sticky fallback chain; ``--fallback-model`` is repeatable, ``--no-fallback``
+disables the chain, and ``--model`` forces the primary.
 
 It is intentionally local and advisory. It never runs in CI, never posts to a
 PR, and never replaces lint, tests, or human review.
@@ -63,6 +64,8 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_ENDPOINT = "https://opencode.ai/inference/systemone/v1/systemone"
 DEFAULT_MODEL = "jev-1.13-free"
 DEFAULT_FALLBACK_MODEL = "jev-1.14"
+DEFAULT_SECONDARY_FALLBACK_MODEL = "jev-1.13"
+DEFAULT_FALLBACK_MODELS = (DEFAULT_FALLBACK_MODEL, DEFAULT_SECONDARY_FALLBACK_MODEL)
 DEFAULT_MAX_DIFF_CHARS = 30_000
 DEFAULT_MAX_FILE_CHARS = 20_000
 DEFAULT_TIMEOUT = 120.0
@@ -919,6 +922,14 @@ def _fallback_allowed(exc: JevHttpError) -> bool:
     return exc.status == 400 and "model" in str(exc).lower()
 
 
+def _model_chain(primary: str, fallbacks: Sequence[str]) -> list[str]:
+    chain: list[str] = []
+    for model in (primary, *fallbacks):
+        if model and model not in chain:
+            chain.append(model)
+    return chain
+
+
 def _call_jev(
     state: str,
     args: argparse.Namespace,
@@ -1020,11 +1031,15 @@ def _merge_results(results: list[dict[str, Any]]) -> dict[str, Any]:
             if isinstance(value, (int, float)):
                 usage[key] = usage.get(key, 0) + value
     models: list[str] = []
+    attempted_models: list[str] = []
     fallback_used = False
     for result in results:
         model = result.get("model")
         if isinstance(model, str) and model and model not in models:
             models.append(model)
+        for attempted in result.get("attempted_models", []):
+            if isinstance(attempted, str) and attempted and attempted not in attempted_models:
+                attempted_models.append(attempted)
         if result.get("fallback"):
             fallback_used = True
     return {
@@ -1032,6 +1047,7 @@ def _merge_results(results: list[dict[str, Any]]) -> dict[str, Any]:
         "usage": usage,
         "chunks": results,
         "models": models,
+        "attempted_models": attempted_models,
         "fallback_used": fallback_used,
     }
 
@@ -1147,7 +1163,8 @@ def _render_markdown(
         "",
     ]
     if merged.get("fallback_used"):
-        lines += [f"**Fallback:** ativado (`{args.model}` → `{model_label}`).", ""]
+        attempted = merged.get("attempted_models") or [args.model, *models]
+        lines += [f"**Fallback:** ativado (`{' → '.join(attempted)}`).", ""]
     if findings:
         lines += ["**Achados:**", ""]
         for finding in findings:
@@ -1273,7 +1290,9 @@ def _render_json(
         "model": args.model,
         "model_primary": args.model,
         "models": merged.get("models", [args.model]),
-        "fallback_model": args.fallback_model,
+        "attempted_models": merged.get("attempted_models", [args.model]),
+        "fallback_model": args.fallback_models[0] if args.fallback_models else None,
+        "fallback_models": args.fallback_models,
         "fallback_used": merged.get("fallback_used", False),
         "profile": args.profile_label,
         "packs": list(args.pack_ids),
@@ -1340,8 +1359,8 @@ def _load_diff(args: argparse.Namespace) -> str:
 def _print_dry_run(prepared: PreparedDiff, args: argparse.Namespace) -> None:
     print("Jev dry-run (nenhuma chamada de rede)")
     print(f"model={args.model}")
-    fallback = "off" if args.no_fallback or not args.fallback_model or args.fallback_model == args.model else args.fallback_model
-    print(f"fallback={fallback}")
+    fallbacks = "off" if args.no_fallback or not args.fallback_models else ",".join(args.fallback_models)
+    print(f"fallbacks={fallbacks}")
     print(f"profile={args.profile_label}")
     print(f"packs={','.join(args.pack_ids)}")
     print(f"endpoint={args.endpoint}")
@@ -1507,6 +1526,15 @@ index 7777777..8888888 100644
     _check(not _fallback_allowed(JevHttpError(401, "bad key")), "401 should not fall back")
     _check(not _fallback_allowed(JevHttpError(402, "no balance")), "402 should not fall back")
 
+    _check(
+        _model_chain("jev-1.13-free", ["jev-1.14", "jev-1.13"]) == ["jev-1.13-free", "jev-1.14", "jev-1.13"],
+        "fallback chain order",
+    )
+    _check(
+        _model_chain("jev-1.13-free", ["jev-1.13-free", "jev-1.14", "jev-1.14"]) == ["jev-1.13-free", "jev-1.14"],
+        "fallback chain dedupe",
+    )
+
     parsed = _parse_response(
         {"model": "jev-1.13-free", "answers": {"security": {"type": "noul", "noul": 0.1}}},
         1,
@@ -1544,10 +1572,12 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--fallback-model",
-        default=DEFAULT_FALLBACK_MODEL,
-        help=f"paid fallback when the primary is unavailable (default: {DEFAULT_FALLBACK_MODEL})",
+        action="append",
+        dest="fallback_models",
+        default=None,
+        help=(f"paid fallback chain, repeatable (default: {', '.join(DEFAULT_FALLBACK_MODELS)})"),
     )
-    parser.add_argument("--no-fallback", action="store_true", help="disable the model fallback")
+    parser.add_argument("--no-fallback", action="store_true", help="disable the model fallback chain")
     parser.add_argument(
         "--profile",
         choices=tuple(PROFILE_PACKS),
@@ -1581,6 +1611,10 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--fail-on", choices=("none", "comment", "block"), default="none", help="exit 1 at this verdict")
     parser.add_argument("--self-test", action="store_true", help="run local checks without network")
     args = parser.parse_args(argv)
+    if args.fallback_models is None:
+        args.fallback_models = list(DEFAULT_FALLBACK_MODELS)
+    if args.no_fallback:
+        args.fallback_models = []
     if args.profile and args.packs:
         parser.error("use --profile ou --pack, não ambos")
     return args
@@ -1645,28 +1679,30 @@ def main(argv: Sequence[str] | None = None) -> int:
             _print_dry_run(prepared, args)
             return 0
         key = _load_key(args.env_file)
-        fallback_model = None if args.no_fallback or not args.fallback_model or args.fallback_model == args.model else args.fallback_model
-        active_model = args.model
-        fallback_used = False
+        chain = _model_chain(args.model, args.fallback_models)
+        model_index = 0
         results = []
         for index, chunk in enumerate(prepared.chunks, start=1):
             state = _build_state(chunk, index, len(prepared.chunks), prepared)
             for pass_name, questions in passes:
-                try:
-                    response = _call_jev(state, args, key, questions, active_model)
-                except JevHttpError as exc:
-                    if fallback_model is None or active_model == fallback_model or not _fallback_allowed(exc):
-                        raise
-                    print(
-                        f"AVISO: modelo {active_model} falhou ({exc}); usando fallback {fallback_model}.",
-                        file=sys.stderr,
-                    )
-                    active_model = fallback_model
-                    fallback_used = True
-                    response = _call_jev(state, args, key, questions, active_model)
+                while True:
+                    active_model = chain[model_index]
+                    try:
+                        response = _call_jev(state, args, key, questions, active_model)
+                        break
+                    except JevHttpError as exc:
+                        if model_index + 1 >= len(chain) or not _fallback_allowed(exc):
+                            raise
+                        next_model = chain[model_index + 1]
+                        print(
+                            f"AVISO: modelo {active_model} falhou ({exc}); tentando fallback {next_model}.",
+                            file=sys.stderr,
+                        )
+                        model_index += 1
                 parsed = _parse_response(response, index, prepared.chunk_files[index - 1], active_model)
                 parsed["pass"] = pass_name
-                parsed["fallback"] = fallback_used
+                parsed["fallback"] = model_index > 0
+                parsed["attempted_models"] = chain[: model_index + 1]
                 results.append(parsed)
         merged = _merge_results(results)
         markdown, summary = _render_markdown(merged, prepared, args, dimensions)
