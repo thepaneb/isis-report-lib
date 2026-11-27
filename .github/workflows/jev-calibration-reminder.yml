@@ -1,0 +1,50 @@
+name: Jev calibration reminder
+
+# Monthly reminder to run the local calibration corpus. It does not call the
+# Jev API and does not need any secret; it only opens one issue if none is open.
+
+on:
+  schedule:
+    - cron: "0 9 1 * *" # first day of each month, 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  reminder:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Open calibration issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          existing=$(gh issue list --state open --limit 100 --json title \
+            --jq '[.[] | select(.title | startswith("[Jev] Monthly calibration"))] | length')
+          if [ "$existing" != "0" ]; then
+            echo "A Jev calibration reminder is already open."
+            exit 0
+          fi
+          body=$(mktemp)
+          cat > "$body" <<'EOF'
+          ## Monthly Jev calibration
+
+          Run the local calibration corpus and check for model/threshold drift.
+
+          - [ ] Build/download the saved diffs in `calibration/` (gitignored).
+          - [ ] `python scripts/jev_calibrate.py --config calibration/jev-cases.json --dry-run`
+          - [ ] `python scripts/jev_calibrate.py --config calibration/jev-cases.json`
+          - [ ] Investigate failures before changing a question or threshold.
+          - [ ] Check the free model route, Console credits and `OPENCODE_API_KEY` rotation.
+          - [ ] Commit any evidence-based threshold/question update.
+
+          See `calibration/README.md` for the corpus and commands. This is advisory;
+          do not turn it into a required check.
+          EOF
+          gh issue create \
+            --title "[Jev] Monthly calibration check" \
+            --body-file "$body"

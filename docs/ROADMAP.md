@@ -49,6 +49,15 @@ Hypothesis property tests + mutation testing; RTL (`meta.direction`);
 Arrow/Polars/DuckDB/DB-API adapters. PDF/A stays an optional
 extra only if demand appears; PAdES remains a non-goal.
 
+### Jev (local advisory)
+Done: English reports/questions, `--auto-packs`, calibration harness,
+remote release preflight, `scripts/jev_packs.py`, CI artifact + compact
+comment and the monthly calibration reminder.
+Future (only with demand): a `data` pack (determinism/locale/rounding/mutation)
+and an `async` pack (cancellation/timeouts/browser lifecycle); add them only if
+recurring findings justify the extra passes and calibration. Also consider a
+CI cost budget and an explicit `OPENCODE_API_KEY` rotation policy.
+
 ## Done (2026-11-27)
 
 - **0.17.0 release** — security redaction, AI usage/security disclosure, safe
