@@ -87,6 +87,7 @@ SECURITY_KEYS = (
 RELEASE_KEYS = ("rel_version", "rel_changelog", "rel_notes", "rel_publish", "rel_docker", "rel_post")
 ALL_NOUL_KEYS = NOUL_KEYS + QUALITY_KEYS + DOCS_KEYS + SECURITY_KEYS + RELEASE_KEYS
 SEVERITY_LABELS = ("nenhuma", "baixa", "média", "alta", "crítica")
+SEVERITY_LABELS_EN = ("none", "low", "medium", "high", "critical")
 RECOMMENDATION_RANK = {"approve": 0, "comment": 1, "block": 2}
 
 # Dimensions, thresholds, and the local action to take when one fires.
@@ -282,6 +283,123 @@ RELEASE_DIMENSIONS: tuple[tuple[str, str, float, str], ...] = (
 )
 ALL_DIMENSIONS = CORE_DIMENSIONS + QUALITY_DIMENSIONS + DOCS_DIMENSIONS + SECURITY_DIMENSIONS + RELEASE_DIMENSIONS
 ALL_DIMENSION_BY_KEY = {key: (label, threshold, hint) for key, label, threshold, hint in ALL_DIMENSIONS}
+
+EN_TEXT: dict[str, tuple[str, str]] = {
+    "security": ("Security", "Review escaping, data URI, quotas and logs; see docs/STANDARDS.md §3.5."),
+    "correctness": ("Correctness", "Run the suite and review data contracts, exports and released resources."),
+    "event_loop": (
+        "Event loop / browser",
+        "Review pdf.py and _run: no global policy, cross-loop await, or closing another loop.",
+    ),
+    "tests": ("Tests", "Add a test/regression and run pytest -m 'not browser'."),
+    "docs": ("Docs / CHANGELOG", "Run scripts/gen_api_docs.py --check and update CHANGELOG/README in the same PR."),
+    "api_parity": ("Sync/async parity", "Add a... + _run wrapper and export in __all__ for public API."),
+    "dependencies": ("Dependencies", "Justify the extra/opt-in and run dependency-review/pip-audit in CI."),
+    "dead_code": ("Dead/duplicate code", "Remove duplicate branch/except, unreachable code or unused imports; run ruff."),
+    "test_hygiene": ("Test hygiene", "Use tmp_path, close handles and isolate global state/order between tests."),
+    "type_safety": ("Typing", "Avoid Any at public boundaries, unsafe casts and new type: ignore."),
+    "resource_cleanup": ("Resource cleanup", "Ensure close/finally for files, browsers, contexts and temp dirs."),
+    "backward_compat": ("Compatibility", "Deprecate/migrate public API, defaults and output format changes."),
+    "docs_api": ("API docs", "Run python scripts/gen_api_docs.py and include docs/api.md."),
+    "docs_changelog": ("CHANGELOG", "Add the matching entry to CHANGELOG.md."),
+    "docs_readme": ("README/CLI", "Update README.md and --help for parameters/CLI."),
+    "docs_guides": ("Guides/nav", "Update docs/ and navigation when behavior/feature changes."),
+    "sec_escaping": ("Escaping/HTML", "Review autoescape/escaping and exports of untrusted strings (§3.2)."),
+    "sec_runtime": ("Runtime/network/browser", "No network fetch at render; JS/plugins/downloads disabled."),
+    "sec_media": ("Images/data URI", "Accept only raster data URIs; reject paths/URLs/SVG and enforce size."),
+    "sec_quota": ("Quotas/limits", "Operator quotas; payload may only tighten; avoid unbounded resources."),
+    "sec_log_leak": ("Logs/errors", "Use log_value/redaction; do not echo payload, secret, token or PII."),
+    "sec_trust_contract": (
+        "Trust contract",
+        "verify_* returns a verdict; parser fails with ValueError; keys >=32 bytes.",
+    ),
+    "sec_supply_chain": ("Supply chain", "Justify dependency/system package and avoid widening the default install."),
+    "rel_version": ("Version/tag", "Confirm tag/hatch-vcs; rc goes to TestPyPI."),
+    "rel_changelog": ("Release CHANGELOG", "Close Unreleased and add [X.Y.Z] - date."),
+    "rel_notes": ("Release notes", "Create release-notes/X.Y.Z.md; attach assets before publishing."),
+    "rel_publish": (
+        "Publish/artifacts",
+        "Review publish.yml: Trusted Publishing, TestPyPI rc, SBOM/provenance and assets before publish.",
+    ),
+    "rel_docker": ("Docker/GHCR", "Compare docker/requirements pin and GHCR/latest tags with the release version/tag."),
+    "rel_post": ("Post-release", "Check PyPI/GHCR/docs/Release and update roadmap/promo/security.txt."),
+}
+
+CHECK_EN: dict[str, str] = {
+    "Teste sync e async em loop novo; revise `pdf.py`/`_run` (sem policy global, sem await cross-loop).": (
+        "Test sync and async on a fresh loop; review `pdf.py`/`_run` (no global policy, no cross-loop await)."
+    ),
+    "Atualize `CHANGELOG.md` e `README.md`; rode `python scripts/gen_api_docs.py`.": (
+        "Update `CHANGELOG.md` and `README.md`; run `python scripts/gen_api_docs.py`."
+    ),
+    "Regenere `docs/api.md` com `python scripts/gen_api_docs.py`.": ("Regenerate `docs/api.md` with `python scripts/gen_api_docs.py`."),
+    "Adicione a entrada em `CHANGELOG.md` (seção `Unreleased` ou versão).": (
+        "Add the entry to `CHANGELOG.md` (`Unreleased` or version section)."
+    ),
+    "Atualize `README.md` e o `--help` para o parâmetro/CLI novo.": ("Update `README.md` and `--help` for the new parameter/CLI."),
+    "Atualize o guia/nav em `docs/` para o comportamento novo.": ("Update the guide/nav in `docs/` for the new behavior."),
+    "Adicione `a...` + wrapper `_run` e export em `__all__`.": ("Add `a...` + `_run` wrapper and export in `__all__`."),
+    "Adicione teste/regressão no arquivo correspondente.": "Add a test/regression in the matching file.",
+    "Passe pelo checklist de `docs/STANDARDS.md` §3.5.": "Go through the `docs/STANDARDS.md` §3.5 checklist.",
+    "Revise autoescape/escape em HTML/CSV/XLSX/email; veja `docs/STANDARDS.md` §3.2.": (
+        "Review autoescape/escaping in HTML/CSV/XLSX/email; see `docs/STANDARDS.md` §3.2."
+    ),
+    "Nenhum fetch de rede no render; mantenha JS/plugins/downloads desabilitados.": (
+        "No network fetch at render; keep JS/plugins/downloads disabled."
+    ),
+    "Valide data URI raster; rejeite path/URL/SVG e o limite de 2 MiB.": (
+        "Validate raster data URI; reject path/URL/SVG and the 2 MiB limit."
+    ),
+    "Quotas do operador; payload só aperta; limite linhas/imagens/páginas/chars.": (
+        "Operator quotas; payload may only tighten; limit rows/images/pages/chars."
+    ),
+    "Use `log_value`/redaction; não ecoe payload, segredo, token ou PII.": (
+        "Use `log_value`/redaction; do not echo payload, secret, token or PII."
+    ),
+    "Revise `verify_*` (veredito, não raise), parsers (ValueError) e HMAC >=32 bytes.": (
+        "Review `verify_*` (verdict, not raise), parsers (ValueError) and HMAC >=32 bytes."
+    ),
+    "Justifique a dependência/system package e valide `dependency-review`/`pip-audit`.": (
+        "Justify the dependency/system package and validate `dependency-review`/`pip-audit`."
+    ),
+    "Confirme tag `vX.Y.Z` + hatch-vcs; `rc` vai para TestPyPI.": ("Confirm tag `vX.Y.Z` + hatch-vcs; `rc` goes to TestPyPI."),
+    "Feche `Unreleased` e adicione `[X.Y.Z] - data` no `CHANGELOG.md`.": ("Close `Unreleased` and add `[X.Y.Z] - date` to `CHANGELOG.md`."),
+    "Crie/atualize `release-notes/X.Y.Z.md` e reuse o draft release.": (
+        "Create/update `release-notes/X.Y.Z.md` and reuse the draft release."
+    ),
+    "Revise `publish.yml`: Trusted Publishing, TestPyPI rc, SBOM/provenance e assets antes de publicar.": (
+        "Review `publish.yml`: Trusted Publishing, TestPyPI rc, SBOM/provenance and assets before publishing."
+    ),
+    "Atualize `docker/requirements.in/.txt` e as tags GHCR/`latest`.": ("Update `docker/requirements.in/.txt` and GHCR/`latest` tags."),
+    "Verifique PyPI/GHCR/docs/Release e atualize roadmap/promo/`security.txt`.": (
+        "Check PyPI/GHCR/docs/Release and update roadmap/promo/`security.txt`."
+    ),
+    "Justifique a dependência e valide `dependency-review`/`pip-audit` no CI.": (
+        "Justify the dependency and validate `dependency-review`/`pip-audit` in CI."
+    ),
+    "Rode `ruff check` e remova branch/except/import sem uso.": ("Run `ruff check` and remove unused branch/except/import."),
+    "Use `tmp_path`, feche handles e isole estado global/ordem entre testes.": (
+        "Use `tmp_path`, close handles and isolate global state/order between tests."
+    ),
+    "Remova `Any`/casts inseguros do boundary público; rode `mypy`.": ("Remove `Any`/unsafe casts from the public boundary; run `mypy`."),
+    "Garanta `finally`/`close` em arquivos, browsers, contextos e diretórios temporários.": (
+        "Ensure `finally`/`close` for files, browsers, contexts and temporary directories."
+    ),
+    "Deprecie/migre a mudança de API/default antes de remover o comportamento antigo.": (
+        "Deprecate/migrate the API/default change before removing the old behavior."
+    ),
+}
+
+
+def _t(lang: str, pt: str, en: str) -> str:
+    return en if lang == "en" else pt
+
+
+def _dim_text(key: str, label: str, hint: str, lang: str) -> tuple[str, str]:
+    if lang == "en":
+        return EN_TEXT.get(key, (label, hint))
+    return label, hint
+
 
 QUESTIONS: dict[str, dict[str, Any]] = {
     "security": {
@@ -727,11 +845,12 @@ def _pct(value: float | None) -> str:
     return f"{round(value * 100)}%"
 
 
-def _severity_label(value: float | None) -> str:
+def _severity_label(value: float | None, lang: str = "pt-BR") -> str:
     if value is None:
-        return "desconhecida"
-    index = max(0, min(len(SEVERITY_LABELS) - 1, round(value)))
-    return SEVERITY_LABELS[index]
+        return "unknown" if lang == "en" else "desconhecida"
+    labels = SEVERITY_LABELS_EN if lang == "en" else SEVERITY_LABELS
+    index = max(0, min(len(labels) - 1, round(value)))
+    return labels[index]
 
 
 def _is_sensitive_path(path: str) -> bool:
@@ -1056,18 +1175,20 @@ def _merge_results(results: list[dict[str, Any]]) -> dict[str, Any]:
 def _findings(
     answers: dict[str, Any],
     dimensions: tuple[tuple[str, str, float, str], ...] = CORE_DIMENSIONS,
+    lang: str = "pt-BR",
 ) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
     for key, label, threshold, hint in dimensions:
         value = answers.get(key)
         if isinstance(value, (int, float)) and value >= threshold:
+            label, hint = _dim_text(key, label, hint, lang)
             findings.append(
                 {
                     "dimension": key,
                     "label": label,
                     "value": float(value),
                     "threshold": threshold,
-                    "message": f"{label}: {_pct(float(value))} (limiar {_pct(threshold)})",
+                    "message": f"{label}: {_pct(float(value))} ({_t(lang, 'limiar', 'threshold')} {_pct(threshold)})",
                     "hint": hint,
                 }
             )
@@ -1076,11 +1197,11 @@ def _findings(
         findings.append(
             {
                 "dimension": "severity",
-                "label": "Severidade",
+                "label": _t(lang, "Severidade", "Severity"),
                 "value": float(severity),
                 "threshold": 3.0,
-                "message": f"Severidade {severity:.2f}/4",
-                "hint": "Priorize a revisão humana antes do merge.",
+                "message": f"{_t(lang, 'Severidade', 'Severity')} {severity:.2f}/4",
+                "hint": _t(lang, "Priorize a revisão humana antes do merge.", "Prioritize human review before merging."),
             }
         )
     return findings
@@ -1125,66 +1246,89 @@ def _render_markdown(
     args: argparse.Namespace,
     dimensions: tuple[tuple[str, str, float, str], ...],
 ) -> tuple[str, dict[str, Any]]:
+    lang = args.lang
     answers = merged["answers"]
-    findings = _findings(answers, dimensions)
+    findings = _findings(answers, dimensions, lang)
     verdict, critical = _decide_verdict(answers, findings)
     severity = answers.get("severity")
     recommendation = answers.get("recommendation")
     focus = answers.get("focus")
-    focus_label = "sem foco relevante"
+    no_focus = _t(lang, "sem foco relevante", "no relevant focus")
+    focus_label = no_focus
     if focus and focus != "none":
-        label, threshold, _hint = ALL_DIMENSION_BY_KEY.get(focus, (focus, 0.0, ""))
+        label, threshold, hint = ALL_DIMENSION_BY_KEY.get(focus, (focus, 0.0, ""))
         focus_value = answers.get(focus)
         if isinstance(focus_value, (int, float)) and focus_value >= threshold:
-            focus_label = label
+            focus_label = _dim_text(focus, label, hint, lang)[0]
     models = merged.get("models") or [args.model]
     model_label = " → ".join(models)
-    lines = [
-        "## Jev review — advisory",
-        "",
-        f"**Veredito:** `{verdict}` · **Severidade:** {severity:.2f}/4 ({_severity_label(severity)}) · "
-        f"**Modelo:** `{model_label}` · **Perfil:** `{args.profile_label}`"
-        if isinstance(severity, (int, float))
-        else f"**Veredito:** `{verdict}` · **Severidade:** n/d · **Modelo:** `{model_label}` · **Perfil:** `{args.profile_label}`",
-        "",
-        "| Dimensão | Valor | Limiar | Leitura |",
-        "|---|---:|---:|---|",
-    ]
-    for key, label, threshold, _hint in dimensions:
+    verdict_word = _t(lang, "Veredito", "Verdict")
+    severity_word = _t(lang, "Severidade", "Severity")
+    model_word = _t(lang, "Modelo", "Model")
+    profile_word = _t(lang, "Perfil", "Profile")
+    table_headers = (
+        f"| {_t(lang, 'Dimensão', 'Dimension')} | {_t(lang, 'Valor', 'Value')} | "
+        f"{_t(lang, 'Limiar', 'Threshold')} | {_t(lang, 'Leitura', 'Reading')} |"
+    )
+    if isinstance(severity, (int, float)):
+        header = (
+            f"**{verdict_word}:** `{verdict}` · **{severity_word}:** {severity:.2f}/4 "
+            f"({_severity_label(severity, lang)}) · **{model_word}:** `{model_label}` · "
+            f"**{profile_word}:** `{args.profile_label}`"
+        )
+    else:
+        not_available = _t(lang, "n/d", "n/a")
+        header = (
+            f"**{verdict_word}:** `{verdict}` · **{severity_word}:** {not_available} · "
+            f"**{model_word}:** `{model_label}` · **{profile_word}:** `{args.profile_label}`"
+        )
+    lines = ["## Jev review — advisory", "", header, "", table_headers, "|---|---:|---:|---|"]
+    attention = _t(lang, "**atenção**", "**attention**")
+    for key, label, threshold, hint in dimensions:
         value = answers.get(key)
+        label = _dim_text(key, label, hint, lang)[0]
         status = "ok"
         if isinstance(value, (int, float)) and value >= threshold:
-            status = "**atenção**"
+            status = attention
         lines.append(f"| {label} | {_pct(value)} | {_pct(threshold)} | {status} |")
     if isinstance(severity, (int, float)):
-        lines.append(f"| Severidade | {severity:.2f}/4 | 3.00/4 | {'**atenção**' if severity >= 3 else 'ok'} |")
+        severity_status = attention if severity >= 3 else "ok"
+        lines.append(f"| {severity_word} | {severity:.2f}/4 | 3.00/4 | {severity_status} |")
     lines += [
         "",
-        f"**Recomendação do modelo:** `{recommendation or 'n/d'}` · **Foco:** {focus_label}",
+        f"**{_t(lang, 'Recomendação do modelo', 'Model recommendation')}:** "
+        f"`{recommendation or _t(lang, 'n/d', 'n/a')}` · "
+        f"**{_t(lang, 'Foco', 'Focus')}:** {focus_label}",
         "",
     ]
     if merged.get("fallback_used"):
         attempted = merged.get("attempted_models") or [args.model, *models]
-        lines += [f"**Fallback:** ativado (`{' → '.join(attempted)}`).", ""]
+        lines += [f"**Fallback:** {_t(lang, 'ativado', 'enabled')} (`{' → '.join(attempted)}`).", ""]
+    findings_word = _t(lang, "Achados", "Findings")
     if findings:
-        lines += ["**Achados:**", ""]
+        lines += [f"**{findings_word}:**", ""]
         for finding in findings:
             lines.append(f"- **{finding['label']}** — {finding['message']}. {finding['hint']}")
         lines.append("")
     else:
-        lines += ["**Achados:** nenhum limiar atingido.", ""]
+        lines += [f"**{findings_word}:** {_t(lang, 'nenhum limiar atingido.', 'no threshold reached.')}", ""]
         if recommendation == "comment" and verdict == "approve":
-            lines.append(
+            note = _t(
+                lang,
                 "> O modelo recomenda `comment`, mas nenhum limiar foi atingido e a severidade ficou abaixo de 2.0. "
-                "Veredito `approve`; trate o comentário como sinal fraco."
+                "Veredito `approve`; trate o comentário como sinal fraco.",
+                "> The model recommends `comment`, but no threshold was reached and severity stayed below 2.0. "
+                "Verdict `approve`; treat the comment as a weak signal.",
             )
-            lines.append("")
+            lines += [note, ""]
         elif recommendation == "block":
-            lines.append(
+            note = _t(
+                lang,
                 "> O modelo recomenda `block`, mas não passou de nenhum limiar nas dimensões. "
-                "Trate como sinal fraco e confirme manualmente."
+                "Trate como sinal fraco e confirme manualmente.",
+                "> The model recommends `block`, but no dimension passed its threshold. Treat it as a weak signal and confirm manually.",
             )
-            lines.append("")
+            lines += [note, ""]
     checks = [
         "`python -m ruff check src tests demo`",
         '`python -m pytest tests -q -m "not browser"`',
@@ -1246,32 +1390,47 @@ def _render_markdown(
         checks.append("Garanta `finally`/`close` em arquivos, browsers, contextos e diretórios temporários.")
     if any(finding["dimension"] == "backward_compat" for finding in findings):
         checks.append("Deprecie/migre a mudança de API/default antes de remover o comportamento antigo.")
-    lines += ["**Checklist local:**", ""] + [f"- [ ] {check}" for check in checks]
-    lines += [
-        "",
-        f"**Diff:** {len(prepared.files)} arquivo(s) revisado(s), {prepared.skipped_sensitive} sensível(is), "
-        f"{prepared.skipped_binary} binário(s), {prepared.skipped_generated} lock(s) omitido(s), "
-        f"{prepared.redactions} redação(ões), {len(prepared.chunks)} chunk(s), {prepared.chars} chars.",
-        "",
-        "**Arquivos:** " + (", ".join(f"`{file.path}`" for file in prepared.files) if prepared.files else "nenhum"),
-        "",
-    ]
+    if lang == "en":
+        checks = [CHECK_EN.get(check, check) for check in checks]
+    lines += [f"**{_t(lang, 'Checklist local', 'Local checklist')}:**", ""] + [f"- [ ] {check}" for check in checks]
+    if lang == "en":
+        files = ", ".join(f"`{file.path}`" for file in prepared.files) if prepared.files else "none"
+        diff_line = (
+            f"**Diff:** {len(prepared.files)} file(s) reviewed, {prepared.skipped_sensitive} sensitive, "
+            f"{prepared.skipped_binary} binary, {prepared.skipped_generated} lock(s) skipped, "
+            f"{prepared.redactions} redaction(s), {len(prepared.chunks)} chunk(s), {prepared.chars} chars."
+        )
+        files_line = f"**Files:** {files}"
+    else:
+        files = ", ".join(f"`{file.path}`" for file in prepared.files) if prepared.files else "nenhum"
+        diff_line = (
+            f"**Diff:** {len(prepared.files)} arquivo(s) revisado(s), {prepared.skipped_sensitive} sensível(is), "
+            f"{prepared.skipped_binary} binário(s), {prepared.skipped_generated} lock(s) omitido(s), "
+            f"{prepared.redactions} redação(ões), {len(prepared.chunks)} chunk(s), {prepared.chars} chars."
+        )
+        files_line = f"**Arquivos:** {files}"
+    lines += ["", diff_line, "", files_line, ""]
     usage = merged["usage"]
     if usage:
+        cost = f" · {_t(lang, 'custo', 'cost')} US$ {usage.get('cost', 0):.6f}" if "cost" in usage else ""
         lines.append(
-            f"**Uso:** {usage.get('input_tokens', '?')} input / {usage.get('output_tokens', '?')} output tokens"
-            + (f" · custo US$ {usage.get('cost', 0):.6f}" if "cost" in usage else "")
+            f"**{_t(lang, 'Uso', 'Usage')}:** {usage.get('input_tokens', '?')} input / "
+            f"{usage.get('output_tokens', '?')} output tokens{cost}"
         )
         lines.append("")
     lines += [
-        "> Sinal probabilístico do Jev; não substitui testes, lint ou revisão humana.",
+        _t(
+            lang,
+            "> Sinal probabilístico do Jev; não substitui testes, lint ou revisão humana.",
+            "> Probabilistic Jev signal; does not replace tests, lint or human review.",
+        ),
         "",
     ]
     summary = {
         "verdict": verdict,
         "critical": critical,
         "severity": severity,
-        "severity_label": _severity_label(severity) if isinstance(severity, (int, float)) else "desconhecida",
+        "severity_label": (_severity_label(severity, lang) if isinstance(severity, (int, float)) else _t(lang, "desconhecida", "unknown")),
         "recommendation": recommendation,
         "focus": focus,
         "findings": findings,
@@ -1295,6 +1454,7 @@ def _render_json(
         "fallback_model": args.fallback_models[0] if args.fallback_models else None,
         "fallback_models": args.fallback_models,
         "fallback_used": merged.get("fallback_used", False),
+        "lang": args.lang,
         "profile": args.profile_label,
         "packs": list(args.pack_ids),
         "endpoint": args.endpoint,
@@ -1360,6 +1520,7 @@ def _load_diff(args: argparse.Namespace) -> str:
 def _print_dry_run(prepared: PreparedDiff, args: argparse.Namespace) -> None:
     print("Jev dry-run (nenhuma chamada de rede)")
     print(f"model={args.model}")
+    print(f"lang={args.lang}")
     fallbacks = "off" if args.no_fallback or not args.fallback_models else ",".join(args.fallback_models)
     print(f"fallbacks={fallbacks}")
     print(f"profile={args.profile_label}")
@@ -1579,6 +1740,12 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help=(f"paid fallback chain, repeatable (default: {', '.join(DEFAULT_FALLBACK_MODELS)})"),
     )
     parser.add_argument("--no-fallback", action="store_true", help="disable the model fallback chain")
+    parser.add_argument(
+        "--lang",
+        choices=("pt-BR", "en"),
+        default="pt-BR",
+        help="report language (default: pt-BR; CI uses en)",
+    )
     parser.add_argument(
         "--profile",
         choices=tuple(PROFILE_PACKS),

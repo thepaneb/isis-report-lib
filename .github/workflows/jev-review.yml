@@ -106,6 +106,7 @@ jobs:
           python scripts/jev_review.py \
             --diff-file "$RUNNER_TEMP/jev.diff" \
             --profile "$PROFILE" \
+            --lang en \
             --output .jev/jev-review.md \
             --json-output .jev/jev-review.json \
             --quiet
@@ -133,7 +134,7 @@ jobs:
           fi
           {
             echo '<!-- jev-review -->'
-            echo "_Relatório advisory gerado por IA. Não substitui revisão humana._"
+            echo "_AI-generated advisory report. Not a substitute for human review._"
             echo
             echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
             echo

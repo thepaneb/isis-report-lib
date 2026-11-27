@@ -170,7 +170,8 @@ same-repo PRs and manual dispatch when the `OPENCODE_API_KEY` secret is set;
 it uploads `.jev/jev-review.md|json` as an artifact and job summary, and
 creates/updates one sticky advisory PR comment on same-repo PRs. It never
 gates the merge. Forks, drafts and Dependabot PRs are skipped; without the
-secret the job warns and skips.
+secret the job warns and skips. Local reports default to `pt-BR`; pass
+`--lang en` (the CI workflow does) for English reports/comments.
 
 ## Release preflight (local)
 
