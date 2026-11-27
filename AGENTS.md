@@ -163,7 +163,9 @@ python scripts/jev_review.py --self-test               # local checks only
 
 The key comes from `OPENCODE_API_KEY` or `--env-file` (never commit it).
 Reports go to `.jev/` (gitignored). This is **advisory**: never a CI gate, never
-a PR comment, never a replacement for the human review.
+a PR comment, never a replacement for the human review. CI does run
+`--self-test` plus `ruff`/`mypy`/format on both local tools in the `tooling`
+job (no key, no network).
 
 ## Release preflight (local)
 
